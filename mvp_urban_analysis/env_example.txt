@@ -1,0 +1,26 @@
+# Пример файла .env для настройки API ключей
+# Скопируйте этот файл в .env и заполните ваши API ключи
+
+# Яндекс.Геокодер API ключ (обязательно для геокодирования адресов)
+YANDEX_GEOCODER_API_KEY=your_yandex_geocoder_api_key_here
+
+# Яндекс.Карты API ключ (обязательно для отображения карты)
+YANDEX_MAPS_API_KEY=your_yandex_maps_api_key_here
+
+# OpenAI API ключ (опционально для LLM анализа)
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Google Gemini API ключ (опционально для LLM анализа)
+GOOGLE_GEMINI_API_KEY=your_google_gemini_api_key_here
+
+# YandexGPT API ключ (опционально для LLM анализа)
+YANDEXGPT_API_KEY=your_yandexgpt_api_key_here
+
+# GigaChat API ключ (опционально для LLM анализа)
+GIGACHAT_API_KEY=your_gigachat_api_key_here
+
+# Qwen API ключ (опционально для LLM анализа)
+QWEN_API_KEY=your_qwen_api_key_here
+
+# DeepSeek API ключ (опционально для LLM анализа)
+DEEPSEEK_API_KEY=your_deepseek_api_key_here 

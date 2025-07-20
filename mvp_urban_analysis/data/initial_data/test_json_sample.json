@@ -1,0 +1,15 @@
+{
+  "group": "school",
+  "name": "Школа №123",
+  "address": "ул. Ленина, 15, Москва",
+  "review_text": "Отличная школа с хорошими учителями. Дети довольны обучением.",
+  "date": "2024-01-15",
+  "user_name": "Родитель_1",
+  "rating": 5,
+  "answer_text": "Спасибо за отзыв! Мы рады, что вам нравится наша школа.",
+  "latitude": 55.7558,
+  "longitude": 37.6176,
+  "rating_object": 4.8,
+  "review_count_from_api": 150,
+  "review_count_fetched": 120
+} 

@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Анализ данных городской среды</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=9ebd7ddf-330b-4b61-97f4-71b8c488a9a7&lang=ru_RU" type="text/javascript"></script>
+    <style>
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            background-color: #f8f9fa;
+            transition: all 0.3s ease;
+            margin-bottom: 15px;
+        }
+        .upload-area:hover {
+            border-color: #007bff;
+            background-color: #e3f2fd;
+        }
+        .upload-area.dragover {
+            border-color: #28a745;
+            background-color: #d4edda;
+        }
+        .status-card {
+            margin-top: 15px;
+        }
+        .archive-info {
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            font-size: 0.9em;
+        }
+        .completeness-legend {
+            margin-bottom: 10px;
+        }
+        .completeness-indicator {
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .archive-info .row {
+            margin-top: 10px;
+        }
+        .archive-info .col-md-6 {
+            padding: 0 10px;
+        }
+        .archive-info .col-md-6:first-child {
+            border-right: 1px solid #dee2e6;
+        }
+        .loading {
+            display: none;
+        }
+        .result-table {
+            margin-top: 15px;
+        }
+        .map-container {
+            height: 1000px;
+            width: 100%;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .map-controls {
+            margin-bottom: 10px;
+        }
+        .analysis-results {
+            height: 1000px;
+            overflow-y: auto;
+        }
+        .left-panel {
+            height: 100vh;
+            overflow-y: auto;
+        }
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+        .card-body {
+            padding: 15px;
+        }
+        .card-header {
+            padding: 10px 15px;
+        }
+        .alert {
+            padding: 10px 15px;
+            margin-bottom: 10px;
+        }
+        .map-legend {
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 5px;
+            padding: 10px;
+            font-size: 0.8em;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            border: 1px solid #ccc;
+        }
+        .legend-text {
+            font-size: 0.75em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid mt-3">
+        <div class="row">
+            <div class="col-12">
+                <h1 class="text-center mb-3">
+                    <i class="fas fa-city"></i>
+                    Анализ данных городской среды
+                </h1>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Левая панель: Загрузка файлов и управление архивом -->
+            <div class="col-md-3">
+                <div class="left-panel">
+                    <!-- Загрузка файлов -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6><i class="fas fa-upload"></i> Загрузка файла</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="upload-area" id="uploadArea">
+                                <i class="fas fa-cloud-upload-alt fa-2x text-muted mb-2"></i>
+                                <h6>Перетащите файл сюда</h6>
+                                <p class="text-muted small">CSV, JSON, Excel</p>
+                                <input type="file" id="fileInput" accept=".csv,.json,.xlsx,.xls" style="display: none;">
+                                <button class="btn btn-primary btn-sm" onclick="document.getElementById('fileInput').click()">
+                                    <i class="fas fa-folder-open"></i> Выбрать файл
+                                </button>
+                            </div>
+                            
+                            <!-- Настройки для Excel файлов -->
+                            <div id="excelSettings" style="display: none;" class="mt-2">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="fas fa-cog"></i> Настройки Excel</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-2">
+                                            <label for="sheetSelect" class="form-label small">Лист:</label>
+                                            <select class="form-select form-select-sm" id="sheetSelect">
+                                                <option value="">Автоматический выбор</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label for="filterSelect" class="form-label small">Фильтры:</label>
+                                            <select class="form-select form-select-sm" id="filterSelect">
+                                                <option value="">Без фильтров</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Настройки методов анализа -->
+                            <div id="analysisSettings" class="mt-2">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="fas fa-brain"></i> Методы анализа</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="analysisMethodsContainer">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" value="classical" id="methodClassical" checked>
+                                                <label class="form-check-label small" for="methodClassical">
+                                                    Классический анализ
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="loading text-center mt-2" id="loading">
+                                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                    <span class="visually-hidden">Загрузка...</span>
+                                </div>
+                                <p class="small mt-1">Обработка файла...</p>
+                            </div>
+                            
+                            <div class="status-card" id="statusCard" style="display: none;">
+                                <div class="alert alert-sm" id="statusAlert" role="alert"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Управление архивом -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h6><i class="fas fa-archive"></i> Управление архивом</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-6">
+                                    <div class="d-grid gap-2">
+                                        <button class="btn btn-success btn-sm" onclick="downloadArchive()">
+                                            <i class="fas fa-download"></i> Скачать архив
+                                        </button>
+                                        <button class="btn btn-warning btn-sm" onclick="clearArchive()">
+                                            <i class="fas fa-trash"></i> Очистить архив
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="d-grid gap-2">
+                                        <button class="btn btn-outline-info btn-sm" onclick="getCSVFieldsInfo()">
+                                            <i class="fas fa-list"></i> Поддерживаемые поля
+                                        </button>
+                                        <button class="btn btn-secondary btn-sm" onclick="getSampleData()">
+                                            <i class="fas fa-database"></i> Образец данных
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="archive-info" id="archiveInfo" style="display: none;">
+                                <h6>Информация об архиве:</h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div id="archiveInfoContent"></div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div id="completenessInfoContent"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Центральная панель: Карта -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h6><i class="fas fa-map"></i> Карта объектов</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="map-controls">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <input type="checkbox" class="btn-check" id="showArchive" checked>
+                                <label class="btn btn-outline-primary" for="showArchive">
+                                    <i class="fas fa-archive"></i> Архив
+                                </label>
+                                
+                                <input type="checkbox" class="btn-check" id="showNew">
+                                <label class="btn btn-outline-success" for="showNew">
+                                    <i class="fas fa-plus"></i> Новые
+                                </label>
+                            </div>
+                            
+                            <!-- Переключатель типа групп -->
+                            <div class="mt-2">
+                                <label class="form-label"><strong>Тип групп на карте:</strong></label>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <input type="radio" class="btn-check" name="groupType" id="supplierGroups" value="supplier" checked>
+                                    <label class="btn btn-outline-info" for="supplierGroups">
+                                        <i class="fas fa-tag"></i> От поставщика
+                                    </label>
+                                    
+                                    <input type="radio" class="btn-check" name="groupType" id="determinedGroups" value="determined">
+                                    <label class="btn btn-outline-warning" for="determinedGroups">
+                                        <i class="fas fa-brain"></i> Определенные
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <!-- Легенда карты -->
+                            <div class="map-legend mt-2">
+                                <h6><i class="fas fa-palette"></i> Легенда:</h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="legend-item">
+                                            <span class="legend-color" style="background-color: #ff0000;"></span>
+                                            <span class="legend-text">Школы</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <span class="legend-color" style="background-color: #00ff00;"></span>
+                                            <span class="legend-text">Больницы</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <span class="legend-color" style="background-color: #0000ff;"></span>
+                                            <span class="legend-text">Аптеки</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <span class="legend-color" style="background-color: #ffff00;"></span>
+                                            <span class="legend-text">Детские сады</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="legend-item">
+                                            <span class="legend-color" style="background-color: #ff00ff;"></span>
+                                            <span class="legend-text">Поликлиники</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <span class="legend-color" style="background-color: #00ffff;"></span>
+                                            <span class="legend-text">Университеты</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <span class="legend-color" style="background-color: #ff8800;"></span>
+                                            <span class="legend-text">Торговые центры</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <span class="legend-color" style="background-color: #8800ff;"></span>
+                                            <span class="legend-text">Жилые комплексы</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="map-container" id="map"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Правая панель: Результаты анализа -->
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-header">
+                        <h6><i class="fas fa-chart-bar"></i> Результаты анализа</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="analysis-results" id="resultsContent">
+                            <p class="text-muted text-center">Загрузите файл для начала анализа</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Drag and drop функциональность
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const loading = document.getElementById('loading');
+        const statusCard = document.getElementById('statusCard');
+        const statusAlert = document.getElementById('statusAlert');
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFileSelect();
+            }
+        });
+
+        fileInput.addEventListener('change', handleFileSelect);
+
+        function handleFileSelect() {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            // Очищаем предыдущий выбор
+            fileInput.value = '';
+
+            // Проверяем тип файла
+            const allowedExtensions = ['.csv', '.json', '.xlsx', '.xls'];
+            const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+            
+            if (!allowedExtensions.includes(fileExtension)) {
+                showStatus('Неподдерживаемый тип файла. Поддерживаются: CSV, JSON, Excel', 'danger');
+                return;
+            }
+
+            // Получаем информацию о файле
+            getFileInfo(file);
+        }
+
+        function getFileInfo(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/file/info', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    handleFileUpload(file, data.info);
+                } else {
+                    showStatus(data.error, 'danger');
+                }
+            })
+            .catch(error => {
+                showStatus('Ошибка получения информации о файле: ' + error.message, 'danger');
+            });
+        }
+
+        function handleFileUpload(file, fileInfo) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            // Добавляем настройки Excel если это Excel файл
+            if (fileInfo.file_type === 'excel') {
+                const sheetSelect = document.getElementById('sheetSelect');
+                const filterSelect = document.getElementById('filterSelect');
+                
+                if (sheetSelect.value) {
+                    formData.append('sheet_name', sheetSelect.value);
+                }
+                if (filterSelect.value) {
+                    formData.append('filters', filterSelect.value);
+                }
+            }
+
+            // Добавляем выбранные методы анализа
+            const selectedMethods = [];
+            document.querySelectorAll('#analysisMethodsContainer input[type="checkbox"]:checked').forEach(checkbox => {
+                selectedMethods.push(checkbox.value);
+            });
+            formData.append('analysis_methods', JSON.stringify(selectedMethods));
+
+            showLoading(true);
+            showStatus('', '');
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                showLoading(false);
+                if (data.success) {
+                    showStatus(data.message, 'success');
+                    getArchiveInfo();
+                    updateMap(); // Обновляем карту после успешной загрузки
+                    
+                    // Отображаем результаты анализа
+                    if (data.analysis_results) {
+                        displayAnalysisResults(data.analysis_results);
+                    }
+                } else if (data.error === 'group_required') {
+                    // Показываем модальное окно для выбора группы
+                    showGroupSelectionModal(data.message, data.total_records, data.empty_group_records, file, fileInfo);
+                } else {
+                    showStatus(data.error, 'danger');
+                }
+            })
+            .catch(error => {
+                showLoading(false);
+                showStatus('Ошибка загрузки файла: ' + error.message, 'danger');
+            });
+        }
+
+        function showGroupSelectionModal(message, totalRecords, emptyGroupRecords, file, fileInfo) {
+            // Сохраняем информацию о файле в глобальной переменной
+            window.currentFile = file;
+            window.currentFileInfo = fileInfo;
+            
+            // Создаем модальное окно для выбора группы
+            const modalHtml = `
+                <div class="modal fade" id="groupSelectionModal" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">
+                                    <i class="fas fa-exclamation-triangle text-warning"></i> 
+                                    Требуется выбор группы
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="alert alert-warning">
+                                    <strong>${message}</strong>
+                                </div>
+                                <p><strong>Всего записей:</strong> ${totalRecords}</p>
+                                <p><strong>Записей без группы:</strong> ${emptyGroupRecords}</p>
+                                
+                                <div class="mb-3">
+                                    <label for="groupSelect" class="form-label">
+                                        <strong>Выберите группу для данных:</strong>
+                                    </label>
+                                    <select class="form-select" id="groupSelect" required>
+                                        <option value="">Выберите группу...</option>
+                                        <option value="university">Университеты</option>
+                                        <option value="school">Школы</option>
+                                        <option value="hospital">Больницы</option>
+                                        <option value="pharmacy">Аптеки</option>
+                                        <option value="kindergarden">Детские сады</option>
+                                        <option value="polyclinic">Поликлиники</option>
+                                        <option value="shopmall">Торговые центры</option>
+                                        <option value="resident_complexes">Жилые комплексы</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="alert alert-info">
+                                    <small>
+                                        <i class="fas fa-info-circle"></i>
+                                        <strong>Примечание:</strong> Группа будет применена ко всем записям в файле. 
+                                        Система также автоматически определит группу из содержимого данных и сохранит её в отдельном поле.
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                                <button type="button" class="btn btn-primary" onclick="uploadWithGroup()">
+                                    <i class="fas fa-upload"></i> Загрузить с выбранной группой
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Удаляем предыдущее модальное окно, если оно есть
+            const existingModal = document.getElementById('groupSelectionModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            // Добавляем новое модальное окно
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            
+            // Показываем модальное окно
+            const modal = new bootstrap.Modal(document.getElementById('groupSelectionModal'));
+            modal.show();
+        }
+
+        function uploadWithGroup() {
+            const groupSelect = document.getElementById('groupSelect');
+            const selectedGroup = groupSelect.value;
+            
+            if (!selectedGroup) {
+                alert('Пожалуйста, выберите группу');
+                return;
+            }
+            
+            // Получаем сохраненные данные о файле
+            const file = window.currentFile;
+            const fileInfo = window.currentFileInfo;
+            
+            if (!file) {
+                showStatus('Файл не найден. Пожалуйста, выберите файл снова.', 'danger');
+                return;
+            }
+            
+            // Закрываем модальное окно
+            const modal = bootstrap.Modal.getInstance(document.getElementById('groupSelectionModal'));
+            modal.hide();
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('group', selectedGroup);
+
+            // Добавляем настройки Excel если это Excel файл
+            if (fileInfo && fileInfo.file_type === 'excel') {
+                const sheetSelect = document.getElementById('sheetSelect');
+                const filterSelect = document.getElementById('filterSelect');
+                
+                if (sheetSelect && sheetSelect.value) {
+                    formData.append('sheet_name', sheetSelect.value);
+                }
+                if (filterSelect && filterSelect.value) {
+                    formData.append('filters', filterSelect.value);
+                }
+            }
+
+            // Добавляем выбранные методы анализа
+            const selectedMethods = [];
+            document.querySelectorAll('#analysisMethodsContainer input[type="checkbox"]:checked').forEach(checkbox => {
+                selectedMethods.push(checkbox.value);
+            });
+            formData.append('analysis_methods', JSON.stringify(selectedMethods));
+
+            showLoading(true);
+            showStatus('', '');
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                showLoading(false);
+                if (data.success) {
+                    showStatus(data.message, 'success');
+                    getArchiveInfo();
+                    updateMap(); // Обновляем карту после успешной загрузки
+                    
+                    // Отображаем результаты анализа
+                    if (data.analysis_results) {
+                        displayAnalysisResults(data.analysis_results);
+                    }
+                } else {
+                    showStatus(data.error, 'danger');
+                }
+            })
+            .catch(error => {
+                showLoading(false);
+                showStatus('Ошибка загрузки файла: ' + error.message, 'danger');
+            });
+        }
+
+        function showLoading(show) {
+            loading.style.display = show ? 'block' : 'none';
+        }
+
+        function showStatus(message, type) {
+            if (message) {
+                statusAlert.className = `alert alert-${type} alert-sm`;
+                statusAlert.textContent = message;
+                statusCard.style.display = 'block';
+            } else {
+                statusCard.style.display = 'none';
+            }
+        }
+
+        function getArchiveInfo() {
+            fetch('/archive/info')
+                .then(response => response.json())
+                .then(data => {
+                    const infoDiv = document.getElementById('archiveInfo');
+                    const contentDiv = document.getElementById('archiveInfoContent');
+                    const completenessDiv = document.getElementById('completenessInfoContent');
+                    
+                    if (data.total_records > 0) {
+                        // Левая колонка - основная информация об архиве
+                        let mainHtml = `<p><strong>Всего записей:</strong> ${data.total_records}</p>`;
+                        
+                        // Группы от поставщика
+                        if (data.groups && Object.keys(data.groups).length > 0) {
+                            mainHtml += '<p><strong>По группам от поставщика:</strong></p><ul>';
+                            for (const [group, count] of Object.entries(data.groups)) {
+                                mainHtml += `<li>${group}: ${count}</li>`;
+                            }
+                            mainHtml += '</ul>';
+                        }
+                        
+                        // Определенные группы
+                        if (data.determined_groups && Object.keys(data.determined_groups).length > 0) {
+                            mainHtml += '<p><strong>По определенным группам:</strong></p><ul>';
+                            for (const [group, count] of Object.entries(data.determined_groups)) {
+                                mainHtml += `<li>${group}: ${count}</li>`;
+                            }
+                            mainHtml += '</ul>';
+                        }
+                        
+                        // Если нет групп от поставщика, но есть определенные
+                        if ((!data.groups || Object.keys(data.groups).length === 0) && 
+                            data.determined_groups && Object.keys(data.determined_groups).length > 0) {
+                            mainHtml += '<p><em>Примечание: Группы от поставщика не указаны, показаны автоматически определенные группы</em></p>';
+                        }
+                        
+                        if (data.date_range.min && data.date_range.max) {
+                            mainHtml += `<p><strong>Период:</strong> ${data.date_range.min} - ${data.date_range.max}</p>`;
+                        }
+                        
+                        contentDiv.innerHTML = mainHtml;
+                        
+                        // Правая колонка - информация о заполненности полей
+                        if (data.field_completeness) {
+                            let completenessHtml = '<h6><i class="fas fa-chart-pie"></i> Заполненность полей:</h6>';
+                            completenessHtml += '<div class="completeness-legend">';
+                            for (const [field, percentage] of Object.entries(data.field_completeness)) {
+                                const color = getCompletenessColor(percentage);
+                                completenessHtml += `<div class="d-flex align-items-center mb-2">`;
+                                completenessHtml += `<div class="completeness-indicator" style="background-color: ${color}; width: 20px; height: 20px; border-radius: 3px; margin-right: 10px;"></div>`;
+                                completenessHtml += `<span>${getFieldDisplayName(field)}: <strong>${percentage}%</strong></span>`;
+                                completenessHtml += `</div>`;
+                            }
+                            completenessHtml += '</div>';
+                            completenessHtml += '<div class="mt-3">';
+                            completenessHtml += '<canvas id="completenessChart" width="300" height="200"></canvas>';
+                            completenessHtml += '</div>';
+                            
+                            completenessDiv.innerHTML = completenessHtml;
+                            
+                            // Создаем диаграмму
+                            setTimeout(() => {
+                                createCompletenessChart(data.field_completeness);
+                            }, 100);
+                        } else {
+                            completenessDiv.innerHTML = '<p class="text-muted">Нет данных о заполненности</p>';
+                        }
+                        
+                        infoDiv.style.display = 'block';
+                    } else {
+                        contentDiv.innerHTML = '<p class="text-muted">Архив пуст</p>';
+                        completenessDiv.innerHTML = '<p class="text-muted">Нет данных</p>';
+                        infoDiv.style.display = 'block';
+                    }
+                    
+                    // Обновляем карту после получения информации об архиве
+                    updateMap();
+                })
+                .catch(error => {
+                    console.error('Ошибка получения информации об архиве:', error);
+                });
+        }
+
+        function downloadArchive() {
+            window.open('/archive/download', '_blank');
+        }
+
+        function clearArchive() {
+            if (confirm('Вы уверены, что хотите очистить архив? Это действие нельзя отменить.')) {
+                fetch('/archive/clear', {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showStatus(data.message, 'success');
+                        getArchiveInfo();
+                        updateMap();
+                    } else {
+                        showStatus(data.error, 'danger');
+                    }
+                })
+                .catch(error => {
+                    showStatus('Ошибка очистки архива: ' + error.message, 'danger');
+                });
+            }
+        }
+
+        function getSampleData() {
+            fetch('/data/sample')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayResults(data.data, data.columns);
+                    } else {
+                        showStatus(data.error, 'danger');
+                    }
+                })
+                .catch(error => {
+                    showStatus('Ошибка получения данных: ' + error.message, 'danger');
+                });
+        }
+
+        function getCSVFieldsInfo() {
+            fetch('/csv/fields')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayCSVFieldsInfo(data);
+                    } else {
+                        showStatus(data.error, 'danger');
+                    }
+                })
+                .catch(error => {
+                    showStatus('Ошибка получения информации о полях: ' + error.message, 'danger');
+                });
+        }
+
+        function displayCSVFieldsInfo(data) {
+            const resultsContent = document.getElementById('resultsContent');
+            
+            let html = '<div class="alert alert-info alert-sm">';
+            html += '<h6><i class="fas fa-list"></i> Поддерживаемые поля CSV:</h6>';
+            
+            html += '<div class="row">';
+            html += '<div class="col-md-6">';
+            html += '<h6>Обязательные для обработки:</h6>';
+            html += '<ul>';
+            data.required_fields_processing.forEach(field => {
+                html += `<li><code>${field}</code></li>`;
+            });
+            html += '</ul>';
+            
+            html += '<h6>Обязательные для архива:</h6>';
+            html += '<ul>';
+            data.required_fields_archive.forEach(field => {
+                html += `<li><code>${field}</code></li>`;
+            });
+            html += '</ul>';
+            html += '</div>';
+            
+            html += '<div class="col-md-6">';
+            html += '<h6>Опциональные поля:</h6>';
+            html += '<ul>';
+            data.optional_fields.forEach(field => {
+                html += `<li><code>${field}</code></li>`;
+            });
+            html += '</ul>';
+            html += '</div>';
+            html += '</div>';
+            
+            html += '</div>';
+            
+            resultsContent.innerHTML = html;
+        }
+
+        function displayResults(data, columns) {
+            const resultsContent = document.getElementById('resultsContent');
+            
+            if (data.length === 0) {
+                resultsContent.innerHTML = '<p class="text-muted text-center">Нет данных для отображения</p>';
+                return;
+            }
+
+            let html = '<div class="table-responsive"><table class="table table-striped table-sm">';
+            
+            // Заголовки
+            html += '<thead><tr>';
+            columns.forEach(column => {
+                html += `<th>${getColumnDisplayName(column)}</th>`;
+            });
+            html += '</tr></thead>';
+            
+            // Данные
+            html += '<tbody>';
+            data.forEach(row => {
+                html += '<tr>';
+                columns.forEach(column => {
+                    let value = row[column] || '';
+                    
+                    // Специальное форматирование для некоторых полей
+                    if (column === 'sentiment') {
+                        value = getSentimentBadge(value);
+                    } else if (column === 'sentiment_score') {
+                        value = (parseFloat(value) * 100).toFixed(1) + '%';
+                    } else if (column === 'review_text' && value.length > 100) {
+                        value = value.substring(0, 100) + '...';
+                    }
+                    
+                    html += `<td>${value}</td>`;
+                });
+                html += '</tr>';
+            });
+            html += '</tbody></table></div>';
+            
+            resultsContent.innerHTML = html;
+        }
+
+        function displayAnalysisResults(analysisResults) {
+            const resultsContent = document.getElementById('resultsContent');
+            
+            let html = '<div class="alert alert-success alert-sm">';
+            html += '<h6><i class="fas fa-check-circle"></i> Анализ завершен</h6>';
+            html += `<p>Обработано записей: ${analysisResults.total_records || 'N/A'}</p>`;
+            html += `<p>Добавлено в архив: ${analysisResults.added_to_archive || 'N/A'}</p>`;
+            html += `<p>Исключено (без адреса): ${analysisResults.excluded_no_address || 'N/A'}</p>`;
+            html += '</div>';
+            
+            if (analysisResults.methods_used) {
+                html += '<div class="alert alert-info alert-sm">';
+                html += '<h6><i class="fas fa-brain"></i> Использованные методы:</h6>';
+                html += '<ul>';
+                analysisResults.methods_used.forEach(method => {
+                    html += `<li>${getMethodDisplayName(method)}</li>`;
+                });
+                html += '</ul>';
+                html += '</div>';
+            }
+            
+            if (analysisResults.data && analysisResults.data.length > 0) {
+                html += '<div class="row">';
+                html += '<div class="col-md-12">';
+                html += '<h6><i class="fas fa-table"></i> Результаты анализа (первые 10 записей):</h6>';
+                html += '<div class="table-responsive"><table class="table table-striped table-sm">';
+                
+                // Заголовки
+                html += '<thead><tr>';
+                analysisResults.columns.forEach(column => {
+                    html += `<th>${getColumnDisplayName(column)}</th>`;
+                });
+                html += '</tr></thead>';
+                
+                // Данные
+                html += '<tbody>';
+                analysisResults.data.forEach(row => {
+                    html += '<tr>';
+                    analysisResults.columns.forEach(column => {
+                        let value = row[column] || '';
+                        
+                        // Специальное форматирование
+                        if (column.includes('_sentiment')) {
+                            value = getSentimentBadge(value);
+                        } else if (column.includes('_sentiment_score')) {
+                            value = (parseFloat(value) * 100).toFixed(1) + '%';
+                        } else if (column === 'review_text' && value.length > 50) {
+                            value = value.substring(0, 50) + '...';
+                        }
+                        
+                        html += `<td>${value}</td>`;
+                    });
+                    html += '</tr>';
+                });
+                html += '</tbody></table></div>';
+                html += '</div>';
+                html += '</div>';
+            }
+            
+            html += '</div>';
+            
+            resultsContent.innerHTML = html;
+        }
+        
+        function getMethodDisplayName(method) {
+            const methodNames = {
+                'classical': 'Классический анализ',
+                'openai_gpt': 'OpenAI GPT',
+                'google_gemini': 'Google Gemini',
+                'yandex_gpt': 'YandexGPT',
+                'gigachat': 'GigaChat',
+                'qwen_turbo': 'Qwen Turbo',
+                'deepseek_chat': 'DeepSeek Chat'
+            };
+            return methodNames[method] || method;
+        }
+
+        function getColumnDisplayName(column) {
+            const columnNames = {
+                'group': 'Группа',
+                'name': 'Название',
+                'address': 'Адрес',
+                'review_text': 'Текст отзыва',
+                'rating': 'Рейтинг',
+                'sentiment': 'Сентимент',
+                'sentiment_score': 'Оценка сентимента',
+                'review_type': 'Тип отзыва'
+            };
+            return columnNames[column] || column;
+        }
+
+        function getSentimentBadge(sentiment) {
+            const badges = {
+                'positive': '<span class="badge bg-success">Положительный</span>',
+                'negative': '<span class="badge bg-danger">Отрицательный</span>',
+                'neutral': '<span class="badge bg-secondary">Нейтральный</span>'
+            };
+            return badges[sentiment] || sentiment;
+        }
+
+        // Вспомогательные функции для диаграммы заполненности
+        function getCompletenessColor(percentage) {
+            if (percentage >= 80) return '#28a745'; // Зеленый для высокого заполнения
+            if (percentage >= 50) return '#ffc107'; // Желтый для среднего
+            return '#dc3545'; // Красный для низкого
+        }
+        
+        function getFieldDisplayName(field) {
+            const fieldNames = {
+                'review_text': 'Текст отзыва',
+                'rating': 'Рейтинг',
+                'answer_text': 'Ответ',
+                'latitude_auto': 'Широта (авто)',
+                'longitude_auto': 'Долгота (авто)',
+                'district_auto': 'Район (авто)'
+            };
+            return fieldNames[field] || field;
+        }
+        
+        function createCompletenessChart(completenessData) {
+            const ctx = document.getElementById('completenessChart');
+            if (!ctx) return;
+            
+            // Уничтожаем предыдущую диаграмму если она существует
+            if (window.completenessChart) {
+                window.completenessChart.destroy();
+            }
+            
+            const labels = Object.keys(completenessData).map(getFieldDisplayName);
+            const data = Object.values(completenessData);
+            const colors = data.map(getCompletenessColor);
+            
+            window.completenessChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Заполненность (%)',
+                        data: data,
+                        backgroundColor: colors,
+                        borderColor: colors.map(color => color.replace('0.8', '1')),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.y + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Инициализация карты
+        let myMap;
+        let archivePlacemarks = [];
+        let newPlacemarks = [];
+
+        ymaps.ready(init);
+
+        function init() {
+            myMap = new ymaps.Map('map', {
+                center: [55.7558, 37.6176], // Москва
+                zoom: 10,
+                controls: ['zoomControl', 'fullscreenControl']
+            });
+
+            // Загружаем данные карты
+            updateMap();
+
+            // Обработчики переключателей
+            document.getElementById('showArchive').addEventListener('change', updateMapVisibility);
+            document.getElementById('showNew').addEventListener('change', updateMapVisibility);
+            
+            // Обработчики переключателя типа групп
+            document.getElementById('supplierGroups').addEventListener('change', updateMap);
+            document.getElementById('determinedGroups').addEventListener('change', updateMap);
+        }
+
+        function updateMap() {
+            // Получаем выбранный тип групп
+            const groupType = document.querySelector('input[name="groupType"]:checked').value;
+            
+            fetch(`/map/data?group_type=${groupType}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Очищаем старые метки
+                    archivePlacemarks.forEach(placemark => {
+                        myMap.geoObjects.remove(placemark);
+                    });
+                    newPlacemarks.forEach(placemark => {
+                        myMap.geoObjects.remove(placemark);
+                    });
+                    archivePlacemarks = [];
+                    newPlacemarks = [];
+
+                    // Добавляем архивные объекты
+                    if (data.archive) {
+                        data.archive.forEach(group => {
+                            const color = getGroupColor(group.group);
+                            group.points.forEach(point => {
+                                const placemark = new ymaps.Placemark(
+                                    [point.latitude, point.longitude],
+                                    {
+                                        balloonContent: `
+                                            <div style="padding: 10px;">
+                                                <h6>${point.name}</h6>
+                                                <p><strong>Адрес:</strong> ${point.address}</p>
+                                                <p><strong>Район:</strong> ${point.district}</p>
+                                                <p><strong>Группа:</strong> ${group.group}</p>
+                                                ${point.determined_group ? `<p><strong>Определенная группа:</strong> ${point.determined_group}</p>` : ''}
+                                            </div>
+                                        `
+                                    },
+                                    {
+                                        preset: 'islands#circleDotIcon',
+                                        iconColor: color,
+                                        iconSize: [8, 8]
+                                    }
+                                );
+                                archivePlacemarks.push(placemark);
+                                if (document.getElementById('showArchive').checked) {
+                                    myMap.geoObjects.add(placemark);
+                                }
+                            });
+                        });
+                    }
+
+                    // Добавляем новые объекты
+                    if (data.new) {
+                        data.new.forEach(group => {
+                            const color = getGroupColor(group.group);
+                            group.points.forEach(point => {
+                                const placemark = new ymaps.Placemark(
+                                    [point.latitude, point.longitude],
+                                    {
+                                        balloonContent: `
+                                            <div style="padding: 10px;">
+                                                <h6>${point.name}</h6>
+                                                <p><strong>Адрес:</strong> ${point.address}</p>
+                                                <p><strong>Район:</strong> ${point.district}</p>
+                                                <p><strong>Группа:</strong> ${group.group}</p>
+                                                ${point.determined_group ? `<p><strong>Определенная группа:</strong> ${point.determined_group}</p>` : ''}
+                                            </div>
+                                        `
+                                    },
+                                    {
+                                        preset: 'islands#circleDotIcon',
+                                        iconColor: color,
+                                        iconSize: [10, 10]
+                                    }
+                                );
+                                newPlacemarks.push(placemark);
+                                if (document.getElementById('showNew').checked) {
+                                    myMap.geoObjects.add(placemark);
+                                }
+                            });
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка загрузки данных карты:', error);
+                });
+        }
+
+        function updateMapVisibility() {
+            const showArchive = document.getElementById('showArchive').checked;
+            const showNew = document.getElementById('showNew').checked;
+
+            // Обновляем видимость архивных меток
+            archivePlacemarks.forEach(placemark => {
+                if (showArchive) {
+                    myMap.geoObjects.add(placemark);
+                } else {
+                    myMap.geoObjects.remove(placemark);
+                }
+            });
+
+            // Обновляем видимость новых меток
+            newPlacemarks.forEach(placemark => {
+                if (showNew) {
+                    myMap.geoObjects.add(placemark);
+                } else {
+                    myMap.geoObjects.remove(placemark);
+                }
+            });
+        }
+
+        function getGroupColor(group) {
+            const colors = {
+                'school': '#ff0000',        // Красный
+                'hospital': '#00ff00',      // Зеленый
+                'pharmacy': '#0000ff',      // Синий
+                'kindergarden': '#ffff00',  // Желтый
+                'polyclinic': '#ff00ff',    // Пурпурный
+                'university': '#00ffff',    // Голубой
+                'shopmall': '#ff8800',      // Оранжевый
+                'resident_complexes': '#8800ff' // Фиолетовый
+            };
+            return colors[group] || '#999999'; // Серый по умолчанию
+        }
+
+        // Загружаем информацию об архиве и методы анализа при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            getArchiveInfo();
+            loadAnalysisMethods();
+        });
+        
+        function loadAnalysisMethods() {
+            fetch('/analysis/methods')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        updateAnalysisMethodsUI(data.methods);
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка загрузки методов анализа:', error);
+                });
+        }
+        
+        function updateAnalysisMethodsUI(methods) {
+            const container = document.getElementById('analysisMethodsContainer');
+            container.innerHTML = '';
+            
+            methods.forEach(method => {
+                const div = document.createElement('div');
+                div.className = 'form-check';
+                
+                const input = document.createElement('input');
+                input.className = 'form-check-input';
+                input.type = 'checkbox';
+                input.value = method.id;
+                input.id = `method${method.id.charAt(0).toUpperCase() + method.id.slice(1)}`;
+                input.checked = method.id === 'classical'; // По умолчанию выбран классический метод
+                
+                const label = document.createElement('label');
+                label.className = 'form-check-label small';
+                label.htmlFor = input.id;
+                label.textContent = method.name;
+                
+                div.appendChild(input);
+                div.appendChild(label);
+                container.appendChild(div);
+            });
+        }
+    </script>
+</body>
+</html> 

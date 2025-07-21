@@ -427,6 +427,12 @@ class CSVProcessor:
             # Приводим к стандартному порядку полей
             df = df.reindex(columns=self.supported_fields)
             
+            # Определяем группу, если determined_group пустое
+            for idx, row in df.iterrows():
+                if not row.get('determined_group'):
+                    group = self._determine_group_from_content(row.get('review_text', ''), row.get('name', ''))
+                    df.at[idx, 'determined_group'] = group
+            
             logger.info(f"Обработан CSV файл: {len(df)} строк")
             return df
             

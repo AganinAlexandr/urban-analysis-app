@@ -243,25 +243,92 @@
             </div>
 
             <!-- Центральная панель: Карта -->
-            <div class="col-md-6">
+            <div class="col-md-5">
                 <div class="card">
                     <div class="card-header">
                         <h6><i class="fas fa-map"></i> Карта объектов</h6>
                     </div>
                     <div class="card-body">
                         <div class="map-controls">
-                            <div class="btn-group btn-group-sm" role="group">
-                                <input type="checkbox" class="btn-check" id="showArchive" checked>
-                                <label class="btn btn-outline-primary" for="showArchive">
-                                    <i class="fas fa-archive"></i> Архив
-                                </label>
-                                
-                                <input type="checkbox" class="btn-check" id="showNew">
-                                <label class="btn btn-outline-success" for="showNew">
-                                    <i class="fas fa-plus"></i> Новые
-                                </label>
+                            <!-- Фильтры по группам -->
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Фильтры по группам:</strong></label>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="filter_school" value="school" checked>
+                                            <label class="form-check-label" for="filter_school">Школы</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="filter_hospital" value="hospital" checked>
+                                            <label class="form-check-label" for="filter_hospital">Больницы</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="filter_pharmacy" value="pharmacy" checked>
+                                            <label class="form-check-label" for="filter_pharmacy">Аптеки</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="filter_kindergarden" value="kindergarden" checked>
+                                            <label class="form-check-label" for="filter_kindergarden">Детские сады</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="filter_polyclinic" value="polyclinic" checked>
+                                            <label class="form-check-label" for="filter_polyclinic">Поликлиники</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="filter_university" value="university" checked>
+                                            <label class="form-check-label" for="filter_university">Университеты</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="filter_shopmall" value="shopmall" checked>
+                                            <label class="form-check-label" for="filter_shopmall">Торговые центры</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="filter_resident_complexes" value="resident_complexes" checked>
+                                            <label class="form-check-label" for="filter_resident_complexes">Жилые комплексы</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-2">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectAllFilters()">Выбрать все</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deselectAllFilters()">Снять выбор</button>
+                                </div>
                             </div>
-                            
+
+                            <!-- Цветовая схема -->
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Цветовая схема:</strong></label>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <input type="radio" class="btn-check" name="colorScheme" id="colorGroup" value="group" checked>
+                                    <label class="btn btn-outline-primary" for="colorGroup">
+                                        <i class="fas fa-tags"></i> По группам
+                                    </label>
+                                    
+                                    <input type="radio" class="btn-check" name="colorScheme" id="colorSentiment" value="sentiment">
+                                    <label class="btn btn-outline-success" for="colorSentiment">
+                                        <i class="fas fa-heart"></i> По сентименту
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Метод сентимента (показывается только при выборе "По сентименту") -->
+                            <div class="mb-3" id="sentimentMethodSection" style="display: none;">
+                                <label class="form-label"><strong>Метод определения сентимента:</strong></label>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <input type="radio" class="btn-check" name="sentimentMethod" id="sentimentRating" value="rating" checked>
+                                    <label class="btn btn-outline-info" for="sentimentRating">
+                                        <i class="fas fa-star"></i> Рейтинг
+                                    </label>
+                                    
+                                    <input type="radio" class="btn-check" name="sentimentMethod" id="sentimentClassical" value="classical_sentiment">
+                                    <label class="btn btn-outline-warning" for="sentimentClassical">
+                                        <i class="fas fa-brain"></i> Классический
+                                    </label>
+                                </div>
+                            </div>
+
                             <!-- Переключатель типа групп -->
                             <div class="mt-2">
                                 <label class="form-label"><strong>Тип групп на карте:</strong></label>
@@ -277,57 +344,42 @@
                                     </label>
                                 </div>
                             </div>
-                            
-                            <!-- Легенда карты -->
-                            <div class="map-legend mt-2">
-                                <h6><i class="fas fa-palette"></i> Легенда:</h6>
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="legend-item">
-                                            <span class="legend-color" style="background-color: #ff0000;"></span>
-                                            <span class="legend-text">Школы</span>
-                                        </div>
-                                        <div class="legend-item">
-                                            <span class="legend-color" style="background-color: #00ff00;"></span>
-                                            <span class="legend-text">Больницы</span>
-                                        </div>
-                                        <div class="legend-item">
-                                            <span class="legend-color" style="background-color: #0000ff;"></span>
-                                            <span class="legend-text">Аптеки</span>
-                                        </div>
-                                        <div class="legend-item">
-                                            <span class="legend-color" style="background-color: #ffff00;"></span>
-                                            <span class="legend-text">Детские сады</span>
-                                        </div>
+                        </div>
+                        
+                        <!-- Карта и легенда в одной строке -->
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="map-container" id="map"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="map-legend">
+                                    <h6><i class="fas fa-palette"></i> Легенда:</h6>
+                                    <!-- Легенда для групп -->
+                                    <div id="group-legend">
+                                        <div class="legend-item"><span class="legend-color" style="background-color: #007bff;"></span> Школы</div>
+                                        <div class="legend-item"><span class="legend-color" style="background-color: #dc3545;"></span> Больницы</div>
+                                        <div class="legend-item"><span class="legend-color" style="background-color: #28a745;"></span> Аптеки</div>
+                                        <div class="legend-item"><span class="legend-color" style="background-color: #ffc107;"></span> Детские сады</div>
+                                        <div class="legend-item"><span class="legend-color" style="background-color: #17a2b8;"></span> Поликлиники</div>
+                                        <div class="legend-item"><span class="legend-color" style="background-color: #6f42c1;"></span> Университеты</div>
+                                        <div class="legend-item"><span class="legend-color" style="background-color: #fd7e14;"></span> Торговые центры</div>
+                                        <div class="legend-item"><span class="legend-color" style="background-color: #e83e8c;"></span> Жилые комплексы</div>
                                     </div>
-                                    <div class="col-md-6">
-                                        <div class="legend-item">
-                                            <span class="legend-color" style="background-color: #ff00ff;"></span>
-                                            <span class="legend-text">Поликлиники</span>
-                                        </div>
-                                        <div class="legend-item">
-                                            <span class="legend-color" style="background-color: #00ffff;"></span>
-                                            <span class="legend-text">Университеты</span>
-                                        </div>
-                                        <div class="legend-item">
-                                            <span class="legend-color" style="background-color: #ff8800;"></span>
-                                            <span class="legend-text">Торговые центры</span>
-                                        </div>
-                                        <div class="legend-item">
-                                            <span class="legend-color" style="background-color: #8800ff;"></span>
-                                            <span class="legend-text">Жилые комплексы</span>
-                                        </div>
+                                    <!-- Легенда для сентимента -->
+                                    <div id="sentiment-legend" style="display: none;">
+                                        <div class="legend-item"><span class="legend-color" style="background-color: #28a745;"></span> Хорошо</div>
+                                        <div class="legend-item"><span class="legend-color" style="background-color: #ffc107;"></span> Удовлетворительно</div>
+                                        <div class="legend-item"><span class="legend-color" style="background-color: #fd7e14;"></span> Плохо</div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="map-container" id="map"></div>
                     </div>
                 </div>
             </div>
 
             <!-- Правая панель: Результаты анализа -->
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <div class="card">
                     <div class="card-header">
                         <h6><i class="fas fa-chart-bar"></i> Результаты анализа</h6>
@@ -1042,20 +1094,53 @@
             // Загружаем данные карты
             updateMap();
 
-            // Обработчики переключателей
-            document.getElementById('showArchive').addEventListener('change', updateMapVisibility);
-            document.getElementById('showNew').addEventListener('change', updateMapVisibility);
-            
             // Обработчики переключателя типа групп
             document.getElementById('supplierGroups').addEventListener('change', updateMap);
             document.getElementById('determinedGroups').addEventListener('change', updateMap);
+
+            // Обработчики цветовых схем
+            document.getElementById('colorGroup').addEventListener('change', function() {
+                updateSentimentMethodVisibility();
+                updateMap();
+                updateLegend();
+            });
+            document.getElementById('colorSentiment').addEventListener('change', function() {
+                updateSentimentMethodVisibility();
+                updateMap();
+                updateLegend();
+            });
+
+            // Обработчики методов сентимента
+            document.getElementById('sentimentRating').addEventListener('change', updateMap);
+            document.getElementById('sentimentClassical').addEventListener('change', updateMap);
+
+            // Обработчики фильтров
+            document.querySelectorAll('input[type="checkbox"][id^="filter_"]').forEach(checkbox => {
+                checkbox.addEventListener('change', updateMap);
+            });
         }
 
         function updateMap() {
-            // Получаем выбранный тип групп
+            // Получаем параметры
             const groupType = document.querySelector('input[name="groupType"]:checked').value;
+            const colorScheme = document.querySelector('input[name="colorScheme"]:checked').value;
+            const sentimentMethod = document.querySelector('input[name="sentimentMethod"]:checked').value;
             
-            fetch(`/map/data?group_type=${groupType}`)
+            // Получаем активные фильтры
+            const activeFilters = getActiveFilters();
+            
+            // Формируем URL с параметрами
+            const params = new URLSearchParams({
+                group_type: groupType,
+                color_scheme: colorScheme,
+                sentiment_method: sentimentMethod
+            });
+            
+            if (activeFilters.length > 0) {
+                params.append('filters', activeFilters.join(','));
+            }
+            
+            fetch(`/map/data?${params.toString()}`)
                 .then(response => response.json())
                 .then(data => {
                     // Очищаем старые метки
@@ -1071,7 +1156,6 @@
                     // Добавляем архивные объекты
                     if (data.archive) {
                         data.archive.forEach(group => {
-                            const color = getGroupColor(group.group);
                             group.points.forEach(point => {
                                 const placemark = new ymaps.Placemark(
                                     [point.latitude, point.longitude],
@@ -1083,19 +1167,18 @@
                                                 <p><strong>Район:</strong> ${point.district}</p>
                                                 <p><strong>Группа:</strong> ${group.group}</p>
                                                 ${point.determined_group ? `<p><strong>Определенная группа:</strong> ${point.determined_group}</p>` : ''}
+                                                ${point.sentiment ? `<p><strong>Сентимент:</strong> ${point.sentiment}</p>` : ''}
                                             </div>
                                         `
                                     },
                                     {
                                         preset: 'islands#circleDotIcon',
-                                        iconColor: color,
+                                        iconColor: point.color || getGroupColor(group.group),
                                         iconSize: [8, 8]
                                     }
                                 );
                                 archivePlacemarks.push(placemark);
-                                if (document.getElementById('showArchive').checked) {
-                                    myMap.geoObjects.add(placemark);
-                                }
+                                myMap.geoObjects.add(placemark);
                             });
                         });
                     }
@@ -1103,7 +1186,6 @@
                     // Добавляем новые объекты
                     if (data.new) {
                         data.new.forEach(group => {
-                            const color = getGroupColor(group.group);
                             group.points.forEach(point => {
                                 const placemark = new ymaps.Placemark(
                                     [point.latitude, point.longitude],
@@ -1115,19 +1197,18 @@
                                                 <p><strong>Район:</strong> ${point.district}</p>
                                                 <p><strong>Группа:</strong> ${group.group}</p>
                                                 ${point.determined_group ? `<p><strong>Определенная группа:</strong> ${point.determined_group}</p>` : ''}
+                                                ${point.sentiment ? `<p><strong>Сентимент:</strong> ${point.sentiment}</p>` : ''}
                                             </div>
                                         `
                                     },
                                     {
                                         preset: 'islands#circleDotIcon',
-                                        iconColor: color,
+                                        iconColor: point.color || getGroupColor(group.group),
                                         iconSize: [10, 10]
                                     }
                                 );
                                 newPlacemarks.push(placemark);
-                                if (document.getElementById('showNew').checked) {
-                                    myMap.geoObjects.add(placemark);
-                                }
+                                myMap.geoObjects.add(placemark);
                             });
                         });
                     }
@@ -1138,25 +1219,14 @@
         }
 
         function updateMapVisibility() {
-            const showArchive = document.getElementById('showArchive').checked;
-            const showNew = document.getElementById('showNew').checked;
-
             // Обновляем видимость архивных меток
             archivePlacemarks.forEach(placemark => {
-                if (showArchive) {
-                    myMap.geoObjects.add(placemark);
-                } else {
-                    myMap.geoObjects.remove(placemark);
-                }
+                myMap.geoObjects.add(placemark);
             });
 
             // Обновляем видимость новых меток
             newPlacemarks.forEach(placemark => {
-                if (showNew) {
-                    myMap.geoObjects.add(placemark);
-                } else {
-                    myMap.geoObjects.remove(placemark);
-                }
+                myMap.geoObjects.add(placemark);
             });
         }
 
@@ -1172,6 +1242,61 @@
                 'resident_complexes': '#8800ff' // Фиолетовый
             };
             return colors[group] || '#999999'; // Серый по умолчанию
+        }
+
+        function getActiveFilters() {
+            const filters = [];
+            const checkboxes = document.querySelectorAll('input[type="checkbox"][id^="filter_"]');
+            checkboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    filters.push(checkbox.value);
+                }
+            });
+            return filters;
+        }
+
+        function selectAllFilters() {
+            const checkboxes = document.querySelectorAll('input[type="checkbox"][id^="filter_"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = true;
+            });
+            updateMap();
+        }
+
+        function deselectAllFilters() {
+            const checkboxes = document.querySelectorAll('input[type="checkbox"][id^="filter_"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            updateMap();
+        }
+
+        function updateSentimentMethodVisibility() {
+            const colorScheme = document.querySelector('input[name="colorScheme"]:checked').value;
+            const sentimentSection = document.getElementById('sentimentMethodSection');
+            
+            if (colorScheme === 'sentiment') {
+                sentimentSection.style.display = 'block';
+            } else {
+                sentimentSection.style.display = 'none';
+            }
+            
+            // Обновляем легенду
+            updateLegend();
+        }
+
+        function updateLegend() {
+            const colorScheme = document.querySelector('input[name="colorScheme"]:checked').value;
+            const groupLegend = document.getElementById('group-legend');
+            const sentimentLegend = document.getElementById('sentiment-legend');
+            
+            if (colorScheme === 'sentiment') {
+                groupLegend.style.display = 'none';
+                sentimentLegend.style.display = 'block';
+            } else {
+                groupLegend.style.display = 'block';
+                sentimentLegend.style.display = 'none';
+            }
         }
 
         // Загружаем информацию об архиве и методы анализа при загрузке страницы

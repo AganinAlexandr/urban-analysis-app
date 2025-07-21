@@ -531,8 +531,16 @@ def get_csv_fields_info():
 def get_map_data():
     """Получение данных для отображения на карте"""
     try:
-        # Получаем параметр типа групп
+        # Получаем параметры
         group_type = request.args.get('group_type', 'supplier')  # По умолчанию группы от поставщика
+        filters = request.args.get('filters', '')  # Фильтры групп
+        sentiment_method = request.args.get('sentiment_method', 'rating')  # Метод сентимента
+        color_scheme = request.args.get('color_scheme', 'group')  # Схема цветов
+        
+        # Парсим фильтры
+        active_filters = []
+        if filters:
+            active_filters = filters.split(',')
         
         archive_path = os.path.join('data', 'archives', 'processed_reviews.csv')
         if not os.path.exists(archive_path):
@@ -561,6 +569,10 @@ def get_map_data():
             for _, row in empty_group_data.iterrows():
                 if (pd.notna(row.get('latitude')) and pd.notna(row.get('longitude')) and 
                     row.get('latitude', 0) != 0 and row.get('longitude', 0) != 0):
+                    
+                    # Определяем цвет точки
+                    point_color = get_point_color(row, color_scheme, sentiment_method)
+                    
                     points_with_coords.append({
                         'name': row.get('name', ''),
                         'address': row.get('address', ''),
@@ -568,7 +580,9 @@ def get_map_data():
                         'longitude': float(row.get('longitude', 0)),
                         'district': row.get('district', 'Неизвестный район'),
                         'group': row.get('group', ''),
-                        'determined_group': row.get('determined_group', '')
+                        'determined_group': row.get('determined_group', ''),
+                        'color': point_color,
+                        'sentiment': get_sentiment_value(row, sentiment_method)
                     })
 
             if points_with_coords:  # Добавляем группу только если есть объекты с координатами
@@ -579,6 +593,11 @@ def get_map_data():
         
         # Обрабатываем записи с непустыми группами
         non_empty_group_data = df_converted[df_converted[group_field].notna() & (df_converted[group_field] != '')]
+        
+        # Применяем фильтры
+        if active_filters:
+            non_empty_group_data = non_empty_group_data[non_empty_group_data[group_field].isin(active_filters)]
+        
         for group in non_empty_group_data[group_field].unique():
             group_data = non_empty_group_data[non_empty_group_data[group_field] == group]
 
@@ -587,6 +606,10 @@ def get_map_data():
             for _, row in group_data.iterrows():
                 if (pd.notna(row.get('latitude')) and pd.notna(row.get('longitude')) and 
                     row.get('latitude', 0) != 0 and row.get('longitude', 0) != 0):
+                    
+                    # Определяем цвет точки
+                    point_color = get_point_color(row, color_scheme, sentiment_method)
+                    
                     points_with_coords.append({
                         'name': row.get('name', ''),
                         'address': row.get('address', ''),
@@ -594,7 +617,9 @@ def get_map_data():
                         'longitude': float(row.get('longitude', 0)),
                         'district': row.get('district', 'Неизвестный район'),
                         'group': row.get('group', ''),
-                        'determined_group': row.get('determined_group', '')
+                        'determined_group': row.get('determined_group', ''),
+                        'color': point_color,
+                        'sentiment': get_sentiment_value(row, sentiment_method)
                     })
 
             if points_with_coords:  # Добавляем группу только если есть объекты с координатами
@@ -606,12 +631,41 @@ def get_map_data():
         return jsonify({
             'archive': archive_data,
             'new': [],  # Новые объекты будут добавляться через отдельный маршрут
-            'group_type': group_type  # Возвращаем использованный тип групп
+            'group_type': group_type,  # Возвращаем использованный тип групп
+            'color_scheme': color_scheme,
+            'sentiment_method': sentiment_method
         })
 
     except Exception as e:
         logger.error(f"Ошибка при получении данных карты: {e}")
         return jsonify({'error': str(e)}), 500
+
+def get_point_color(row, color_scheme, sentiment_method):
+    """Определяет цвет точки на карте"""
+    from app.core.config import SENTIMENT_CONFIG, GROUP_CONFIG
+    
+    if color_scheme == 'sentiment':
+        # Цвет по сентименту
+        sentiment = get_sentiment_value(row, sentiment_method)
+        return SENTIMENT_CONFIG['colors'].get(sentiment, '#6c757d')
+    else:
+        # Цвет по группе
+        group = row.get('group', '')
+        return GROUP_CONFIG['colors'].get(group, '#6c757d')
+
+def get_sentiment_value(row, sentiment_method):
+    """Получает значение сентимента для строки"""
+    if sentiment_method == 'rating':
+        # Используем преобразованный рейтинг
+        rating = row.get('rating')
+        if rating and pd.notna(rating):
+            from app.core.config import SENTIMENT_CONFIG
+            return SENTIMENT_CONFIG['rating_to_sentiment'].get(int(rating), 'удовлетворительно')
+        return 'удовлетворительно'
+    else:
+        # Используем поле сентимента (если есть)
+        sentiment_field = f'{sentiment_method}_sentiment'
+        return row.get(sentiment_field, 'удовлетворительно')
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000) 

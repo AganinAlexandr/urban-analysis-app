@@ -15,6 +15,7 @@ from .csv_processor import CSVProcessor
 from .json_processor import JSONProcessor
 from .excel_processor import ExcelProcessor
 from .district_detector import DistrictDetector
+from .config import SENTIMENT_CONFIG
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -45,6 +46,9 @@ class DataProcessor:
         self.excel_processor = ExcelProcessor()
         self.district_detector = DistrictDetector(api_key=geocoder_api_key)
         
+        # Настройки сентимента
+        self.sentiment_config = SENTIMENT_CONFIG
+        
         # Отладочная информация об API ключе
         if geocoder_api_key:
             logger.info(f"API ключ для геокодирования установлен: {geocoder_api_key[:10]}...")
@@ -62,6 +66,33 @@ class DataProcessor:
         
         # Обязательные поля для сохранения в архив
         self.required_fields_archive = ['group', 'name', 'address', 'review_text', 'date']
+
+    def convert_rating_to_sentiment(self, rating: int) -> str:
+        """
+        Преобразование рейтинга пользователя в сентимент
+        
+        Args:
+            rating: Рейтинг от 1 до 5
+            
+        Returns:
+            Строка сентимента
+        """
+        return self.sentiment_config['rating_to_sentiment'].get(rating, 'удовлетворительно')
+    
+    def add_sentiment_from_rating(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Добавляет поле sentiment на основе рейтинга пользователя
+        
+        Args:
+            df: DataFrame с данными
+            
+        Returns:
+            DataFrame с добавленным полем sentiment
+        """
+        if 'rating' in df.columns:
+            df['sentiment_from_rating'] = df['rating'].apply(self.convert_rating_to_sentiment)
+            logger.info(f"Добавлено поле sentiment_from_rating для {len(df)} записей")
+        return df
     
     def load_data(self, file_path: str, file_type: str = None, 
                   sheet_name: str = None, filters: Dict = None) -> pd.DataFrame:
@@ -145,6 +176,9 @@ class DataProcessor:
                     logger.warning("Обнаружены записи с пустой группой - требуется выбор группы пользователем")
                     # Возвращаем DataFrame с пустой группой для обработки в основном коде
                     return df
+            
+            # Добавляем сентимент на основе рейтинга
+            df = self.add_sentiment_from_rating(df)
             
             logger.info("=== ЗАВЕРШЕНИЕ ЗАГРУЗКИ ДАННЫХ ===")
             return df

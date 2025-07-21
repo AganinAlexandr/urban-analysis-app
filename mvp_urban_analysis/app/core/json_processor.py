@@ -511,6 +511,8 @@ class JSONProcessor:
         
         # Создаем DataFrame из одного объекта
         df = pd.DataFrame([data])
+        if not df.get('determined_group'):
+            df['determined_group'] = self._determine_group_from_content(df)
         return self._standardize_dataframe(df)
     
     def _process_object_list(self, data: List, group_from_path: str = '') -> pd.DataFrame:

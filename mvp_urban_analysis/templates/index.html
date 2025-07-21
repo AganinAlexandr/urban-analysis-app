@@ -109,6 +109,98 @@
         .legend-text {
             font-size: 0.75em;
         }
+        
+        /* Унифицированные стили для кнопок в блоке карты */
+        .map-controls .btn-outline-success {
+            color: #198754;
+            border-color: #198754;
+            background-color: rgba(25, 135, 84, 0.1);
+        }
+        
+        .map-controls .btn-outline-success:hover {
+            color: #fff;
+            background-color: #198754;
+            border-color: #198754;
+        }
+        
+        .map-controls .btn-check:checked + .btn-outline-success {
+            color: #fff;
+            background-color: #198754;
+            border-color: #198754;
+        }
+        
+        /* Выравнивание левых краев кнопок */
+        .map-controls .btn-group {
+            display: flex;
+            justify-content: flex-start;
+        }
+        
+        .map-controls .btn-group .btn {
+            flex: 1;
+            text-align: center;
+        }
+        
+        /* Уменьшенный размер кнопок - принудительно */
+        .map-controls .btn-group .btn.btn-sm,
+        .map-controls .btn-group .btn {
+            padding: 0.125rem 0.25rem !important;
+            font-size: 0.75rem !important;
+            line-height: 1.2 !important;
+            min-height: 24px !important;
+            max-height: 28px !important;
+        }
+        
+        /* Дополнительное принудительное уменьшение */
+        .map-controls .btn-group input[type="radio"] + label.btn {
+            padding: 0.125rem 0.25rem !important;
+            font-size: 0.75rem !important;
+            line-height: 1.2 !important;
+            min-height: 24px !important;
+            max-height: 28px !important;
+        }
+        
+        /* Принудительное переопределение Bootstrap */
+        .map-controls .btn-group .btn.btn-sm,
+        .map-controls .btn-group .btn,
+        .map-controls .btn-group label.btn {
+            padding: 0.125rem 0.25rem !important;
+            font-size: 0.75rem !important;
+            line-height: 1.2 !important;
+            min-height: 24px !important;
+            max-height: 28px !important;
+            height: 28px !important;
+        }
+        
+        /* Дополнительное уменьшение для всех кнопок в map-controls */
+        .map-controls .btn {
+            padding: 0.125rem 0.25rem !important;
+            font-size: 0.75rem !important;
+            line-height: 1.2 !important;
+            min-height: 24px !important;
+            max-height: 28px !important;
+            height: 28px !important;
+        }
+        
+        /* Место для будущих кнопок сентимента */
+        .map-controls .sentiment-methods-placeholder {
+            min-height: 40px;
+            margin-bottom: 15px;
+        }
+        
+        /* Стили для неактивного состояния секции сентимента */
+        .sentiment-section-disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        
+        .sentiment-section-disabled .btn {
+            opacity: 0.5 !important;
+            cursor: not-allowed !important;
+        }
+        
+        .sentiment-section-disabled input[type="radio"] {
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -300,48 +392,107 @@
                             <!-- Цветовая схема -->
                             <div class="mb-3">
                                 <label class="form-label"><strong>Цветовая схема:</strong></label>
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <input type="radio" class="btn-check" name="colorScheme" id="colorGroup" value="group" checked>
-                                    <label class="btn btn-outline-primary" for="colorGroup">
-                                        <i class="fas fa-tags"></i> По группам
-                                    </label>
-                                    
-                                    <input type="radio" class="btn-check" name="colorScheme" id="colorSentiment" value="sentiment">
-                                    <label class="btn btn-outline-success" for="colorSentiment">
-                                        <i class="fas fa-heart"></i> По сентименту
-                                    </label>
+                                <div class="row">
+                                    <div class="col-3">
+                                        <div class="btn-group btn-group-sm w-100" role="group">
+                                            <input type="radio" class="btn-check" name="colorScheme" id="colorGroup" value="group" checked>
+                                            <label class="btn btn-outline-success" for="colorGroup" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
+                                                <i class="fas fa-tags"></i> По группам
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="btn-group btn-group-sm w-100" role="group">
+                                            <input type="radio" class="btn-check" name="colorScheme" id="colorSentiment" value="sentiment">
+                                            <label class="btn btn-outline-success" for="colorSentiment" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
+                                                <i class="fas fa-heart"></i> По сентименту
+                                            </label>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- Метод сентимента (показывается только при выборе "По сентименту") -->
-                            <div class="mb-3" id="sentimentMethodSection" style="display: none;">
+                            <!-- Метод сентимента (всегда видим, но неактивен при выборе "По группам") -->
+                            <div class="mb-3" id="sentimentMethodSection">
                                 <label class="form-label"><strong>Метод определения сентимента:</strong></label>
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <input type="radio" class="btn-check" name="sentimentMethod" id="sentimentRating" value="rating" checked>
-                                    <label class="btn btn-outline-info" for="sentimentRating">
-                                        <i class="fas fa-star"></i> Рейтинг
-                                    </label>
-                                    
-                                    <input type="radio" class="btn-check" name="sentimentMethod" id="sentimentClassical" value="classical_sentiment">
-                                    <label class="btn btn-outline-warning" for="sentimentClassical">
-                                        <i class="fas fa-brain"></i> Классический
-                                    </label>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <div class="btn-group btn-group-sm w-100" role="group">
+                                            <input type="radio" class="btn-check" name="sentimentMethod" id="sentimentRating" value="rating" checked>
+                                            <label class="btn btn-outline-success" for="sentimentRating" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
+                                                <i class="fas fa-star"></i> Рейтинг
+                                            </label>
+                                            
+                                            <input type="radio" class="btn-check" name="sentimentMethod" id="sentimentClassical" value="classical_sentiment">
+                                            <label class="btn btn-outline-success" for="sentimentClassical" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
+                                                <i class="fas fa-brain"></i> Классический
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="btn-group btn-group-sm w-100" role="group">
+                                            <input type="radio" class="btn-check" name="sentimentMethod" id="sentimentOpenAI" value="openai_sentiment">
+                                            <label class="btn btn-outline-success" for="sentimentOpenAI" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
+                                                <i class="fas fa-robot"></i> OpenAI
+                                            </label>
+                                            
+                                            <input type="radio" class="btn-check" name="sentimentMethod" id="sentimentGemini" value="google_gemini_sentiment">
+                                            <label class="btn btn-outline-success" for="sentimentGemini" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
+                                                <i class="fas fa-gem"></i> Gemini
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row mt-1">
+                                    <div class="col-6">
+                                        <div class="btn-group btn-group-sm w-100" role="group">
+                                            <input type="radio" class="btn-check" name="sentimentMethod" id="sentimentYandex" value="yandexgpt_sentiment">
+                                            <label class="btn btn-outline-success" for="sentimentYandex" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
+                                                <i class="fas fa-search"></i> YandexGPT
+                                            </label>
+                                            
+                                            <input type="radio" class="btn-check" name="sentimentMethod" id="sentimentGigaChat" value="gigachat_sentiment">
+                                            <label class="btn btn-outline-success" for="sentimentGigaChat" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
+                                                <i class="fas fa-comments"></i> GigaChat
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="btn-group btn-group-sm w-100" role="group">
+                                            <input type="radio" class="btn-check" name="sentimentMethod" id="sentimentQwen" value="qwen_sentiment">
+                                            <label class="btn btn-outline-success" for="sentimentQwen" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
+                                                <i class="fas fa-bolt"></i> Qwen
+                                            </label>
+                                            
+                                            <input type="radio" class="btn-check" name="sentimentMethod" id="sentimentDeepSeek" value="deepseek_sentiment">
+                                            <label class="btn btn-outline-success" for="sentimentDeepSeek" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
+                                                <i class="fas fa-rocket"></i> DeepSeek
+                                            </label>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
                             <!-- Переключатель типа групп -->
-                            <div class="mt-2">
+                            <div class="mb-3">
                                 <label class="form-label"><strong>Тип групп на карте:</strong></label>
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <input type="radio" class="btn-check" name="groupType" id="supplierGroups" value="supplier" checked>
-                                    <label class="btn btn-outline-info" for="supplierGroups">
-                                        <i class="fas fa-tag"></i> От поставщика
-                                    </label>
-                                    
-                                    <input type="radio" class="btn-check" name="groupType" id="determinedGroups" value="determined">
-                                    <label class="btn btn-outline-warning" for="determinedGroups">
-                                        <i class="fas fa-brain"></i> Определенные
-                                    </label>
+                                <div class="row">
+                                    <div class="col-3">
+                                        <div class="btn-group btn-group-sm w-100" role="group">
+                                            <input type="radio" class="btn-check" name="groupType" id="supplierGroups" value="supplier" checked>
+                                            <label class="btn btn-outline-success" for="supplierGroups" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
+                                                <i class="fas fa-tag"></i> От поставщика
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="btn-group btn-group-sm w-100" role="group">
+                                            <input type="radio" class="btn-check" name="groupType" id="determinedGroups" value="determined">
+                                            <label class="btn btn-outline-success" for="determinedGroups" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
+                                                <i class="fas fa-brain"></i> Определенные
+                                            </label>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1143,6 +1294,8 @@
             fetch(`/map/data?${params.toString()}`)
                 .then(response => response.json())
                 .then(data => {
+                    console.log('Получены данные карты:', data);
+                    
                     // Очищаем старые метки
                     archivePlacemarks.forEach(placemark => {
                         myMap.geoObjects.remove(placemark);
@@ -1154,64 +1307,82 @@
                     newPlacemarks = [];
 
                     // Добавляем архивные объекты
-                    if (data.archive) {
+                    if (data.archive && data.archive.length > 0) {
+                        console.log(`Добавляем ${data.archive.length} архивных групп`);
                         data.archive.forEach(group => {
+                            console.log(`Группа ${group.group}: ${group.points.length} точек`);
                             group.points.forEach(point => {
-                                const placemark = new ymaps.Placemark(
-                                    [point.latitude, point.longitude],
-                                    {
-                                        balloonContent: `
-                                            <div style="padding: 10px;">
-                                                <h6>${point.name}</h6>
-                                                <p><strong>Адрес:</strong> ${point.address}</p>
-                                                <p><strong>Район:</strong> ${point.district}</p>
-                                                <p><strong>Группа:</strong> ${group.group}</p>
-                                                ${point.determined_group ? `<p><strong>Определенная группа:</strong> ${point.determined_group}</p>` : ''}
-                                                ${point.sentiment ? `<p><strong>Сентимент:</strong> ${point.sentiment}</p>` : ''}
-                                            </div>
-                                        `
-                                    },
-                                    {
-                                        preset: 'islands#circleDotIcon',
-                                        iconColor: point.color || getGroupColor(group.group),
-                                        iconSize: [8, 8]
-                                    }
-                                );
-                                archivePlacemarks.push(placemark);
-                                myMap.geoObjects.add(placemark);
+                                if (point.latitude && point.longitude) {
+                                    const placemark = new ymaps.Placemark(
+                                        [point.latitude, point.longitude],
+                                        {
+                                            balloonContent: `
+                                                <div style="padding: 10px;">
+                                                    <h6>${point.name}</h6>
+                                                    <p><strong>Адрес:</strong> ${point.address}</p>
+                                                    <p><strong>Район:</strong> ${point.district}</p>
+                                                    <p><strong>Группа:</strong> ${group.group}</p>
+                                                    ${point.determined_group ? `<p><strong>Определенная группа:</strong> ${point.determined_group}</p>` : ''}
+                                                    ${point.sentiment ? `<p><strong>Сентимент:</strong> ${point.sentiment}</p>` : ''}
+                                                </div>
+                                            `
+                                        },
+                                        {
+                                            preset: 'islands#circleDotIcon',
+                                            iconColor: point.color || getGroupColor(group.group),
+                                            iconSize: [8, 8]
+                                        }
+                                    );
+                                    archivePlacemarks.push(placemark);
+                                    myMap.geoObjects.add(placemark);
+                                } else {
+                                    console.warn('Пропускаем точку без координат:', point);
+                                }
                             });
                         });
+                    } else {
+                        console.log('Нет архивных данных для отображения');
                     }
 
                     // Добавляем новые объекты
-                    if (data.new) {
+                    if (data.new && data.new.length > 0) {
+                        console.log(`Добавляем ${data.new.length} новых групп`);
                         data.new.forEach(group => {
+                            console.log(`Группа ${group.group}: ${group.points.length} точек`);
                             group.points.forEach(point => {
-                                const placemark = new ymaps.Placemark(
-                                    [point.latitude, point.longitude],
-                                    {
-                                        balloonContent: `
-                                            <div style="padding: 10px;">
-                                                <h6>${point.name}</h6>
-                                                <p><strong>Адрес:</strong> ${point.address}</p>
-                                                <p><strong>Район:</strong> ${point.district}</p>
-                                                <p><strong>Группа:</strong> ${group.group}</p>
-                                                ${point.determined_group ? `<p><strong>Определенная группа:</strong> ${point.determined_group}</p>` : ''}
-                                                ${point.sentiment ? `<p><strong>Сентимент:</strong> ${point.sentiment}</p>` : ''}
-                                            </div>
-                                        `
-                                    },
-                                    {
-                                        preset: 'islands#circleDotIcon',
-                                        iconColor: point.color || getGroupColor(group.group),
-                                        iconSize: [10, 10]
-                                    }
-                                );
-                                newPlacemarks.push(placemark);
-                                myMap.geoObjects.add(placemark);
+                                if (point.latitude && point.longitude) {
+                                    const placemark = new ymaps.Placemark(
+                                        [point.latitude, point.longitude],
+                                        {
+                                            balloonContent: `
+                                                <div style="padding: 10px;">
+                                                    <h6>${point.name}</h6>
+                                                    <p><strong>Адрес:</strong> ${point.address}</p>
+                                                    <p><strong>Район:</strong> ${point.district}</p>
+                                                    <p><strong>Группа:</strong> ${group.group}</p>
+                                                    ${point.determined_group ? `<p><strong>Определенная группа:</strong> ${point.determined_group}</p>` : ''}
+                                                    ${point.sentiment ? `<p><strong>Сентимент:</strong> ${point.sentiment}</p>` : ''}
+                                                </div>
+                                            `
+                                        },
+                                        {
+                                            preset: 'islands#circleDotIcon',
+                                            iconColor: point.color || getGroupColor(group.group),
+                                            iconSize: [10, 10]
+                                        }
+                                    );
+                                    newPlacemarks.push(placemark);
+                                    myMap.geoObjects.add(placemark);
+                                } else {
+                                    console.warn('Пропускаем точку без координат:', point);
+                                }
                             });
                         });
+                    } else {
+                        console.log('Нет новых данных для отображения');
                     }
+                    
+                    console.log(`Всего добавлено: ${archivePlacemarks.length} архивных + ${newPlacemarks.length} новых меток`);
                 })
                 .catch(error => {
                     console.error('Ошибка загрузки данных карты:', error);
@@ -1276,9 +1447,26 @@
             const sentimentSection = document.getElementById('sentimentMethodSection');
             
             if (colorScheme === 'sentiment') {
-                sentimentSection.style.display = 'block';
+                sentimentSection.classList.remove('sentiment-section-disabled');
+                // Активируем все кнопки методов сентимента
+                const sentimentButtons = sentimentSection.querySelectorAll('input[type="radio"]');
+                sentimentButtons.forEach(button => {
+                    button.disabled = false;
+                });
             } else {
-                sentimentSection.style.display = 'none';
+                sentimentSection.classList.add('sentiment-section-disabled');
+                // Деактивируем все кнопки методов сентимента, кроме рейтинга
+                const sentimentButtons = sentimentSection.querySelectorAll('input[type="radio"]');
+                sentimentButtons.forEach(button => {
+                    if (button.value !== 'rating') {
+                        button.disabled = true;
+                    }
+                });
+                // Принудительно выбираем рейтинг при переключении на группы
+                const ratingButton = document.getElementById('sentimentRating');
+                if (ratingButton) {
+                    ratingButton.checked = true;
+                }
             }
             
             // Обновляем легенду
@@ -1303,7 +1491,24 @@
         document.addEventListener('DOMContentLoaded', function() {
             getArchiveInfo();
             loadAnalysisMethods();
+            // Инициализируем состояние секции сентимента
+            updateSentimentMethodVisibility();
+            // Применяем стили к кнопкам
+            applyButtonStyles();
         });
+        
+        function applyButtonStyles() {
+            // Применяем стили ко всем кнопкам в map-controls
+            const buttons = document.querySelectorAll('.map-controls .btn-group .btn');
+            buttons.forEach(button => {
+                button.style.padding = '0.125rem 0.25rem';
+                button.style.fontSize = '0.75rem';
+                button.style.lineHeight = '1.2';
+                button.style.minHeight = '24px';
+                button.style.maxHeight = '28px';
+                button.style.height = '28px';
+            });
+        }
         
         function loadAnalysisMethods() {
             fetch('/analysis/methods')

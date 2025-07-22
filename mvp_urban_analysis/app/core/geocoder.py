@@ -126,6 +126,56 @@ class MoscowGeocoder:
             logger.error(f"Ошибка при геокодировании адреса {address}: {str(e)}")
             return 0.0, 0.0, "Ошибка геокодирования"
             
+    def _add_test_coordinates(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Добавляет тестовые координаты для демонстрации
+        
+        Args:
+            df (pd.DataFrame): DataFrame с данными
+            
+        Returns:
+            pd.DataFrame: DataFrame с тестовыми координатами
+        """
+        # Добавляем колонки координат, если их нет
+        if 'latitude' not in df.columns:
+            df['latitude'] = 0.0
+        if 'longitude' not in df.columns:
+            df['longitude'] = 0.0
+        if 'district' not in df.columns:
+            df['district'] = "Центральный район"
+            
+        # Тестовые координаты для Москвы (центр города)
+        test_coordinates = {
+            'Новая площадь, 12, Москва': (55.7558, 37.6176, 'Центральный район'),
+            'Красная площадь, 1, Москва': (55.7539, 37.6208, 'Центральный район'),
+            'Тверская улица, 1, Москва': (55.7558, 37.6176, 'Центральный район'),
+            'Арбат, 1, Москва': (55.7494, 37.5931, 'Центральный район'),
+            'Кутузовский проспект, 1, Москва': (55.7485, 37.5341, 'Западный район'),
+            'Ленинский проспект, 1, Москва': (55.7000, 37.5500, 'Юго-Западный район'),
+            'Проспект Мира, 1, Москва': (55.7800, 37.6300, 'Северо-Восточный район'),
+            'Варшавское шоссе, 1, Москва': (55.6500, 37.6000, 'Южный район'),
+            'Ленинградское шоссе, 1, Москва': (55.8500, 37.4500, 'Северный район'),
+            'Рязанский проспект, 1, Москва': (55.7200, 37.7800, 'Юго-Восточный район')
+        }
+        
+        # Применяем тестовые координаты к адресам
+        for address in df['address'].dropna().unique():
+            if address in test_coordinates:
+                lat, lon, district = test_coordinates[address]
+                mask = df['address'] == address
+                df.loc[mask, 'latitude'] = lat
+                df.loc[mask, 'longitude'] = lon
+                df.loc[mask, 'district'] = district
+            else:
+                # Для неизвестных адресов используем координаты центра Москвы
+                mask = df['address'] == address
+                df.loc[mask, 'latitude'] = 55.7558
+                df.loc[mask, 'longitude'] = 37.6176
+                df.loc[mask, 'district'] = "Центральный район"
+                
+        logger.info(f"Добавлены тестовые координаты для {len(df)} записей")
+        return df
+
     def process_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Обработка DataFrame с адресами
@@ -144,8 +194,8 @@ class MoscowGeocoder:
         has_coordinates = 'latitude' in df.columns and 'longitude' in df.columns
         
         if not self.api_key:
-            logger.warning("API ключ не настроен. Геокодирование пропущено.")
-            return df
+            logger.warning("API ключ не настроен. Добавляются тестовые координаты для демонстрации.")
+            return self._add_test_coordinates(df)
             
         if has_coordinates:
             # Проверяем, есть ли уже координаты

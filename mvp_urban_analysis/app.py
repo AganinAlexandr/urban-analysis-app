@@ -23,6 +23,8 @@ from app.core.data_processor import DataProcessor
 from app.core.text_analyzer import TextAnalyzer
 from app.core.llm_analysis import LLMAnalyzer
 from app.core.geocoder import MoscowGeocoder
+from app.core.database import db_manager
+from app.core.data_migrator import data_migrator
 
 def convert_dataframe_for_json(df):
     """
@@ -527,12 +529,126 @@ def get_csv_fields_info():
     except Exception as e:
         return jsonify({'error': f'Ошибка получения информации о полях: {str(e)}'}), 500
 
+@app.route('/database/stats')
+def get_database_stats():
+    """Получение статистики базы данных"""
+    try:
+        stats = db_manager.get_statistics()
+        return jsonify({
+            'success': True,
+            'stats': stats
+        })
+    except Exception as e:
+        logger.error(f"Ошибка при получении статистики БД: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/database/migrate', methods=['POST'])
+def migrate_to_database():
+    """Миграция данных в базу данных"""
+    try:
+        data_type = request.form.get('data_type', 'current')  # current, archive, file
+        
+        if data_type == 'current':
+            # Мигрируем текущие данные
+            if hasattr(app, 'current_data') and app.current_data is not None:
+                stats = db_manager.migrate_csv_to_database(app.current_data, 'current_data')
+                return jsonify({
+                    'success': True,
+                    'message': 'Данные успешно мигрированы в базу данных',
+                    'stats': stats
+                })
+            else:
+                return jsonify({'error': 'Нет данных для миграции'}), 400
+                
+        elif data_type == 'archive':
+            # Мигрируем архивные данные
+            if hasattr(app, 'archive_data') and app.archive_data is not None:
+                stats = db_manager.migrate_csv_to_database(app.archive_data, 'archive_data')
+                return jsonify({
+                    'success': True,
+                    'message': 'Архивные данные успешно мигрированы в базу данных',
+                    'stats': stats
+                })
+            else:
+                return jsonify({'error': 'Нет архивных данных для миграции'}), 400
+        
+        else:
+            return jsonify({'error': 'Неизвестный тип данных'}), 400
+            
+    except Exception as e:
+        logger.error(f"Ошибка при миграции в БД: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/database/export', methods=['POST'])
+def export_from_database():
+    """Экспорт данных из базы данных"""
+    try:
+        include_analysis = request.form.get('include_analysis', 'true').lower() == 'true'
+        
+        # Экспортируем данные из БД
+        df = db_manager.export_to_dataframe(include_analysis)
+        
+        # Сохраняем во временный файл
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"database_export_{timestamp}.csv"
+        filepath = os.path.join('data', 'temp', filename)
+        
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        df.to_csv(filepath, index=False, encoding='utf-8')
+        
+        return jsonify({
+            'success': True,
+            'message': 'Данные успешно экспортированы из базы данных',
+            'filename': filename,
+            'records_count': len(df)
+        })
+        
+    except Exception as e:
+        logger.error(f"Ошибка при экспорте из БД: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/database/validate')
+def validate_database():
+    """Валидация базы данных"""
+    try:
+        validation_results = data_migrator.validate_migration()
+        return jsonify({
+            'success': True,
+            'validation': validation_results
+        })
+    except Exception as e:
+        logger.error(f"Ошибка при валидации БД: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/database/sentiment_distribution')
+def get_sentiment_distribution():
+    """Получение распределения сентиментов из базы данных"""
+    try:
+        method_name = request.args.get('method')
+        df = db_manager.get_sentiment_distribution(method_name)
+        
+        return jsonify({
+            'success': True,
+            'data': df.to_dict('records')
+        })
+    except Exception as e:
+        logger.error(f"Ошибка при получении распределения сентиментов: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/map/data')
 def get_map_data():
     """Получение данных для отображения на карте"""
     try:
-        # Получаем параметр типа групп
+        # Получаем параметры
         group_type = request.args.get('group_type', 'supplier')  # По умолчанию группы от поставщика
+        filters = request.args.get('filters', '')  # Фильтры групп
+        sentiment_method = request.args.get('sentiment_method', 'rating')  # Метод сентимента
+        color_scheme = request.args.get('color_scheme', 'group')  # Схема цветов
+        
+        # Парсим фильтры
+        active_filters = []
+        if filters:
+            active_filters = filters.split(',')
         
         archive_path = os.path.join('data', 'archives', 'processed_reviews.csv')
         if not os.path.exists(archive_path):
@@ -553,6 +669,16 @@ def get_map_data():
             # Используем определенные группы
             group_field = 'determined_group'
         
+        # Отладочная информация
+        logger.info(f"Тип групп: {group_type}, Поле группировки: {group_field}")
+        logger.info(f"Доступные колонки в данных: {list(df_converted.columns)}")
+        if 'determined_group' in df_converted.columns:
+            determined_groups = df_converted['determined_group'].value_counts()
+            logger.info(f"Определенные группы в данных: {determined_groups.to_dict()}")
+        if 'group' in df_converted.columns:
+            supplier_groups = df_converted['group'].value_counts()
+            logger.info(f"Группы от поставщика: {supplier_groups.to_dict()}")
+        
         # Обрабатываем записи с пустыми группами отдельно
         empty_group_data = df_converted[df_converted[group_field].isna() | (df_converted[group_field] == '')]
         if not empty_group_data.empty:
@@ -561,6 +687,10 @@ def get_map_data():
             for _, row in empty_group_data.iterrows():
                 if (pd.notna(row.get('latitude')) and pd.notna(row.get('longitude')) and 
                     row.get('latitude', 0) != 0 and row.get('longitude', 0) != 0):
+                    
+                    # Определяем цвет точки
+                    point_color = get_point_color(row, color_scheme, sentiment_method)
+                    
                     points_with_coords.append({
                         'name': row.get('name', ''),
                         'address': row.get('address', ''),
@@ -568,7 +698,9 @@ def get_map_data():
                         'longitude': float(row.get('longitude', 0)),
                         'district': row.get('district', 'Неизвестный район'),
                         'group': row.get('group', ''),
-                        'determined_group': row.get('determined_group', '')
+                        'determined_group': row.get('determined_group', ''),
+                        'color': point_color,
+                        'sentiment': get_sentiment_value(row, sentiment_method)
                     })
 
             if points_with_coords:  # Добавляем группу только если есть объекты с координатами
@@ -579,6 +711,11 @@ def get_map_data():
         
         # Обрабатываем записи с непустыми группами
         non_empty_group_data = df_converted[df_converted[group_field].notna() & (df_converted[group_field] != '')]
+        
+        # Применяем фильтры
+        if active_filters:
+            non_empty_group_data = non_empty_group_data[non_empty_group_data[group_field].isin(active_filters)]
+        
         for group in non_empty_group_data[group_field].unique():
             group_data = non_empty_group_data[non_empty_group_data[group_field] == group]
 
@@ -587,6 +724,10 @@ def get_map_data():
             for _, row in group_data.iterrows():
                 if (pd.notna(row.get('latitude')) and pd.notna(row.get('longitude')) and 
                     row.get('latitude', 0) != 0 and row.get('longitude', 0) != 0):
+                    
+                    # Определяем цвет точки
+                    point_color = get_point_color(row, color_scheme, sentiment_method)
+                    
                     points_with_coords.append({
                         'name': row.get('name', ''),
                         'address': row.get('address', ''),
@@ -594,7 +735,9 @@ def get_map_data():
                         'longitude': float(row.get('longitude', 0)),
                         'district': row.get('district', 'Неизвестный район'),
                         'group': row.get('group', ''),
-                        'determined_group': row.get('determined_group', '')
+                        'determined_group': row.get('determined_group', ''),
+                        'color': point_color,
+                        'sentiment': get_sentiment_value(row, sentiment_method)
                     })
 
             if points_with_coords:  # Добавляем группу только если есть объекты с координатами
@@ -606,12 +749,41 @@ def get_map_data():
         return jsonify({
             'archive': archive_data,
             'new': [],  # Новые объекты будут добавляться через отдельный маршрут
-            'group_type': group_type  # Возвращаем использованный тип групп
+            'group_type': group_type,  # Возвращаем использованный тип групп
+            'color_scheme': color_scheme,
+            'sentiment_method': sentiment_method
         })
 
     except Exception as e:
         logger.error(f"Ошибка при получении данных карты: {e}")
         return jsonify({'error': str(e)}), 500
+
+def get_point_color(row, color_scheme, sentiment_method):
+    """Определяет цвет точки на карте"""
+    from app.core.config import SENTIMENT_CONFIG, GROUP_CONFIG
+    
+    if color_scheme == 'sentiment':
+        # Цвет по сентименту
+        sentiment = get_sentiment_value(row, sentiment_method)
+        return SENTIMENT_CONFIG['colors'].get(sentiment, '#6c757d')
+    else:
+        # Цвет по группе
+        group = row.get('group', '')
+        return GROUP_CONFIG['colors'].get(group, '#6c757d')
+
+def get_sentiment_value(row, sentiment_method):
+    """Получает значение сентимента для строки"""
+    if sentiment_method == 'rating':
+        # Используем преобразованный рейтинг
+        rating = row.get('rating')
+        if rating and pd.notna(rating):
+            from app.core.config import SENTIMENT_CONFIG
+            return SENTIMENT_CONFIG['rating_to_sentiment'].get(int(rating), 'удовлетворительно')
+        return 'удовлетворительно'
+    else:
+        # Используем поле сентимента (если есть)
+        sentiment_field = f'{sentiment_method}_sentiment'
+        return row.get(sentiment_field, 'удовлетворительно')
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000) 

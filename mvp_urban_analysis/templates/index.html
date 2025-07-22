@@ -109,6 +109,98 @@
         .legend-text {
             font-size: 0.75em;
         }
+        
+        /* Унифицированные стили для кнопок в блоке карты */
+        .map-controls .btn-outline-success {
+            color: #198754;
+            border-color: #198754;
+            background-color: rgba(25, 135, 84, 0.1);
+        }
+        
+        .map-controls .btn-outline-success:hover {
+            color: #fff;
+            background-color: #198754;
+            border-color: #198754;
+        }
+        
+        .map-controls .btn-check:checked + .btn-outline-success {
+            color: #fff;
+            background-color: #198754;
+            border-color: #198754;
+        }
+        
+        /* Выравнивание левых краев кнопок */
+        .map-controls .btn-group {
+            display: flex;
+            justify-content: flex-start;
+        }
+        
+        .map-controls .btn-group .btn {
+            flex: 1;
+            text-align: center;
+        }
+        
+        /* Уменьшенный размер кнопок - принудительно */
+        .map-controls .btn-group .btn.btn-sm,
+        .map-controls .btn-group .btn {
+            padding: 0.125rem 0.25rem !important;
+            font-size: 0.75rem !important;
+            line-height: 1.2 !important;
+            min-height: 24px !important;
+            max-height: 28px !important;
+        }
+        
+        /* Дополнительное принудительное уменьшение */
+        .map-controls .btn-group input[type="radio"] + label.btn {
+            padding: 0.125rem 0.25rem !important;
+            font-size: 0.75rem !important;
+            line-height: 1.2 !important;
+            min-height: 24px !important;
+            max-height: 28px !important;
+        }
+        
+        /* Принудительное переопределение Bootstrap */
+        .map-controls .btn-group .btn.btn-sm,
+        .map-controls .btn-group .btn,
+        .map-controls .btn-group label.btn {
+            padding: 0.125rem 0.25rem !important;
+            font-size: 0.75rem !important;
+            line-height: 1.2 !important;
+            min-height: 24px !important;
+            max-height: 28px !important;
+            height: 28px !important;
+        }
+        
+        /* Дополнительное уменьшение для всех кнопок в map-controls */
+        .map-controls .btn {
+            padding: 0.125rem 0.25rem !important;
+            font-size: 0.75rem !important;
+            line-height: 1.2 !important;
+            min-height: 24px !important;
+            max-height: 28px !important;
+            height: 28px !important;
+        }
+        
+        /* Место для будущих кнопок сентимента */
+        .map-controls .sentiment-methods-placeholder {
+            min-height: 40px;
+            margin-bottom: 15px;
+        }
+        
+        /* Стили для неактивного состояния секции сентимента */
+        .sentiment-section-disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        
+        .sentiment-section-disabled .btn {
+            opacity: 0.5 !important;
+            cursor: not-allowed !important;
+        }
+        
+        .sentiment-section-disabled input[type="radio"] {
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -243,91 +335,202 @@
             </div>
 
             <!-- Центральная панель: Карта -->
-            <div class="col-md-6">
+            <div class="col-md-5">
                 <div class="card">
                     <div class="card-header">
                         <h6><i class="fas fa-map"></i> Карта объектов</h6>
                     </div>
                     <div class="card-body">
                         <div class="map-controls">
-                            <div class="btn-group btn-group-sm" role="group">
-                                <input type="checkbox" class="btn-check" id="showArchive" checked>
-                                <label class="btn btn-outline-primary" for="showArchive">
-                                    <i class="fas fa-archive"></i> Архив
-                                </label>
-                                
-                                <input type="checkbox" class="btn-check" id="showNew">
-                                <label class="btn btn-outline-success" for="showNew">
-                                    <i class="fas fa-plus"></i> Новые
-                                </label>
-                            </div>
-                            
-                            <!-- Переключатель типа групп -->
-                            <div class="mt-2">
-                                <label class="form-label"><strong>Тип групп на карте:</strong></label>
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <input type="radio" class="btn-check" name="groupType" id="supplierGroups" value="supplier" checked>
-                                    <label class="btn btn-outline-info" for="supplierGroups">
-                                        <i class="fas fa-tag"></i> От поставщика
-                                    </label>
-                                    
-                                    <input type="radio" class="btn-check" name="groupType" id="determinedGroups" value="determined">
-                                    <label class="btn btn-outline-warning" for="determinedGroups">
-                                        <i class="fas fa-brain"></i> Определенные
-                                    </label>
-                                </div>
-                            </div>
-                            
-                            <!-- Легенда карты -->
-                            <div class="map-legend mt-2">
-                                <h6><i class="fas fa-palette"></i> Легенда:</h6>
+                            <!-- Фильтры по группам -->
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Фильтры по группам:</strong></label>
                                 <div class="row">
                                     <div class="col-md-6">
-                                        <div class="legend-item">
-                                            <span class="legend-color" style="background-color: #ff0000;"></span>
-                                            <span class="legend-text">Школы</span>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="filter_school" value="school" checked>
+                                            <label class="form-check-label" for="filter_school">Школы</label>
                                         </div>
-                                        <div class="legend-item">
-                                            <span class="legend-color" style="background-color: #00ff00;"></span>
-                                            <span class="legend-text">Больницы</span>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="filter_hospital" value="hospital" checked>
+                                            <label class="form-check-label" for="filter_hospital">Больницы</label>
                                         </div>
-                                        <div class="legend-item">
-                                            <span class="legend-color" style="background-color: #0000ff;"></span>
-                                            <span class="legend-text">Аптеки</span>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="filter_pharmacy" value="pharmacy" checked>
+                                            <label class="form-check-label" for="filter_pharmacy">Аптеки</label>
                                         </div>
-                                        <div class="legend-item">
-                                            <span class="legend-color" style="background-color: #ffff00;"></span>
-                                            <span class="legend-text">Детские сады</span>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="filter_kindergarden" value="kindergarden" checked>
+                                            <label class="form-check-label" for="filter_kindergarden">Детские сады</label>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
-                                        <div class="legend-item">
-                                            <span class="legend-color" style="background-color: #ff00ff;"></span>
-                                            <span class="legend-text">Поликлиники</span>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="filter_polyclinic" value="polyclinic" checked>
+                                            <label class="form-check-label" for="filter_polyclinic">Поликлиники</label>
                                         </div>
-                                        <div class="legend-item">
-                                            <span class="legend-color" style="background-color: #00ffff;"></span>
-                                            <span class="legend-text">Университеты</span>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="filter_university" value="university" checked>
+                                            <label class="form-check-label" for="filter_university">Университеты</label>
                                         </div>
-                                        <div class="legend-item">
-                                            <span class="legend-color" style="background-color: #ff8800;"></span>
-                                            <span class="legend-text">Торговые центры</span>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="filter_shopmall" value="shopmall" checked>
+                                            <label class="form-check-label" for="filter_shopmall">Торговые центры</label>
                                         </div>
-                                        <div class="legend-item">
-                                            <span class="legend-color" style="background-color: #8800ff;"></span>
-                                            <span class="legend-text">Жилые комплексы</span>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="filter_resident_complexes" value="resident_complexes" checked>
+                                            <label class="form-check-label" for="filter_resident_complexes">Жилые комплексы</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-2">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectAllFilters()">Выбрать все</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deselectAllFilters()">Снять выбор</button>
+                                </div>
+                            </div>
+
+                            <!-- Цветовая схема -->
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Цветовая схема:</strong></label>
+                                <div class="row">
+                                    <div class="col-3">
+                                        <div class="btn-group btn-group-sm w-100" role="group">
+                                            <input type="radio" class="btn-check" name="colorScheme" id="colorGroup" value="group" checked>
+                                            <label class="btn btn-outline-success" for="colorGroup" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
+                                                <i class="fas fa-tags"></i> По группам
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="btn-group btn-group-sm w-100" role="group">
+                                            <input type="radio" class="btn-check" name="colorScheme" id="colorSentiment" value="sentiment">
+                                            <label class="btn btn-outline-success" for="colorSentiment" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
+                                                <i class="fas fa-heart"></i> По сентименту
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Метод сентимента (всегда видим, но неактивен при выборе "По группам") -->
+                            <div class="mb-3" id="sentimentMethodSection">
+                                <label class="form-label"><strong>Метод определения сентимента:</strong></label>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <div class="btn-group btn-group-sm w-100" role="group">
+                                            <input type="radio" class="btn-check" name="sentimentMethod" id="sentimentRating" value="rating" checked>
+                                            <label class="btn btn-outline-success" for="sentimentRating" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
+                                                <i class="fas fa-star"></i> Рейтинг
+                                            </label>
+                                            
+                                            <input type="radio" class="btn-check" name="sentimentMethod" id="sentimentClassical" value="classical_sentiment">
+                                            <label class="btn btn-outline-success" for="sentimentClassical" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
+                                                <i class="fas fa-brain"></i> Классический
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="btn-group btn-group-sm w-100" role="group">
+                                            <input type="radio" class="btn-check" name="sentimentMethod" id="sentimentOpenAI" value="openai_sentiment">
+                                            <label class="btn btn-outline-success" for="sentimentOpenAI" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
+                                                <i class="fas fa-robot"></i> OpenAI
+                                            </label>
+                                            
+                                            <input type="radio" class="btn-check" name="sentimentMethod" id="sentimentGemini" value="google_gemini_sentiment">
+                                            <label class="btn btn-outline-success" for="sentimentGemini" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
+                                                <i class="fas fa-gem"></i> Gemini
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row mt-1">
+                                    <div class="col-6">
+                                        <div class="btn-group btn-group-sm w-100" role="group">
+                                            <input type="radio" class="btn-check" name="sentimentMethod" id="sentimentYandex" value="yandexgpt_sentiment">
+                                            <label class="btn btn-outline-success" for="sentimentYandex" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
+                                                <i class="fas fa-search"></i> YandexGPT
+                                            </label>
+                                            
+                                            <input type="radio" class="btn-check" name="sentimentMethod" id="sentimentGigaChat" value="gigachat_sentiment">
+                                            <label class="btn btn-outline-success" for="sentimentGigaChat" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
+                                                <i class="fas fa-comments"></i> GigaChat
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="btn-group btn-group-sm w-100" role="group">
+                                            <input type="radio" class="btn-check" name="sentimentMethod" id="sentimentQwen" value="qwen_sentiment">
+                                            <label class="btn btn-outline-success" for="sentimentQwen" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
+                                                <i class="fas fa-bolt"></i> Qwen
+                                            </label>
+                                            
+                                            <input type="radio" class="btn-check" name="sentimentMethod" id="sentimentDeepSeek" value="deepseek_sentiment">
+                                            <label class="btn btn-outline-success" for="sentimentDeepSeek" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
+                                                <i class="fas fa-rocket"></i> DeepSeek
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Переключатель типа групп -->
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Тип групп на карте:</strong></label>
+                                <div class="row">
+                                    <div class="col-3">
+                                        <div class="btn-group btn-group-sm w-100" role="group">
+                                            <input type="radio" class="btn-check" name="groupType" id="supplierGroups" value="supplier" checked>
+                                            <label class="btn btn-outline-success" for="supplierGroups" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
+                                                <i class="fas fa-tag"></i> От поставщика
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="btn-group btn-group-sm w-100" role="group">
+                                            <input type="radio" class="btn-check" name="groupType" id="determinedGroups" value="determined">
+                                            <label class="btn btn-outline-success" for="determinedGroups" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
+                                                <i class="fas fa-brain"></i> Определенные
+                                            </label>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="map-container" id="map"></div>
+                        
+                        <!-- Карта и легенда в одной строке -->
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="map-container" id="map"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="map-legend">
+                                    <h6><i class="fas fa-palette"></i> Легенда:</h6>
+                                    <!-- Легенда для групп -->
+                                    <div id="group-legend">
+                                        <div class="legend-item"><span class="legend-color" style="background-color: #007bff;"></span> Школы</div>
+                                        <div class="legend-item"><span class="legend-color" style="background-color: #dc3545;"></span> Больницы</div>
+                                        <div class="legend-item"><span class="legend-color" style="background-color: #28a745;"></span> Аптеки</div>
+                                        <div class="legend-item"><span class="legend-color" style="background-color: #ffc107;"></span> Детские сады</div>
+                                        <div class="legend-item"><span class="legend-color" style="background-color: #17a2b8;"></span> Поликлиники</div>
+                                        <div class="legend-item"><span class="legend-color" style="background-color: #6f42c1;"></span> Университеты</div>
+                                        <div class="legend-item"><span class="legend-color" style="background-color: #fd7e14;"></span> Торговые центры</div>
+                                        <div class="legend-item"><span class="legend-color" style="background-color: #e83e8c;"></span> Жилые комплексы</div>
+                                    </div>
+                                    <!-- Легенда для сентимента -->
+                                    <div id="sentiment-legend" style="display: none;">
+                                        <div class="legend-item"><span class="legend-color" style="background-color: #28a745;"></span> Хорошо</div>
+                                        <div class="legend-item"><span class="legend-color" style="background-color: #ffc107;"></span> Удовлетворительно</div>
+                                        <div class="legend-item"><span class="legend-color" style="background-color: #fd7e14;"></span> Плохо</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- Правая панель: Результаты анализа -->
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <div class="card">
                     <div class="card-header">
                         <h6><i class="fas fa-chart-bar"></i> Результаты анализа</h6>
@@ -1042,22 +1245,67 @@
             // Загружаем данные карты
             updateMap();
 
-            // Обработчики переключателей
-            document.getElementById('showArchive').addEventListener('change', updateMapVisibility);
-            document.getElementById('showNew').addEventListener('change', updateMapVisibility);
-            
             // Обработчики переключателя типа групп
             document.getElementById('supplierGroups').addEventListener('change', updateMap);
             document.getElementById('determinedGroups').addEventListener('change', updateMap);
+
+            // Обработчики цветовых схем
+            document.getElementById('colorGroup').addEventListener('change', function() {
+                updateSentimentMethodVisibility();
+                updateMap();
+                updateLegend();
+            });
+            document.getElementById('colorSentiment').addEventListener('change', function() {
+                updateSentimentMethodVisibility();
+                updateMap();
+                updateLegend();
+            });
+
+            // Обработчики методов сентимента
+            document.getElementById('sentimentRating').addEventListener('change', updateMap);
+            document.getElementById('sentimentClassical').addEventListener('change', updateMap);
+
+            // Обработчики фильтров
+            document.querySelectorAll('input[type="checkbox"][id^="filter_"]').forEach(checkbox => {
+                checkbox.addEventListener('change', updateMap);
+            });
         }
 
         function updateMap() {
-            // Получаем выбранный тип групп
+            // Получаем параметры
             const groupType = document.querySelector('input[name="groupType"]:checked').value;
+            const colorScheme = document.querySelector('input[name="colorScheme"]:checked').value;
+            const sentimentMethod = document.querySelector('input[name="sentimentMethod"]:checked').value;
             
-            fetch(`/map/data?group_type=${groupType}`)
-                .then(response => response.json())
-                .then(data => {
+            // Получаем активные фильтры
+            const activeFilters = getActiveFilters();
+            
+            // Формируем URL с параметрами
+            const params = new URLSearchParams({
+                group_type: groupType,
+                color_scheme: colorScheme,
+                sentiment_method: sentimentMethod
+            });
+            
+            if (activeFilters.length > 0) {
+                params.append('filters', activeFilters.join(','));
+            }
+            
+                                fetch(`/map/data?${params.toString()}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log('Получены данные карты:', data);
+                            console.log('Тип групп:', groupType);
+                            console.log('Архивные данные:', data.archive);
+                            if (data.archive && data.archive.length > 0) {
+                                data.archive.forEach((group, index) => {
+                                    console.log(`Группа ${index}:`, group.group, 'Точек:', group.points.length);
+                                    if (group.points.length > 0) {
+                                        console.log('Первая точка:', group.points[0]);
+                                    }
+                                });
+                            }
+                    
                     // Очищаем старые метки
                     archivePlacemarks.forEach(placemark => {
                         myMap.geoObjects.remove(placemark);
@@ -1069,68 +1317,82 @@
                     newPlacemarks = [];
 
                     // Добавляем архивные объекты
-                    if (data.archive) {
+                    if (data.archive && data.archive.length > 0) {
+                        console.log(`Добавляем ${data.archive.length} архивных групп`);
                         data.archive.forEach(group => {
-                            const color = getGroupColor(group.group);
+                            console.log(`Группа ${group.group}: ${group.points.length} точек`);
                             group.points.forEach(point => {
-                                const placemark = new ymaps.Placemark(
-                                    [point.latitude, point.longitude],
-                                    {
-                                        balloonContent: `
-                                            <div style="padding: 10px;">
-                                                <h6>${point.name}</h6>
-                                                <p><strong>Адрес:</strong> ${point.address}</p>
-                                                <p><strong>Район:</strong> ${point.district}</p>
-                                                <p><strong>Группа:</strong> ${group.group}</p>
-                                                ${point.determined_group ? `<p><strong>Определенная группа:</strong> ${point.determined_group}</p>` : ''}
-                                            </div>
-                                        `
-                                    },
-                                    {
-                                        preset: 'islands#circleDotIcon',
-                                        iconColor: color,
-                                        iconSize: [8, 8]
-                                    }
-                                );
-                                archivePlacemarks.push(placemark);
-                                if (document.getElementById('showArchive').checked) {
+                                if (point.latitude && point.longitude) {
+                                    const placemark = new ymaps.Placemark(
+                                        [point.latitude, point.longitude],
+                                        {
+                                            balloonContent: `
+                                                <div style="padding: 10px;">
+                                                    <h6>${point.name}</h6>
+                                                    <p><strong>Адрес:</strong> ${point.address}</p>
+                                                    <p><strong>Район:</strong> ${point.district}</p>
+                                                    <p><strong>Группа:</strong> ${group.group}</p>
+                                                    ${point.determined_group ? `<p><strong>Определенная группа:</strong> ${point.determined_group}</p>` : ''}
+                                                    ${point.sentiment ? `<p><strong>Сентимент:</strong> ${point.sentiment}</p>` : ''}
+                                                </div>
+                                            `
+                                        },
+                                        {
+                                            preset: 'islands#circleDotIcon',
+                                            iconColor: point.color || getGroupColor(group.group),
+                                            iconSize: [8, 8]
+                                        }
+                                    );
+                                    archivePlacemarks.push(placemark);
                                     myMap.geoObjects.add(placemark);
+                                } else {
+                                    console.warn('Пропускаем точку без координат:', point);
                                 }
                             });
                         });
+                    } else {
+                        console.log('Нет архивных данных для отображения');
                     }
 
                     // Добавляем новые объекты
-                    if (data.new) {
+                    if (data.new && data.new.length > 0) {
+                        console.log(`Добавляем ${data.new.length} новых групп`);
                         data.new.forEach(group => {
-                            const color = getGroupColor(group.group);
+                            console.log(`Группа ${group.group}: ${group.points.length} точек`);
                             group.points.forEach(point => {
-                                const placemark = new ymaps.Placemark(
-                                    [point.latitude, point.longitude],
-                                    {
-                                        balloonContent: `
-                                            <div style="padding: 10px;">
-                                                <h6>${point.name}</h6>
-                                                <p><strong>Адрес:</strong> ${point.address}</p>
-                                                <p><strong>Район:</strong> ${point.district}</p>
-                                                <p><strong>Группа:</strong> ${group.group}</p>
-                                                ${point.determined_group ? `<p><strong>Определенная группа:</strong> ${point.determined_group}</p>` : ''}
-                                            </div>
-                                        `
-                                    },
-                                    {
-                                        preset: 'islands#circleDotIcon',
-                                        iconColor: color,
-                                        iconSize: [10, 10]
-                                    }
-                                );
-                                newPlacemarks.push(placemark);
-                                if (document.getElementById('showNew').checked) {
+                                if (point.latitude && point.longitude) {
+                                    const placemark = new ymaps.Placemark(
+                                        [point.latitude, point.longitude],
+                                        {
+                                            balloonContent: `
+                                                <div style="padding: 10px;">
+                                                    <h6>${point.name}</h6>
+                                                    <p><strong>Адрес:</strong> ${point.address}</p>
+                                                    <p><strong>Район:</strong> ${point.district}</p>
+                                                    <p><strong>Группа:</strong> ${group.group}</p>
+                                                    ${point.determined_group ? `<p><strong>Определенная группа:</strong> ${point.determined_group}</p>` : ''}
+                                                    ${point.sentiment ? `<p><strong>Сентимент:</strong> ${point.sentiment}</p>` : ''}
+                                                </div>
+                                            `
+                                        },
+                                        {
+                                            preset: 'islands#circleDotIcon',
+                                            iconColor: point.color || getGroupColor(group.group),
+                                            iconSize: [10, 10]
+                                        }
+                                    );
+                                    newPlacemarks.push(placemark);
                                     myMap.geoObjects.add(placemark);
+                                } else {
+                                    console.warn('Пропускаем точку без координат:', point);
                                 }
                             });
                         });
+                    } else {
+                        console.log('Нет новых данных для отображения');
                     }
+                    
+                    console.log(`Всего добавлено: ${archivePlacemarks.length} архивных + ${newPlacemarks.length} новых меток`);
                 })
                 .catch(error => {
                     console.error('Ошибка загрузки данных карты:', error);
@@ -1138,25 +1400,14 @@
         }
 
         function updateMapVisibility() {
-            const showArchive = document.getElementById('showArchive').checked;
-            const showNew = document.getElementById('showNew').checked;
-
             // Обновляем видимость архивных меток
             archivePlacemarks.forEach(placemark => {
-                if (showArchive) {
-                    myMap.geoObjects.add(placemark);
-                } else {
-                    myMap.geoObjects.remove(placemark);
-                }
+                myMap.geoObjects.add(placemark);
             });
 
             // Обновляем видимость новых меток
             newPlacemarks.forEach(placemark => {
-                if (showNew) {
-                    myMap.geoObjects.add(placemark);
-                } else {
-                    myMap.geoObjects.remove(placemark);
-                }
+                myMap.geoObjects.add(placemark);
             });
         }
 
@@ -1174,11 +1425,100 @@
             return colors[group] || '#999999'; // Серый по умолчанию
         }
 
+        function getActiveFilters() {
+            const filters = [];
+            const checkboxes = document.querySelectorAll('input[type="checkbox"][id^="filter_"]');
+            checkboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    filters.push(checkbox.value);
+                }
+            });
+            return filters;
+        }
+
+        function selectAllFilters() {
+            const checkboxes = document.querySelectorAll('input[type="checkbox"][id^="filter_"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = true;
+            });
+            updateMap();
+        }
+
+        function deselectAllFilters() {
+            const checkboxes = document.querySelectorAll('input[type="checkbox"][id^="filter_"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            updateMap();
+        }
+
+        function updateSentimentMethodVisibility() {
+            const colorScheme = document.querySelector('input[name="colorScheme"]:checked').value;
+            const sentimentSection = document.getElementById('sentimentMethodSection');
+            
+            if (colorScheme === 'sentiment') {
+                sentimentSection.classList.remove('sentiment-section-disabled');
+                // Активируем все кнопки методов сентимента
+                const sentimentButtons = sentimentSection.querySelectorAll('input[type="radio"]');
+                sentimentButtons.forEach(button => {
+                    button.disabled = false;
+                });
+            } else {
+                sentimentSection.classList.add('sentiment-section-disabled');
+                // Деактивируем все кнопки методов сентимента, кроме рейтинга
+                const sentimentButtons = sentimentSection.querySelectorAll('input[type="radio"]');
+                sentimentButtons.forEach(button => {
+                    if (button.value !== 'rating') {
+                        button.disabled = true;
+                    }
+                });
+                // Принудительно выбираем рейтинг при переключении на группы
+                const ratingButton = document.getElementById('sentimentRating');
+                if (ratingButton) {
+                    ratingButton.checked = true;
+                }
+            }
+            
+            // Обновляем легенду
+            updateLegend();
+        }
+
+        function updateLegend() {
+            const colorScheme = document.querySelector('input[name="colorScheme"]:checked').value;
+            const groupLegend = document.getElementById('group-legend');
+            const sentimentLegend = document.getElementById('sentiment-legend');
+            
+            if (colorScheme === 'sentiment') {
+                groupLegend.style.display = 'none';
+                sentimentLegend.style.display = 'block';
+            } else {
+                groupLegend.style.display = 'block';
+                sentimentLegend.style.display = 'none';
+            }
+        }
+
         // Загружаем информацию об архиве и методы анализа при загрузке страницы
         document.addEventListener('DOMContentLoaded', function() {
             getArchiveInfo();
             loadAnalysisMethods();
+            // Инициализируем состояние секции сентимента
+            updateSentimentMethodVisibility();
+            // Применяем стили к кнопкам
+            applyButtonStyles();
         });
+        
+        function applyButtonStyles() {
+            // Применяем стили ко всем кнопкам в map-controls
+            const buttons = document.querySelectorAll('.map-controls .btn-group .btn');
+            buttons.forEach(button => {
+                button.style.padding = '0.125rem 0.25rem';
+                button.style.fontSize = '0.75rem';
+                button.style.lineHeight = '1.2';
+                button.style.minHeight = '24px';
+                button.style.maxHeight = '28px';
+                button.style.height = '28px';
+            });
+        }
         
         function loadAnalysisMethods() {
             fetch('/analysis/methods')

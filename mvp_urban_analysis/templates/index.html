@@ -1291,10 +1291,20 @@
                 params.append('filters', activeFilters.join(','));
             }
             
-            fetch(`/map/data?${params.toString()}`)
-                .then(response => response.json())
-                .then(data => {
-                    console.log('Получены данные карты:', data);
+                                fetch(`/map/data?${params.toString()}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log('Получены данные карты:', data);
+                            console.log('Тип групп:', groupType);
+                            console.log('Архивные данные:', data.archive);
+                            if (data.archive && data.archive.length > 0) {
+                                data.archive.forEach((group, index) => {
+                                    console.log(`Группа ${index}:`, group.group, 'Точек:', group.points.length);
+                                    if (group.points.length > 0) {
+                                        console.log('Первая точка:', group.points[0]);
+                                    }
+                                });
+                            }
                     
                     // Очищаем старые метки
                     archivePlacemarks.forEach(placemark => {

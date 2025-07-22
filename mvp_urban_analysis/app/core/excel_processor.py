@@ -77,20 +77,10 @@ class ExcelProcessor:
                 try:
                     # Читаем только заголовки для определения колонок
                     df_sample = pd.read_excel(file_path, sheet_name=sheet_name, nrows=5)
-                    
-                    # Применяем маппинг полей
-                    mapped_columns = []
-                    for col in df_sample.columns:
-                        mapped_columns.append(self.field_mapping.get(col, col))
-                    
-                    # Определяем поддерживаемые поля после маппинга
-                    supported_fields = [col for col in mapped_columns if col in self.supported_fields]
-                    
                     sheets_info[sheet_name] = {
                         'columns': df_sample.columns.tolist(),
-                        'mapped_columns': mapped_columns,
                         'sample_rows': len(df_sample),
-                        'supported_fields': supported_fields
+                        'supported_fields': [col for col in df_sample.columns if col in self.supported_fields]
                     }
                 except Exception as e:
                     logger.warning(f"Ошибка чтения листа {sheet_name}: {str(e)}")
@@ -157,40 +147,6 @@ class ExcelProcessor:
             text = text.replace(old_char, new_char)
         
         return text
-    
-    def _determine_group_from_content(self, review_text: str, name: str) -> str:
-        """
-        Определяет группу объекта на основе содержимого
-        
-        Args:
-            review_text: Текст отзыва
-            name: Название объекта
-            
-        Returns:
-            Определенная группа
-        """
-        # Ключевые слова для определения групп
-        group_keywords = {
-            'school': ['школа', 'учитель', 'ученик', 'класс', 'урок', 'директор', 'завуч'],
-            'hospital': ['больница', 'врач', 'пациент', 'лечение', 'медицинский', 'клиника', 'поликлиника'],
-            'pharmacy': ['аптека', 'лекарство', 'фармацевт', 'медикамент', 'препарат'],
-            'kindergarden': ['детский сад', 'воспитатель', 'группа', 'игра', 'развитие'],
-            'polyclinic': ['поликлиника', 'врач', 'прием', 'консультация', 'диспансер'],
-            'university': ['университет', 'студент', 'преподаватель', 'лекция', 'сессия', 'факультет'],
-            'shopmall': ['торговый центр', 'магазин', 'молл', 'гипермаркет', 'ТЦ', 'шопинг'],
-            'resident_complexes': ['жилой комплекс', 'дом', 'квартира', 'жилье', 'недвижимость']
-        }
-        
-        # Объединяем текст для анализа
-        text_to_analyze = f"{review_text} {name}".lower()
-        
-        # Ищем совпадения
-        for group, keywords in group_keywords.items():
-            for keyword in keywords:
-                if keyword in text_to_analyze:
-                    return group
-        
-        return 'unknown'
     
     def process_excel_file(self, file_path: str, sheet_name: str = None, 
                           filters: Dict = None) -> pd.DataFrame:
@@ -290,14 +246,17 @@ class ExcelProcessor:
                     else:
                         df[field] = ""
             
+            # Определяем группы для записей с пустым determined_group
+            if 'determined_group' in df.columns:
+                for idx, row in df.iterrows():
+                    if pd.isna(row.get('determined_group')) or row.get('determined_group') == '':
+                        name = row.get('name', '')
+                        review_text = row.get('review_text', '')
+                        determined_group = self._determine_group_from_content(name, review_text)
+                        df.at[idx, 'determined_group'] = determined_group
+            
             # Приводим к стандартному порядку полей
             df = df.reindex(columns=self.supported_fields)
-            
-            # Определяем determined_group, если он пустой
-            for idx, row in df.iterrows():
-                if not row.get('determined_group'):
-                    group = self._determine_group_from_content(row.get('review_text', ''), row.get('name', ''))
-                    df.at[idx, 'determined_group'] = group
             
             logger.info(f"Обработан Excel файл: {len(df)} строк")
             logger.info(f"Финальные колонки: {list(df.columns)}")
@@ -309,6 +268,57 @@ class ExcelProcessor:
             logger.error(f"Полный traceback: {traceback.format_exc()}")
             return pd.DataFrame()
     
+    def _determine_group_from_content(self, name: str = '', review_text: str = '') -> str:
+        """
+        Определение группы из содержимого (названия объектов и текстов отзывов)
+        
+        Args:
+            name: Название объекта
+            review_text: Текст отзыва
+            
+        Returns:
+            Определенная группа объекта
+        """
+        try:
+            # Объединяем название и текст отзыва для анализа
+            combined_text = f"{name} {review_text}".lower()
+            
+            # Ключевые слова для определения групп
+            group_keywords = {
+                'university': ['университет', 'институт', 'академия', 'вуз', 'ран', 'студент', 'преподаватель', 'лекция', 'сессия'],
+                'schools': ['школа', 'лицей', 'гимназия', 'образовательное учреждение', 'ученик', 'учитель', 'урок', 'класс'],
+                'hospital': ['больница', 'клиника', 'медицинский центр', 'дгкб', 'гкб', 'медицинская', 'врач', 'лечение', 'пациент', 'прием'],
+                'pharmacy': ['аптека', 'фармация', 'лекарства', 'лекарство', 'препарат', 'фармацевт'],
+                'kindergarden': ['детский сад', 'сад', 'дошкольное', 'ясли', 'воспитатель', 'ребенок', 'игра', 'группа'],
+                'polyclinic': ['поликлиника', 'амбулатория', 'медицинская консультация', 'врач', 'прием', 'консультация'],
+                'shopmall': ['торговый центр', 'молл', 'тц', 'галерея', 'торговый', 'магазин', 'покупка', 'товар', 'цены'],
+                'resident_complexes': ['жилой комплекс', 'жк', 'квартал', 'жилой дом', 'дом', 'квартира', 'жилье']
+            }
+            
+            # Подсчитываем совпадения для каждой группы
+            group_scores = {}
+            for group, keywords in group_keywords.items():
+                score = 0
+                for keyword in keywords:
+                    if keyword in combined_text:
+                        score += 1
+                if score > 0:
+                    group_scores[group] = score
+            
+            # Выбираем группу с наибольшим количеством совпадений
+            if group_scores:
+                best_group = max(group_scores, key=group_scores.get)
+                best_score = group_scores[best_group]
+                logger.info(f"Определена группа '{best_group}' по анализу содержимого (счет: {best_score})")
+                return best_group
+            
+            logger.info("Не удалось определить группу из содержимого")
+            return ''
+            
+        except Exception as e:
+            logger.error(f"Ошибка при определении группы из содержимого: {e}")
+            return ''
+
     def _apply_filters(self, df: pd.DataFrame, filters: Dict) -> pd.DataFrame:
         """
         Применение фильтров к DataFrame

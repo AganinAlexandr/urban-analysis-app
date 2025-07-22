@@ -23,6 +23,8 @@ from app.core.data_processor import DataProcessor
 from app.core.text_analyzer import TextAnalyzer
 from app.core.llm_analysis import LLMAnalyzer
 from app.core.geocoder import MoscowGeocoder
+from app.core.database import db_manager
+from app.core.data_migrator import data_migrator
 
 def convert_dataframe_for_json(df):
     """
@@ -527,6 +529,112 @@ def get_csv_fields_info():
     except Exception as e:
         return jsonify({'error': f'Ошибка получения информации о полях: {str(e)}'}), 500
 
+@app.route('/database/stats')
+def get_database_stats():
+    """Получение статистики базы данных"""
+    try:
+        stats = db_manager.get_statistics()
+        return jsonify({
+            'success': True,
+            'stats': stats
+        })
+    except Exception as e:
+        logger.error(f"Ошибка при получении статистики БД: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/database/migrate', methods=['POST'])
+def migrate_to_database():
+    """Миграция данных в базу данных"""
+    try:
+        data_type = request.form.get('data_type', 'current')  # current, archive, file
+        
+        if data_type == 'current':
+            # Мигрируем текущие данные
+            if hasattr(app, 'current_data') and app.current_data is not None:
+                stats = db_manager.migrate_csv_to_database(app.current_data, 'current_data')
+                return jsonify({
+                    'success': True,
+                    'message': 'Данные успешно мигрированы в базу данных',
+                    'stats': stats
+                })
+            else:
+                return jsonify({'error': 'Нет данных для миграции'}), 400
+                
+        elif data_type == 'archive':
+            # Мигрируем архивные данные
+            if hasattr(app, 'archive_data') and app.archive_data is not None:
+                stats = db_manager.migrate_csv_to_database(app.archive_data, 'archive_data')
+                return jsonify({
+                    'success': True,
+                    'message': 'Архивные данные успешно мигрированы в базу данных',
+                    'stats': stats
+                })
+            else:
+                return jsonify({'error': 'Нет архивных данных для миграции'}), 400
+        
+        else:
+            return jsonify({'error': 'Неизвестный тип данных'}), 400
+            
+    except Exception as e:
+        logger.error(f"Ошибка при миграции в БД: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/database/export', methods=['POST'])
+def export_from_database():
+    """Экспорт данных из базы данных"""
+    try:
+        include_analysis = request.form.get('include_analysis', 'true').lower() == 'true'
+        
+        # Экспортируем данные из БД
+        df = db_manager.export_to_dataframe(include_analysis)
+        
+        # Сохраняем во временный файл
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"database_export_{timestamp}.csv"
+        filepath = os.path.join('data', 'temp', filename)
+        
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        df.to_csv(filepath, index=False, encoding='utf-8')
+        
+        return jsonify({
+            'success': True,
+            'message': 'Данные успешно экспортированы из базы данных',
+            'filename': filename,
+            'records_count': len(df)
+        })
+        
+    except Exception as e:
+        logger.error(f"Ошибка при экспорте из БД: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/database/validate')
+def validate_database():
+    """Валидация базы данных"""
+    try:
+        validation_results = data_migrator.validate_migration()
+        return jsonify({
+            'success': True,
+            'validation': validation_results
+        })
+    except Exception as e:
+        logger.error(f"Ошибка при валидации БД: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/database/sentiment_distribution')
+def get_sentiment_distribution():
+    """Получение распределения сентиментов из базы данных"""
+    try:
+        method_name = request.args.get('method')
+        df = db_manager.get_sentiment_distribution(method_name)
+        
+        return jsonify({
+            'success': True,
+            'data': df.to_dict('records')
+        })
+    except Exception as e:
+        logger.error(f"Ошибка при получении распределения сентиментов: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/map/data')
 def get_map_data():
     """Получение данных для отображения на карте"""
@@ -560,6 +668,16 @@ def get_map_data():
         else:
             # Используем определенные группы
             group_field = 'determined_group'
+        
+        # Отладочная информация
+        logger.info(f"Тип групп: {group_type}, Поле группировки: {group_field}")
+        logger.info(f"Доступные колонки в данных: {list(df_converted.columns)}")
+        if 'determined_group' in df_converted.columns:
+            determined_groups = df_converted['determined_group'].value_counts()
+            logger.info(f"Определенные группы в данных: {determined_groups.to_dict()}")
+        if 'group' in df_converted.columns:
+            supplier_groups = df_converted['group'].value_counts()
+            logger.info(f"Группы от поставщика: {supplier_groups.to_dict()}")
         
         # Обрабатываем записи с пустыми группами отдельно
         empty_group_data = df_converted[df_converted[group_field].isna() | (df_converted[group_field] == '')]

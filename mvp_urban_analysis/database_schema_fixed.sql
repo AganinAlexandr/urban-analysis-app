@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS reviews (
     review_date TIMESTAMP,
     source TEXT, -- yandex, 2gis, etc.
     external_id TEXT, -- ID из внешней системы
+    в_Выборке TEXT DEFAULT NULL, -- Поле для отметки включения в выборку
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (object_id) REFERENCES objects(id)
 );

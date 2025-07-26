@@ -367,6 +367,18 @@ class JSONProcessor:
             logger.error(f"Ошибка обработки JSON: {e}")
             return pd.DataFrame()
     
+    def load_data(self, file_path: str) -> pd.DataFrame:
+        """
+        Загрузка данных из JSON файла (для совместимости с DataProcessorV2)
+        
+        Args:
+            file_path: Путь к JSON файлу или директории
+            
+        Returns:
+            DataFrame с данными
+        """
+        return self.process_json_file_or_directory(file_path)
+    
     def _process_single_json_file(self, file_path: str) -> pd.DataFrame:
         """
         Обработка одного JSON файла
@@ -662,6 +674,14 @@ class JSONProcessor:
             df['latitude'] = 0.0
             df['longitude'] = 0.0
             df['district'] = "Неизвестный район"
+        
+        # Нормализуем поля group и determined_group
+        if 'group' in df.columns:
+            df['group'] = df['group'].astype(str).str.strip().str.lower()
+            df['group_type'] = df['group']
+        if 'determined_group' in df.columns:
+            df['determined_group'] = df['determined_group'].astype(str).str.strip().str.lower()
+            df['detected_group_type'] = df['determined_group']
         
         logger.info(f"Поддерживаемые поля: {list(df.columns)}")
         logger.info(f"Обработан JSON файл: {len(df)} строк")

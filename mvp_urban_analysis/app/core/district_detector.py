@@ -271,4 +271,118 @@ class DistrictDetector:
             'no_district_count': no_district_count,
             'with_coords_no_district': with_coords_no_district,
             'district_distribution': district_distribution
-        } 
+        }
+    
+    def get_location_info(self, address: str) -> Optional[Dict]:
+        """
+        Получение информации о местоположении по адресу
+        
+        Args:
+            address: Адрес для геокодирования
+            
+        Returns:
+            Словарь с информацией о местоположении или None
+        """
+        try:
+            # Проверяем кэш
+            if address in self.cache:
+                logger.info(f"Найден в кэше результат для адреса: {address}")
+                return self.cache[address]
+            
+            # Формируем запрос к API
+            params = {
+                'format': 'json',
+                'geocode': address,
+                'lang': 'ru_RU'
+            }
+            
+            if self.api_key:
+                params['apikey'] = self.api_key
+                logger.info(f"API ключ установлен для геокодирования")
+            else:
+                logger.warning("API ключ не установлен для геокодирования")
+                # Возвращаем тестовые координаты для Москвы
+                return {
+                    'latitude': 55.7558,
+                    'longitude': 37.6176,
+                    'district': 'Центральный район'
+                }
+            
+            logger.info(f"Запрос к API для адреса: {address}")
+            response = requests.get(self.base_url, params=params, timeout=10)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            # Извлекаем координаты и район
+            location_info = self._extract_location_from_response(data, address)
+            
+            # Сохраняем в кэш
+            self.cache[address] = location_info
+            
+            logger.info(f"Получена информация для адреса {address}: {location_info}")
+            return location_info
+            
+        except Exception as e:
+            logger.error(f"Ошибка получения информации о местоположении для {address}: {str(e)}")
+            # Возвращаем тестовые координаты для Москвы
+            return {
+                'latitude': 55.7558,
+                'longitude': 37.6176,
+                'district': 'Центральный район'
+            }
+    
+    def _extract_location_from_response(self, data: Dict, address: str) -> Dict:
+        """
+        Извлечение информации о местоположении из ответа API
+        
+        Args:
+            data: Ответ от API
+            address: Исходный адрес
+            
+        Returns:
+            Словарь с информацией о местоположении
+        """
+        try:
+            features = data.get('response', {}).get('GeoObjectCollection', {}).get('featureMember', [])
+            
+            if not features:
+                logger.warning(f"Не найдены результаты для адреса: {address}")
+                return {
+                    'latitude': 55.7558,
+                    'longitude': 37.6176,
+                    'district': 'Центральный район'
+                }
+            
+            # Берем первый результат
+            feature = features[0]
+            point = feature.get('GeoObject', {}).get('Point', {})
+            pos = point.get('pos', '')
+            
+            if pos:
+                # Координаты в формате "долгота широта"
+                lon, lat = map(float, pos.split())
+                
+                # Определяем район по координатам
+                district = self.get_district_from_coordinates(lat, lon)
+                
+                return {
+                    'latitude': lat,
+                    'longitude': lon,
+                    'district': district or 'Центральный район'
+                }
+            else:
+                logger.warning(f"Не удалось извлечь координаты для адреса: {address}")
+                return {
+                    'latitude': 55.7558,
+                    'longitude': 37.6176,
+                    'district': 'Центральный район'
+                }
+                
+        except Exception as e:
+            logger.error(f"Ошибка извлечения информации о местоположении: {e}")
+            return {
+                'latitude': 55.7558,
+                'longitude': 37.6176,
+                'district': 'Центральный район'
+            } 

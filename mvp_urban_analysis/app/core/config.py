@@ -27,12 +27,19 @@ GROUP_CONFIG = {
     'determined_groups': ['school', 'hospital', 'pharmacy', 'kindergarden', 'polyclinic', 'university', 'shopmall', 'resident_complexes'],
     'colors': {
         'school': '#007bff',
+        'schools': '#007bff',
         'hospital': '#dc3545',
+        'hospitals': '#dc3545',
         'pharmacy': '#28a745',
+        'pharmacies': '#28a745',
         'kindergarden': '#ffc107',
+        'kindergartens': '#ffc107',
         'polyclinic': '#17a2b8',
+        'polyclinics': '#17a2b8',
         'university': '#6f42c1',
+        'universities': '#6f42c1',
         'shopmall': '#fd7e14',
+        'shopping_malls': '#fd7e14',
         'resident_complexes': '#e83e8c'
     }
 }

@@ -289,26 +289,131 @@
                         </div>
                     </div>
 
-                    <!-- Управление архивом -->
-                    <div class="card">
+                    <!-- Переключатель источника данных -->
+                    <div class="card mb-3">
                         <div class="card-header">
-                            <h6><i class="fas fa-archive"></i> Управление архивом</h6>
+                            <h6><i class="fas fa-database"></i> Источник данных</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="dataSource" id="sourceDB" value="database" checked>
+                                <label class="btn btn-outline-primary" for="sourceDB">
+                                    <i class="fas fa-database"></i> База данных
+                                </label>
+                                
+                                <input type="radio" class="btn-check" name="dataSource" id="sourceSample" value="sample">
+                                <label class="btn btn-outline-primary" for="sourceSample">
+                                    <i class="fas fa-filter"></i> Выборка
+                                </label>
+                            </div>
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle"></i>
+                                    <span id="dataSourceInfo">Работа с полной базой данных</span>
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Управление выборкой -->
+                    <div class="card" id="sampleManagementCard" style="display: none;">
+                        <div class="card-header">
+                            <h6><i class="fas fa-filter"></i> Управление выборкой</h6>
                         </div>
                         <div class="card-body">
                             <div class="row">
                                 <div class="col-6">
                                     <div class="d-grid gap-2">
-                                        <button class="btn btn-success btn-sm" onclick="downloadArchive()">
-                                            <i class="fas fa-download"></i> Скачать архив
+                                        <button class="btn btn-success btn-sm" onclick="createSample()">
+                                            <i class="fas fa-plus"></i> Создать выборку
                                         </button>
-                                        <button class="btn btn-warning btn-sm" onclick="clearArchive()">
-                                            <i class="fas fa-trash"></i> Очистить архив
+                                        <button class="btn btn-info btn-sm" onclick="downloadSample()">
+                                            <i class="fas fa-download"></i> Скачать выборку
                                         </button>
                                     </div>
                                 </div>
                                 <div class="col-6">
                                     <div class="d-grid gap-2">
-                                        <button class="btn btn-outline-info btn-sm" onclick="getCSVFieldsInfo()">
+                                        <button class="btn btn-warning btn-sm" onclick="clearSample()">
+                                            <i class="fas fa-trash"></i> Очистить выборку
+                                        </button>
+                                        <button class="btn btn-outline-info btn-sm" onclick="getSampleInfo()">
+                                            <i class="fas fa-info"></i> Информация
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="sample-info mt-3" id="sampleInfo" style="display: none;">
+                                <h6>Информация о выборке:</h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div id="sampleInfoContent"></div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div id="sampleCompletenessContent"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Управление ключевыми словами -->
+                    <div class="card" id="keywordsManagementCard">
+                        <div class="card-header">
+                            <h6><i class="fas fa-key"></i> Управление ключевыми словами</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-6">
+                                    <div class="d-grid gap-2">
+                                        <button class="btn btn-success btn-sm" onclick="regenerateKeywords()">
+                                            <i class="fas fa-sync"></i> Перегенерировать ключевые слова
+                                        </button>
+                                        <button class="btn btn-info btn-sm" onclick="updateDetectedGroups()">
+                                            <i class="fas fa-tags"></i> Обновить группы
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="d-grid gap-2">
+                                        <button class="btn btn-outline-info btn-sm" onclick="getKeywordsStatus()">
+                                            <i class="fas fa-chart-bar"></i> Статус ключевых слов
+                                        </button>
+                                        <button class="btn btn-outline-secondary btn-sm" onclick="showKeywordsInfo()">
+                                            <i class="fas fa-info-circle"></i> Информация
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="keywords-info mt-3" id="keywordsInfo" style="display: none;">
+                                <h6>Информация о ключевых словах:</h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div id="keywordsStatsContent"></div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div id="objectsStatsContent"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Информация о базе данных -->
+                    <div class="card" id="archiveManagementCard">
+                        <div class="card-header">
+                            <h6><i class="fas fa-database"></i> Информация о базе данных</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="d-grid gap-2">
+                                        <button class="btn btn-outline-info btn-sm" onclick="getArchiveInfo()">
+                                            <i class="fas fa-info-circle"></i> Информация о БД
+                                        </button>
+                                        <button class="btn btn-outline-secondary btn-sm" onclick="getCSVFieldsInfo()">
                                             <i class="fas fa-list"></i> Поддерживаемые поля
                                         </button>
                                         <button class="btn btn-secondary btn-sm" onclick="getSampleData()">
@@ -319,7 +424,7 @@
                             </div>
                             
                             <div class="archive-info" id="archiveInfo" style="display: none;">
-                                <h6>Информация об архиве:</h6>
+                                <h6>Информация о базе данных:</h6>
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div id="archiveInfoContent"></div>
@@ -1284,7 +1389,8 @@
             const params = new URLSearchParams({
                 group_type: groupType,
                 color_scheme: colorScheme,
-                sentiment_method: sentimentMethod
+                sentiment_method: sentimentMethod,
+                data_source: currentDataSource // Добавляем источник данных
             });
             
             if (activeFilters.length > 0) {
@@ -1297,6 +1403,12 @@
                             console.log('Получены данные карты:', data);
                             console.log('Тип групп:', groupType);
                             console.log('Архивные данные:', data.archive);
+                            
+                            // Проверяем сообщение о пустой выборке
+                            if (data.message && data.message.includes('Выборка пуста')) {
+                                showStatus(data.message, 'warning');
+                            }
+                            
                             if (data.archive && data.archive.length > 0) {
                                 data.archive.forEach((group, index) => {
                                     console.log(`Группа ${index}:`, group.group, 'Точек:', group.points.length);
@@ -1505,7 +1617,173 @@
             updateSentimentMethodVisibility();
             // Применяем стили к кнопкам
             applyButtonStyles();
+            
+            // Инициализируем переключатель источника данных
+            initializeDataSourceSwitch();
         });
+        
+        // Переменная для хранения текущего источника данных
+        let currentDataSource = 'database';
+        
+        function initializeDataSourceSwitch() {
+            // Обработчики переключателя источника данных
+            document.getElementById('sourceDB').addEventListener('change', function() {
+                currentDataSource = 'database';
+                updateDataSourceUI();
+                updateMap();
+            });
+            
+            document.getElementById('sourceSample').addEventListener('change', function() {
+                currentDataSource = 'sample';
+                updateDataSourceUI();
+                updateMap();
+            });
+            
+            // Инициализируем UI
+            updateDataSourceUI();
+        }
+        
+        function updateDataSourceUI() {
+            const sampleCard = document.getElementById('sampleManagementCard');
+            const archiveCard = document.getElementById('archiveManagementCard');
+            const dataSourceInfo = document.getElementById('dataSourceInfo');
+            
+            // Кнопки управления выборкой всегда видны
+            sampleCard.style.display = 'block';
+            archiveCard.style.display = 'block';
+            
+            if (currentDataSource === 'sample') {
+                dataSourceInfo.textContent = 'Работа с выборкой из базы данных';
+            } else {
+                dataSourceInfo.textContent = 'Работа с полной базой данных';
+            }
+        }
+        
+        // Функции для работы с выборками
+        function createSample() {
+            // Получаем текущие фильтры из БД (не из выборки!)
+            const filters = {
+                group_filters: getActiveFilters(),
+                color_scheme: document.querySelector('input[name="colorScheme"]:checked').value,
+                sentiment_method: document.querySelector('input[name="sentimentMethod"]:checked').value,
+                group_type: document.querySelector('input[name="groupType"]:checked').value
+            };
+            
+            console.log('Создание выборки с фильтрами:', filters);
+            showStatus('Создание выборки на основе текущих фильтров...', 'info');
+            
+            fetch('/sample/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(filters)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showStatus(data.message, 'success');
+                    getSampleInfo();
+                    // Не обновляем карту автоматически - пользователь сам переключится на выборку
+                } else {
+                    showStatus(data.error, 'danger');
+                }
+            })
+            .catch(error => {
+                showStatus('Ошибка создания выборки: ' + error.message, 'danger');
+            });
+        }
+        
+        function downloadSample() {
+            window.open('/sample/download', '_blank');
+        }
+        
+        function clearSample() {
+            if (confirm('Вы уверены, что хотите очистить выборку? Это действие нельзя отменить.')) {
+                fetch('/sample/clear', {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showStatus(data.message, 'success');
+                        getSampleInfo();
+                        updateMap();
+                    } else {
+                        showStatus(data.error, 'danger');
+                    }
+                })
+                .catch(error => {
+                    showStatus('Ошибка очистки выборки: ' + error.message, 'danger');
+                });
+            }
+        }
+        
+        function getSampleInfo() {
+            fetch('/sample/info')
+                .then(response => response.json())
+                .then(data => {
+                    const infoDiv = document.getElementById('sampleInfo');
+                    const contentDiv = document.getElementById('sampleInfoContent');
+                    const completenessDiv = document.getElementById('sampleCompletenessContent');
+                    
+                    if (data.success && data.total_records > 0) {
+                        // Левая колонка - основная информация о выборке
+                        let mainHtml = `<p><strong>Всего записей:</strong> ${data.total_records}</p>`;
+                        
+                        // Группы от поставщика
+                        if (data.groups && Object.keys(data.groups).length > 0) {
+                            mainHtml += '<p><strong>По группам от поставщика:</strong></p><ul>';
+                            for (const [group, count] of Object.entries(data.groups)) {
+                                mainHtml += `<li>${group}: ${count}</li>`;
+                            }
+                            mainHtml += '</ul>';
+                        }
+                        
+                        // Определенные группы
+                        if (data.determined_groups && Object.keys(data.determined_groups).length > 0) {
+                            mainHtml += '<p><strong>По определенным группам:</strong></p><ul>';
+                            for (const [group, count] of Object.entries(data.determined_groups)) {
+                                mainHtml += `<li>${group}: ${count}</li>`;
+                            }
+                            mainHtml += '</ul>';
+                        }
+                        
+                        if (data.date_range.min && data.date_range.max) {
+                            mainHtml += `<p><strong>Период:</strong> ${data.date_range.min} - ${data.date_range.max}</p>`;
+                        }
+                        
+                        contentDiv.innerHTML = mainHtml;
+                        
+                        // Правая колонка - информация о заполненности полей
+                        if (data.field_completeness) {
+                            let completenessHtml = '<h6><i class="fas fa-chart-pie"></i> Заполненность полей:</h6>';
+                            completenessHtml += '<div class="completeness-legend">';
+                            for (const [field, percentage] of Object.entries(data.field_completeness)) {
+                                const color = getCompletenessColor(percentage);
+                                completenessHtml += `<div class="d-flex align-items-center mb-2">`;
+                                completenessHtml += `<div class="completeness-indicator" style="background-color: ${color}; width: 20px; height: 20px; border-radius: 3px; margin-right: 10px;"></div>`;
+                                completenessHtml += `<span>${getFieldDisplayName(field)}: <strong>${percentage}%</strong></span>`;
+                                completenessHtml += `</div>`;
+                            }
+                            completenessHtml += '</div>';
+                            
+                            completenessDiv.innerHTML = completenessHtml;
+                        } else {
+                            completenessDiv.innerHTML = '<p class="text-muted">Нет данных о заполненности</p>';
+                        }
+                        
+                        infoDiv.style.display = 'block';
+                    } else {
+                        contentDiv.innerHTML = '<p class="text-muted">Выборка пуста</p>';
+                        completenessDiv.innerHTML = '<p class="text-muted">Нет данных</p>';
+                        infoDiv.style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка получения информации о выборке:', error);
+                });
+        }
         
         function applyButtonStyles() {
             // Применяем стили ко всем кнопкам в map-controls
@@ -1518,6 +1796,111 @@
                 button.style.maxHeight = '28px';
                 button.style.height = '28px';
             });
+        }
+        
+        // Функции для управления ключевыми словами
+        function regenerateKeywords() {
+            if (confirm('Вы уверены, что хотите перегенерировать ключевые слова? Это может занять некоторое время.')) {
+                showStatus('Перегенерация ключевых слов...', 'info');
+                
+                fetch('/api/keywords/regenerate', {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showStatus(data.message + ` (${data.groups_count} групп)`, 'success');
+                    } else {
+                        showStatus('Ошибка: ' + data.error, 'danger');
+                    }
+                })
+                .catch(error => {
+                    showStatus('Ошибка перегенерации ключевых слов: ' + error.message, 'danger');
+                });
+            }
+        }
+        
+        function updateDetectedGroups() {
+            if (confirm('Вы уверены, что хотите обновить определенные группы? Это может занять некоторое время.')) {
+                showStatus('Обновление групп...', 'info');
+                
+                fetch('/api/keywords/update-groups', {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showStatus(data.message, 'success');
+                        // Обновляем карту после изменения групп
+                        updateMap();
+                    } else {
+                        showStatus('Ошибка: ' + data.error, 'danger');
+                    }
+                })
+                .catch(error => {
+                    showStatus('Ошибка обновления групп: ' + error.message, 'danger');
+                });
+            }
+        }
+        
+        function getKeywordsStatus() {
+            fetch('/api/keywords/status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showStatus('Ошибка: ' + data.error, 'danger');
+                        return;
+                    }
+                    
+                    showKeywordsInfo();
+                    
+                    // Обновляем содержимое статистики ключевых слов
+                    const keywordsStatsDiv = document.getElementById('keywordsStatsContent');
+                    let keywordsHtml = '<h6><i class="fas fa-key"></i> Ключевые слова по группам:</h6>';
+                    
+                    if (data.keywords_stats && data.keywords_stats.length > 0) {
+                        keywordsHtml += '<ul class="list-unstyled">';
+                        data.keywords_stats.forEach(stat => {
+                            keywordsHtml += `<li><strong>${stat.group}:</strong> `;
+                            keywordsHtml += `<span class="badge bg-primary">${stat.initial} начальных</span> `;
+                            keywordsHtml += `<span class="badge bg-success">${stat.extracted} извлеченных</span> `;
+                            keywordsHtml += `<span class="badge bg-info">${stat.total} всего</span></li>`;
+                        });
+                        keywordsHtml += '</ul>';
+                    } else {
+                        keywordsHtml += '<p class="text-muted">Нет данных о ключевых словах</p>';
+                    }
+                    
+                    keywordsStatsDiv.innerHTML = keywordsHtml;
+                    
+                    // Обновляем содержимое статистики объектов
+                    const objectsStatsDiv = document.getElementById('objectsStatsContent');
+                    let objectsHtml = '<h6><i class="fas fa-map-marker-alt"></i> Статистика объектов:</h6>';
+                    
+                    if (data.objects_stats) {
+                        const stats = data.objects_stats;
+                        objectsHtml += `<p><strong>Всего объектов:</strong> ${stats.total}</p>`;
+                        objectsHtml += `<p><strong>Определено групп:</strong> ${stats.detected}</p>`;
+                        objectsHtml += `<p><strong>Не определено:</strong> ${stats.undetected}</p>`;
+                        
+                        if (stats.total > 0) {
+                            const percentage = Math.round((stats.detected / stats.total) * 100);
+                            objectsHtml += `<p><strong>Процент определенных:</strong> ${percentage}%</p>`;
+                        }
+                    } else {
+                        objectsHtml += '<p class="text-muted">Нет данных о объектах</p>';
+                    }
+                    
+                    objectsStatsDiv.innerHTML = objectsHtml;
+                })
+                .catch(error => {
+                    showStatus('Ошибка получения статуса ключевых слов: ' + error.message, 'danger');
+                });
+        }
+        
+        function showKeywordsInfo() {
+            const infoDiv = document.getElementById('keywordsInfo');
+            infoDiv.style.display = infoDiv.style.display === 'none' ? 'block' : 'none';
         }
         
         function loadAnalysisMethods() {

@@ -22,26 +22,34 @@ def debug_filters():
                 }
             },
             {
-                'name': 'С фильтрами schools,universities',
+                'name': 'Только школы',
                 'params': {
                     'group_type': 'supplier',
-                    'filters': 'schools,universities',
+                    'filters': 'school',
                     'data_source': 'database'
                 }
             },
             {
-                'name': 'С фильтрами schools',
+                'name': 'Только больницы',
                 'params': {
                     'group_type': 'supplier',
-                    'filters': 'schools',
+                    'filters': 'hospital',
                     'data_source': 'database'
                 }
             },
             {
-                'name': 'С фильтрами universities',
+                'name': 'Школы и университеты',
                 'params': {
                     'group_type': 'supplier',
-                    'filters': 'universities',
+                    'filters': 'school,university',
+                    'data_source': 'database'
+                }
+            },
+            {
+                'name': 'Определенные группы - только школы',
+                'params': {
+                    'group_type': 'determined',
+                    'filters': 'school',
                     'data_source': 'database'
                 }
             }
@@ -53,6 +61,7 @@ def debug_filters():
             url = "http://localhost:5000/map/data"
             response = requests.get(url, params=test_case['params'])
             
+            print(f"URL: {url}")
             print(f"Параметры: {test_case['params']}")
             print(f"Статус: {response.status_code}")
             
@@ -70,12 +79,30 @@ def debug_filters():
                         print(f"  Группа '{group_name}': {len(points)} объектов")
                         total_objects += len(points)
                         
-                        # Показываем цвета первых объектов
-                        for i, obj in enumerate(points[:1]):
-                            print(f"    Объект: {obj.get('name')}")
-                            print(f"      Цвет: {obj.get('color')}")
+                        # Показываем первые 2 объекта в группе
+                        for i, obj in enumerate(points[:2]):
+                            print(f"    {i+1}. {obj.get('name')}")
+                            print(f"       Координаты: {obj.get('latitude')}, {obj.get('longitude')}")
+                            print(f"       Группа от поставщика: {obj.get('group')}")
+                            print(f"       Определенная группа: {obj.get('determined_group')}")
+                            print(f"       Цвет: {obj.get('color')}")
                     
                     print(f"Всего объектов: {total_objects}")
+                    
+                    # Проверяем соответствие фильтрам
+                    if test_case['params']['filters']:
+                        expected_filters = test_case['params']['filters'].split(',')
+                        print(f"Ожидаемые фильтры: {expected_filters}")
+                        
+                        found_groups = [group.get('group') for group in archive_data]
+                        print(f"Найденные группы: {found_groups}")
+                        
+                        # Проверяем, что все найденные группы соответствуют фильтрам
+                        all_match = all(group in expected_filters for group in found_groups)
+                        if all_match:
+                            print("✅ Все группы соответствуют фильтрам")
+                        else:
+                            print("❌ Некоторые группы не соответствуют фильтрам")
                 else:
                     print("❌ Нет данных 'archive'")
             else:

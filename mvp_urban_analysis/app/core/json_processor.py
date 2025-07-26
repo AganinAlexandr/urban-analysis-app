@@ -664,24 +664,44 @@ class JSONProcessor:
                 df = geocoder.process_dataframe(df)
                 logger.info("Геокодирование завершено")
             except Exception as e:
-                logger.error(f"Ошибка геокодирования: {e}")
-                # Добавляем пустые координаты в случае ошибки
-                df['latitude'] = 0.0
-                df['longitude'] = 0.0
-                df['district'] = "Неизвестный район"
+                logger.error(f"❌ Ошибка геокодирования: {e}")
+                logger.error("   Объекты будут сохранены без координат")
+                # Не добавляем тестовые координаты - оставляем пустыми
+                if 'latitude' not in df.columns:
+                    df['latitude'] = None
+                if 'longitude' not in df.columns:
+                    df['longitude'] = None
+                if 'district' not in df.columns:
+                    df['district'] = None
         else:
-            # Добавляем пустые координаты если нет адресов
-            df['latitude'] = 0.0
-            df['longitude'] = 0.0
-            df['district'] = "Неизвестный район"
+            # Если нет адресов, не добавляем координаты
+            logger.warning("Нет адресов для геокодирования")
+            if 'latitude' not in df.columns:
+                df['latitude'] = None
+            if 'longitude' not in df.columns:
+                df['longitude'] = None
+            if 'district' not in df.columns:
+                df['district'] = None
         
         # Нормализуем поля group и determined_group
         if 'group' in df.columns:
-            df['group'] = df['group'].astype(str).str.strip().str.lower()
-            df['group_type'] = df['group']
+            df.loc[:, 'group'] = df['group'].astype(str).str.strip().str.lower()
+            # Нормализуем группы школ - используем единственное число
+            df.loc[:, 'group'] = df['group'].replace({
+                'schools': 'school',
+                'школа': 'school',
+                'школы': 'school'
+            })
+            df.loc[:, 'group_type'] = df['group']
         if 'determined_group' in df.columns:
-            df['determined_group'] = df['determined_group'].astype(str).str.strip().str.lower()
-            df['detected_group_type'] = df['determined_group']
+            df.loc[:, 'determined_group'] = df['determined_group'].astype(str).str.strip().str.lower()
+            # Нормализуем группы школ - используем единственное число
+            df.loc[:, 'determined_group'] = df['determined_group'].replace({
+                'schools': 'school',
+                'школа': 'school',
+                'школы': 'school'
+            })
+            df.loc[:, 'detected_group_type'] = df['determined_group']
         
         logger.info(f"Поддерживаемые поля: {list(df.columns)}")
         logger.info(f"Обработан JSON файл: {len(df)} строк")

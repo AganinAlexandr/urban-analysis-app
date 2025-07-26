@@ -194,8 +194,19 @@ class MoscowGeocoder:
         has_coordinates = 'latitude' in df.columns and 'longitude' in df.columns
         
         if not self.api_key:
-            logger.warning("API ключ не настроен. Добавляются тестовые координаты для демонстрации.")
-            return self._add_test_coordinates(df)
+            logger.error("❌ API ключ не настроен для геокодирования")
+            logger.error("   Установите переменную окружения YANDEX_GEOCODER_API_KEY")
+            logger.error("   или передайте api_key в конструктор MoscowGeocoder")
+            logger.error("   Объекты будут сохранены без координат")
+            
+            # Добавляем пустые колонки координат
+            if 'latitude' not in df.columns:
+                df['latitude'] = None
+            if 'longitude' not in df.columns:
+                df['longitude'] = None
+            if 'district' not in df.columns:
+                df['district'] = None
+            return df
             
         if has_coordinates:
             # Проверяем, есть ли уже координаты
@@ -207,11 +218,11 @@ class MoscowGeocoder:
                 logger.info("Колонки координат есть, но данные пустые. Выполняется геокодирование.")
         else:
             logger.info("Колонки координат отсутствуют. Добавляются новые колонки.")
-            df['latitude'] = 0.0
-            df['longitude'] = 0.0
+            df['latitude'] = None
+            df['longitude'] = None
             
         # Добавляем колонку для района
-        df['district'] = "Неизвестный район"
+        df['district'] = None
         
         # Обрабатываем каждый уникальный адрес
         unique_addresses = df['address'].dropna().unique()

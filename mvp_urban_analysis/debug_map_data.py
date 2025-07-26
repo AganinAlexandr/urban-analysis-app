@@ -1,53 +1,58 @@
 #!/usr/bin/env python3
 """
-Отладка данных карты
+Отладка функции get_map_data
 """
-
-from app.core.database_fixed import db_manager_fixed
+import sys
+import os
 import pandas as pd
 
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 def debug_map_data():
-    """Отлаживаем данные карты"""
-    print("=== ОТЛАДКА ДАННЫХ КАРТЫ ===")
+    """Отлаживает функцию get_map_data"""
+    print("=== ОТЛАДКА GET_MAP_DATA ===")
     
     try:
-        # Получаем данные из БД
+        # Импортируем модули
+        from app.core.database_fixed import db_manager_fixed
+        
+        print("1. Проверяем db_manager_fixed...")
+        print(f"  db_manager_fixed: {db_manager_fixed}")
+        
+        print("\n2. Вызываем export_to_dataframe...")
         df = db_manager_fixed.export_to_dataframe(include_analysis=True)
-        print(f"Количество записей: {len(df)}")
-        print(f"Колонки: {list(df.columns)}")
         
-        # Проверяем объекты с координатами
-        coords_df = df[df['latitude'].notna() & df['longitude'].notna()]
-        print(f"\nОбъектов с координатами: {len(coords_df)}")
-        
-        if len(coords_df) > 0:
-            print("\nПримеры объектов с координатами:")
-            for i, row in coords_df.head(3).iterrows():
-                print(f"  {row.get('name', 'N/A')} - {row.get('address', 'N/A')} - ({row.get('latitude')}, {row.get('longitude')})")
+        print(f"  DataFrame получен: {df is not None}")
+        if df is not None:
+            print(f"  Размер DataFrame: {df.shape}")
+            print(f"  Колонки: {list(df.columns)}")
+            
+            if not df.empty:
+                print(f"  Первые 3 строки:")
+                print(df.head(3))
                 
-                # Проверяем поля групп
-                print(f"    group_type: {row.get('group_type', 'N/A')}")
-                print(f"    detected_group_type: {row.get('detected_group_type', 'N/A')}")
-                print(f"    group_name: {row.get('group_name', 'N/A')}")
-                print(f"    detected_group_name: {row.get('detected_group_name', 'N/A')}")
-        
-        # Проверяем группы
-        print(f"\nГруппы объектов:")
-        if 'group_type' in df.columns:
-            groups = df['group_type'].value_counts()
-            print(f"  group_type: {groups.to_dict()}")
-        if 'detected_group_type' in df.columns:
-            detected_groups = df['detected_group_type'].value_counts()
-            print(f"  detected_group_type: {detected_groups.to_dict()}")
-        if 'group_name' in df.columns:
-            group_names = df['group_name'].value_counts()
-            print(f"  group_name: {group_names.to_dict()}")
-        if 'detected_group_name' in df.columns:
-            detected_group_names = df['detected_group_name'].value_counts()
-            print(f"  detected_group_name: {detected_group_names.to_dict()}")
+                # Проверяем координаты
+                print(f"\n3. Проверяем координаты...")
+                coords_df = df[
+                    df['latitude'].notna() & df['longitude'].notna() &
+                    (df['latitude'] != '') & (df['longitude'] != '') &
+                    (df['latitude'] != 0) & (df['longitude'] != 0)
+                ]
+                print(f"  Объектов с координатами: {len(coords_df)}")
                 
+                if len(coords_df) > 0:
+                    print(f"  Примеры координат:")
+                    for i, (_, row) in enumerate(coords_df.head(3).iterrows()):
+                        print(f"    {i+1}. {row.get('name', 'N/A')}: {row.get('latitude')}, {row.get('longitude')}")
+            else:
+                print("  DataFrame пуст!")
+        else:
+            print("  export_to_dataframe вернул None!")
+            
     except Exception as e:
-        print(f"Ошибка: {e}")
+        print(f"❌ Ошибка: {e}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
     debug_map_data() 

@@ -99,6 +99,16 @@
             align-items: center;
             margin-bottom: 5px;
         }
+        .filter-checkbox {
+            margin-bottom: 8px;
+        }
+        .filter-checkbox .form-check-label {
+            font-size: 0.85rem;
+            line-height: 1.2;
+        }
+        .filter-checkbox .form-check-input {
+            margin-top: 0.1rem;
+        }
         .legend-color {
             width: 12px;
             height: 12px;
@@ -451,38 +461,42 @@
                             <div class="mb-3">
                                 <label class="form-label"><strong>Фильтры по группам:</strong></label>
                                 <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="form-check">
+                                    <div class="col-md-3">
+                                        <div class="form-check filter-checkbox">
                                             <input class="form-check-input" type="checkbox" id="filter_school" value="school" checked>
                                             <label class="form-check-label" for="filter_school">Школы</label>
                                         </div>
-                                        <div class="form-check">
+                                        <div class="form-check filter-checkbox">
                                             <input class="form-check-input" type="checkbox" id="filter_hospital" value="hospital" checked>
                                             <label class="form-check-label" for="filter_hospital">Больницы</label>
                                         </div>
-                                        <div class="form-check">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-check filter-checkbox">
                                             <input class="form-check-input" type="checkbox" id="filter_pharmacy" value="pharmacy" checked>
                                             <label class="form-check-label" for="filter_pharmacy">Аптеки</label>
                                         </div>
-                                        <div class="form-check">
+                                        <div class="form-check filter-checkbox">
                                             <input class="form-check-input" type="checkbox" id="filter_kindergarden" value="kindergarden" checked>
                                             <label class="form-check-label" for="filter_kindergarden">Детские сады</label>
                                         </div>
                                     </div>
-                                    <div class="col-md-6">
-                                        <div class="form-check">
+                                    <div class="col-md-3">
+                                        <div class="form-check filter-checkbox">
                                             <input class="form-check-input" type="checkbox" id="filter_polyclinic" value="polyclinic" checked>
                                             <label class="form-check-label" for="filter_polyclinic">Поликлиники</label>
                                         </div>
-                                        <div class="form-check">
+                                        <div class="form-check filter-checkbox">
                                             <input class="form-check-input" type="checkbox" id="filter_university" value="university" checked>
                                             <label class="form-check-label" for="filter_university">Университеты</label>
                                         </div>
-                                        <div class="form-check">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-check filter-checkbox">
                                             <input class="form-check-input" type="checkbox" id="filter_shopmall" value="shopmall" checked>
                                             <label class="form-check-label" for="filter_shopmall">Торговые центры</label>
                                         </div>
-                                        <div class="form-check">
+                                        <div class="form-check filter-checkbox">
                                             <input class="form-check-input" type="checkbox" id="filter_resident_complexes" value="resident_complexes" checked>
                                             <label class="form-check-label" for="filter_resident_complexes">Жилые комплексы</label>
                                         </div>
@@ -517,63 +531,13 @@
                                 </div>
                             </div>
 
-                            <!-- Метод сентимента (всегда видим, но неактивен при выборе "По группам") -->
+                            <!-- Метод сентимента (динамически загружается из БД) -->
                             <div class="mb-3" id="sentimentMethodSection">
                                 <label class="form-label"><strong>Метод определения сентимента:</strong></label>
-                                <div class="row">
-                                    <div class="col-6">
-                                        <div class="btn-group btn-group-sm w-100" role="group">
-                                            <input type="radio" class="btn-check" name="sentimentMethod" id="sentimentRating" value="rating" checked>
-                                            <label class="btn btn-outline-success" for="sentimentRating" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
-                                                <i class="fas fa-star"></i> Рейтинг
-                                            </label>
-                                            
-                                            <input type="radio" class="btn-check" name="sentimentMethod" id="sentimentClassical" value="classical_sentiment">
-                                            <label class="btn btn-outline-success" for="sentimentClassical" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
-                                                <i class="fas fa-brain"></i> Классический
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="btn-group btn-group-sm w-100" role="group">
-                                            <input type="radio" class="btn-check" name="sentimentMethod" id="sentimentOpenAI" value="openai_sentiment">
-                                            <label class="btn btn-outline-success" for="sentimentOpenAI" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
-                                                <i class="fas fa-robot"></i> OpenAI
-                                            </label>
-                                            
-                                            <input type="radio" class="btn-check" name="sentimentMethod" id="sentimentGemini" value="google_gemini_sentiment">
-                                            <label class="btn btn-outline-success" for="sentimentGemini" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
-                                                <i class="fas fa-gem"></i> Gemini
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="row mt-1">
-                                    <div class="col-6">
-                                        <div class="btn-group btn-group-sm w-100" role="group">
-                                            <input type="radio" class="btn-check" name="sentimentMethod" id="sentimentYandex" value="yandexgpt_sentiment">
-                                            <label class="btn btn-outline-success" for="sentimentYandex" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
-                                                <i class="fas fa-search"></i> YandexGPT
-                                            </label>
-                                            
-                                            <input type="radio" class="btn-check" name="sentimentMethod" id="sentimentGigaChat" value="gigachat_sentiment">
-                                            <label class="btn btn-outline-success" for="sentimentGigaChat" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
-                                                <i class="fas fa-comments"></i> GigaChat
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="btn-group btn-group-sm w-100" role="group">
-                                            <input type="radio" class="btn-check" name="sentimentMethod" id="sentimentQwen" value="qwen_sentiment">
-                                            <label class="btn btn-outline-success" for="sentimentQwen" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
-                                                <i class="fas fa-bolt"></i> Qwen
-                                            </label>
-                                            
-                                            <input type="radio" class="btn-check" name="sentimentMethod" id="sentimentDeepSeek" value="deepseek_sentiment">
-                                            <label class="btn btn-outline-success" for="sentimentDeepSeek" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
-                                                <i class="fas fa-rocket"></i> DeepSeek
-                                            </label>
-                                        </div>
+                                <div id="sentimentMethodsContainer">
+                                    <!-- Методы будут загружены динамически -->
+                                    <div class="text-muted">
+                                        <i class="fas fa-spinner fa-spin"></i> Загрузка методов...
                                     </div>
                                 </div>
                             </div>
@@ -1346,9 +1310,26 @@
                 zoom: 10,
                 controls: ['zoomControl', 'fullscreenControl']
             });
-
-            // Загружаем данные карты
-            updateMap();
+            
+            // Добавляем обработчик готовности карты
+            myMap.events.add('ready', function() {
+                console.log('Карта готова к использованию');
+                // Вызываем updateMap когда карта готова
+                setTimeout(() => {
+                    if (myMap) {
+                        console.log('Вызываем updateMap после готовности карты');
+                        updateMap();
+                    }
+                }, 100);
+            });
+            
+            // Также вызываем updateMap после небольшой задержки для надежности
+            setTimeout(() => {
+                if (myMap) {
+                    console.log('Дополнительный вызов updateMap после инициализации');
+                    updateMap();
+                }
+            }, 200);
 
             // Обработчики переключателя типа групп
             document.getElementById('supplierGroups').addEventListener('change', updateMap);
@@ -1370,20 +1351,83 @@
             document.getElementById('sentimentRating').addEventListener('change', updateMap);
             document.getElementById('sentimentClassical').addEventListener('change', updateMap);
 
-            // Обработчики фильтров
-            document.querySelectorAll('input[type="checkbox"][id^="filter_"]').forEach(checkbox => {
-                checkbox.addEventListener('change', updateMap);
-            });
+            // Обработчики фильтров будут добавлены в DOMContentLoaded
+            
+            // Загружаем данные карты после инициализации всех обработчиков
+            setTimeout(() => {
+                console.log('=== ИНИЦИАЛИЗАЦИЯ КАРТЫ ===');
+                console.log('Карта инициализирована, загружаем данные...');
+                console.log('Состояние карты:', myMap ? 'готово' : 'не готово');
+                
+                // Принудительно устанавливаем состояние фильтров при загрузке
+                const filterCheckboxes = document.querySelectorAll('input[type="checkbox"][id^="filter_"]');
+                filterCheckboxes.forEach(checkbox => {
+                    if (!checkbox.checked) {
+                        console.log(`Принудительно включаем фильтр: ${checkbox.id}`);
+                        checkbox.checked = true;
+                    }
+                });
+                
+                // Проверяем готовность карты перед вызовом updateMap
+                if (myMap) {
+                    updateMap();
+                } else {
+                    console.error('Карта не готова, пропускаем updateMap');
+                }
+            }, 100);
         }
 
         function updateMap() {
-            // Получаем параметры
-            const groupType = document.querySelector('input[name="groupType"]:checked').value;
-            const colorScheme = document.querySelector('input[name="colorScheme"]:checked').value;
-            const sentimentMethod = document.querySelector('input[name="sentimentMethod"]:checked').value;
+            // Получаем параметры с проверками
+            const groupTypeElement = document.querySelector('input[name="groupType"]:checked');
+            const colorSchemeElement = document.querySelector('input[name="colorScheme"]:checked');
+            const sentimentMethodElement = document.querySelector('input[name="sentimentMethod"]:checked');
+            
+            // Проверяем существование элементов
+            if (!groupTypeElement) {
+                console.error('Элемент groupType не найден');
+                return;
+            }
+            if (!colorSchemeElement) {
+                console.error('Элемент colorScheme не найден');
+                return;
+            }
+            // Объявляем переменные в правильной области видимости
+            let groupType, colorScheme, sentimentMethod;
+            
+            if (!sentimentMethodElement) {
+                console.error('Элемент sentimentMethod не найден, используем fallback');
+                // Используем fallback значение
+                const fallbackSentimentMethod = 'rating';
+                console.log('Используем fallback sentimentMethod:', fallbackSentimentMethod);
+                
+                groupType = groupTypeElement.value;
+                colorScheme = colorSchemeElement.value;
+                sentimentMethod = fallbackSentimentMethod;
+            } else {
+                groupType = groupTypeElement.value;
+                colorScheme = colorSchemeElement.value;
+                sentimentMethod = sentimentMethodElement.value;
+            }
+            
+            // Проверяем существование карты
+            if (!myMap) {
+                console.error('Карта не инициализирована, пропускаем updateMap');
+                return;
+            }
+            
+            console.log('updateMap: карта готова, продолжаем...');
             
             // Получаем активные фильтры
             const activeFilters = getActiveFilters();
+            
+            // Отладочная информация
+            console.log('=== ОТЛАДКА UPDATE MAP ===');
+            console.log('Тип групп:', groupType);
+            console.log('Цветовая схема:', colorScheme);
+            console.log('Метод сентимента:', sentimentMethod);
+            console.log('Активные фильтры:', activeFilters);
+            console.log('Источник данных:', currentDataSource);
             
             // Формируем URL с параметрами
             const params = new URLSearchParams({
@@ -1395,6 +1439,9 @@
             
             if (activeFilters.length > 0) {
                 params.append('filters', activeFilters.join(','));
+                console.log('Добавлены фильтры в URL:', activeFilters.join(','));
+            } else {
+                console.log('Нет активных фильтров');
             }
             
                                 fetch(`/map/data?${params.toString()}`)
@@ -1540,27 +1587,38 @@
         function getActiveFilters() {
             const filters = [];
             const checkboxes = document.querySelectorAll('input[type="checkbox"][id^="filter_"]');
+            console.log('Найдено чекбоксов фильтров:', checkboxes.length);
+            
             checkboxes.forEach(checkbox => {
+                console.log(`Чекбокс ${checkbox.id}: checked=${checkbox.checked}, value=${checkbox.value}`);
                 if (checkbox.checked) {
                     filters.push(checkbox.value);
                 }
             });
+            
+            console.log('Активные фильтры:', filters);
             return filters;
         }
 
         function selectAllFilters() {
+            console.log('Вызываем selectAllFilters');
             const checkboxes = document.querySelectorAll('input[type="checkbox"][id^="filter_"]');
             checkboxes.forEach(checkbox => {
                 checkbox.checked = true;
+                console.log(`Установлен фильтр ${checkbox.id}: checked=${checkbox.checked}`);
             });
+            console.log('Вызываем updateMap после selectAllFilters');
             updateMap();
         }
 
         function deselectAllFilters() {
+            console.log('Вызываем deselectAllFilters');
             const checkboxes = document.querySelectorAll('input[type="checkbox"][id^="filter_"]');
             checkboxes.forEach(checkbox => {
                 checkbox.checked = false;
+                console.log(`Снят фильтр ${checkbox.id}: checked=${checkbox.checked}`);
             });
+            console.log('Вызываем updateMap после deselectAllFilters');
             updateMap();
         }
 
@@ -1611,8 +1669,18 @@
 
         // Загружаем информацию об архиве и методы анализа при загрузке страницы
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('=== DOM ЗАГРУЖЕН ===');
+            
+            // Проверяем состояние фильтров при загрузке
+            const filterCheckboxes = document.querySelectorAll('input[type="checkbox"][id^="filter_"]');
+            console.log(`Найдено фильтров при загрузке: ${filterCheckboxes.length}`);
+            filterCheckboxes.forEach(checkbox => {
+                console.log(`Фильтр ${checkbox.id}: checked=${checkbox.checked}`);
+            });
+            
             getArchiveInfo();
             loadAnalysisMethods();
+            loadSentimentMethods(); // Загружаем методы сентимента из БД
             // Инициализируем состояние секции сентимента
             updateSentimentMethodVisibility();
             // Применяем стили к кнопкам
@@ -1620,6 +1688,26 @@
             
             // Инициализируем переключатель источника данных
             initializeDataSourceSwitch();
+            
+            // Добавляем обработчики фильтров
+            console.log('Добавляем обработчики фильтров...');
+            const filterCheckboxesForHandlers = document.querySelectorAll('input[type="checkbox"][id^="filter_"]');
+            console.log(`Найдено фильтров для обработчиков: ${filterCheckboxesForHandlers.length}`);
+            
+            filterCheckboxesForHandlers.forEach(checkbox => {
+                console.log(`Добавляем обработчик для фильтра: ${checkbox.id}`);
+                checkbox.addEventListener('change', function(e) {
+                    console.log(`Изменение фильтра ${this.id}: checked=${this.checked}, value=${this.value}`);
+                    updateMap();
+                });
+                
+                // Защита от случайного снятия состояния при инициализации
+                checkbox.addEventListener('click', function(e) {
+                    console.log(`Клик по фильтру ${this.id}: checked=${this.checked}`);
+                });
+            });
+            
+            console.log('Обработчики фильтров добавлены');
         });
         
         // Переменная для хранения текущего источника данных
@@ -1940,6 +2028,111 @@
                 div.appendChild(label);
                 container.appendChild(div);
             });
+        }
+        
+        function loadSentimentMethods() {
+            fetch('/api/sentiment/methods')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        updateSentimentMethodsUI(data.methods);
+                    } else {
+                        console.error('Ошибка загрузки методов сентимента:', data.error);
+                        showDefaultSentimentMethods();
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка загрузки методов сентимента:', error);
+                    showDefaultSentimentMethods();
+                });
+        }
+        
+        function updateSentimentMethodsUI(methods) {
+            const container = document.getElementById('sentimentMethodsContainer');
+            container.innerHTML = '';
+            
+            if (methods.length === 0) {
+                container.innerHTML = '<div class="text-muted">Нет доступных методов сентимента</div>';
+                return;
+            }
+            
+            // Создаем строки по 2 метода в каждой
+            const methodsPerRow = 2;
+            for (let i = 0; i < methods.length; i += methodsPerRow) {
+                const row = document.createElement('div');
+                row.className = 'row' + (i > 0 ? ' mt-1' : '');
+                
+                for (let j = 0; j < methodsPerRow && i + j < methods.length; j++) {
+                    const method = methods[i + j];
+                    const col = document.createElement('div');
+                    col.className = 'col-6';
+                    
+                    const btnGroup = document.createElement('div');
+                    btnGroup.className = 'btn-group btn-group-sm w-100';
+                    btnGroup.setAttribute('role', 'group');
+                    
+                    const input = document.createElement('input');
+                    input.type = 'radio';
+                    input.className = 'btn-check';
+                    input.name = 'sentimentMethod';
+                    input.id = `sentiment${method.charAt(0).toUpperCase() + method.slice(1)}`;
+                    input.value = method;
+                    input.checked = method === 'rating'; // По умолчанию выбран рейтинг
+                    
+                    const label = document.createElement('label');
+                    label.className = 'btn btn-outline-success';
+                    label.htmlFor = input.id;
+                    label.style.cssText = 'padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;';
+                    
+                    // Добавляем иконку и название метода
+                    const icon = getSentimentMethodIcon(method);
+                    const displayName = getSentimentMethodDisplayName(method);
+                    label.innerHTML = `${icon} ${displayName}`;
+                    
+                    btnGroup.appendChild(input);
+                    btnGroup.appendChild(label);
+                    col.appendChild(btnGroup);
+                    row.appendChild(col);
+                }
+                
+                container.appendChild(row);
+            }
+            
+            // Обновляем видимость методов сентимента
+            updateSentimentMethodVisibility();
+        }
+        
+        function getSentimentMethodIcon(method) {
+            const icons = {
+                'rating': '<i class="fas fa-star"></i>',
+                'classical_sentiment': '<i class="fas fa-brain"></i>',
+                'openai_sentiment': '<i class="fas fa-robot"></i>',
+                'google_gemini_sentiment': '<i class="fas fa-gem"></i>',
+                'yandexgpt_sentiment': '<i class="fas fa-search"></i>',
+                'gigachat_sentiment': '<i class="fas fa-comments"></i>',
+                'qwen_sentiment': '<i class="fas fa-bolt"></i>',
+                'deepseek_sentiment': '<i class="fas fa-rocket"></i>'
+            };
+            return icons[method] || '<i class="fas fa-cog"></i>';
+        }
+        
+               function getSentimentMethodDisplayName(method) {
+           const names = {
+               'rating': 'Рейтинг',
+               'classical_sentiment': 'VADER',
+               'openai_sentiment': 'OpenAI',
+               'google_gemini_sentiment': 'Gemini',
+               'yandexgpt_sentiment': 'YandexGPT',
+               'gigachat_sentiment': 'GigaChat',
+               'qwen_sentiment': 'Qwen',
+               'deepseek_sentiment': 'DeepSeek'
+           };
+           return names[method] || method;
+       }
+        
+        function showDefaultSentimentMethods() {
+            const container = document.getElementById('sentimentMethodsContainer');
+            container.innerHTML = '<div class="text-muted">Ошибка загрузки методов. Показываем стандартные методы.</div>';
         }
     </script>
 </body>

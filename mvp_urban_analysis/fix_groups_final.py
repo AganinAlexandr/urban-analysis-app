@@ -25,93 +25,89 @@ def fix_database_groups():
         # 2. Очищаем дублирующиеся группы
         print("\n2. ОЧИСТКА ДУБЛИРУЮЩИХСЯ ГРУПП...")
         
-        # Удаляем дублирующуюся группу ID 3 (Школы)
-        cursor.execute("DELETE FROM object_groups WHERE id = 3")
-        print("✅ Удалена дублирующаяся группа ID 3 (Школы)")
+        # Нормализуем группы школ - заменяем 'school' на 'schools'
+        cursor.execute("""
+            UPDATE object_groups 
+            SET group_type = 'schools', group_name = 'schools' 
+            WHERE group_type = 'school'
+        """)
+        print("✅ Нормализованы группы школ в object_groups")
+        
+        cursor.execute("""
+            UPDATE detected_groups 
+            SET group_type = 'schools', group_name = 'schools' 
+            WHERE group_type = 'school'
+        """)
+        print("✅ Нормализованы группы школ в detected_groups")
+        
+        # Удаляем дублирующиеся группы
+        cursor.execute("""
+            DELETE FROM object_groups 
+            WHERE id NOT IN (
+                SELECT MIN(id) FROM object_groups 
+                GROUP BY group_type
+            )
+        """)
+        print("✅ Удалены дублирующиеся группы в object_groups")
+        
+        cursor.execute("""
+            DELETE FROM detected_groups 
+            WHERE id NOT IN (
+                SELECT MIN(id) FROM detected_groups 
+                GROUP BY group_type
+            )
+        """)
+        print("✅ Удалены дублирующиеся группы в detected_groups")
         
         # 3. Исправляем связь объектов с группами
         print("\n3. ИСПРАВЛЕНИЕ СВЯЗИ ОБЪЕКТОВ...")
         
-        # Проверяем объекты без групп
+        # Обновляем group_id для объектов с группой 'school'
         cursor.execute("""
-            SELECT id, name FROM objects 
-            WHERE group_id IS NULL OR detected_group_id IS NULL
+            UPDATE objects 
+            SET group_id = (
+                SELECT id FROM object_groups WHERE group_type = 'schools'
+            )
+            WHERE group_id = (
+                SELECT id FROM object_groups WHERE group_type = 'school'
+            )
         """)
-        unlinked_objects = cursor.fetchall()
         
-        print(f"Найдено объектов без групп: {len(unlinked_objects)}")
+        # Обновляем detected_group_id для объектов с группой 'school'
+        cursor.execute("""
+            UPDATE objects 
+            SET detected_group_id = (
+                SELECT id FROM detected_groups WHERE group_type = 'schools'
+            )
+            WHERE detected_group_id = (
+                SELECT id FROM detected_groups WHERE group_type = 'school'
+            )
+        """)
         
-        for obj_id, name in unlinked_objects:
-            # Определяем группу по названию
-            group_id = None
-            detected_group_id = None
-            
-            if 'университет' in name.lower() or 'высшая школа' in name.lower():
-                group_id = 8  # universities
-                detected_group_id = 1  # schools (временное решение)
-                print(f"  {name} -> universities (ID: 8)")
-            elif 'торговый' in name.lower() or 'молл' in name.lower() or 'плаза' in name.lower():
-                group_id = 7  # shopping_malls
-                detected_group_id = 1  # schools (временное решение)
-                print(f"  {name} -> shopping_malls (ID: 7)")
-            else:
-                # По умолчанию относим к школам
-                group_id = 1  # schools
-                detected_group_id = 1  # schools
-                print(f"  {name} -> schools (ID: 1)")
-            
-            # Обновляем объект
-            cursor.execute("""
-                UPDATE objects 
-                SET group_id = ?, detected_group_id = ?
-                WHERE id = ?
-            """, (group_id, detected_group_id, obj_id))
+        print("✅ Обновлены связи объектов с группами")
         
         # 4. Проверяем результат
         print("\n4. ПРОВЕРКА РЕЗУЛЬТАТА...")
         
-        # Проверяем группы
-        cursor.execute("SELECT * FROM object_groups ORDER BY id")
+        cursor.execute("SELECT group_type, COUNT(*) FROM object_groups GROUP BY group_type")
         groups = cursor.fetchall()
-        print("Группы после исправления:")
-        for group in groups:
-            print(f"  ID: {group[0]}, Тип: {group[1]}, Название: {group[2]}")
+        print("Группы в object_groups:")
+        for group_type, count in groups:
+            print(f"  {group_type}: {count}")
         
-        # Проверяем объекты с группами
-        cursor.execute("""
-            SELECT o.id, o.name, o.group_id, o.detected_group_id,
-                   og.group_type as og_type, og.group_name as og_name
-            FROM objects o
-            LEFT JOIN object_groups og ON o.group_id = og.id
-            WHERE o.latitude IS NOT NULL AND o.longitude IS NOT NULL
-        """)
-        objects_with_groups = cursor.fetchall()
+        cursor.execute("SELECT group_type, COUNT(*) FROM detected_groups GROUP BY group_type")
+        groups = cursor.fetchall()
+        print("Группы в detected_groups:")
+        for group_type, count in groups:
+            print(f"  {group_type}: {count}")
         
-        print(f"\nОбъекты с координатами и группами:")
-        for obj in objects_with_groups:
-            obj_id, name, group_id, detected_group_id, og_type, og_name = obj
-            print(f"  {name}: {og_type} ({og_name})")
-        
-        # 5. Подсчитываем статистику
-        cursor.execute("SELECT COUNT(*) FROM objects WHERE group_id IS NOT NULL")
-        linked_count = cursor.fetchone()[0]
-        cursor.execute("SELECT COUNT(*) FROM objects")
-        total_count = cursor.fetchone()[0]
-        
-        print(f"\n📊 СТАТИСТИКА:")
-        print(f"  Всего объектов: {total_count}")
-        print(f"  Связано с группами: {linked_count}")
-        print(f"  Без групп: {total_count - linked_count}")
-        
-        # Сохраняем изменения
         conn.commit()
-        conn.close()
-        
-        print("\n✅ Исправление завершено!")
+        print("\n✅ ИСПРАВЛЕНИЕ ЗАВЕРШЕНО УСПЕШНО")
         
     except Exception as e:
         print(f"❌ Ошибка: {e}")
         conn.rollback()
+    finally:
         conn.close()
 
 if __name__ == "__main__":

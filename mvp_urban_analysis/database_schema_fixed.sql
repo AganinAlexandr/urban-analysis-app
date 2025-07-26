@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS reviews (
     review_text TEXT,
     rating INTEGER CHECK (rating >= 1 AND rating <= 5),
     review_date TIMESTAMP,
+    user_name TEXT, -- Имя пользователя
     source TEXT, -- yandex, 2gis, etc.
     external_id TEXT, -- ID из внешней системы
     в_Выборке TEXT DEFAULT NULL, -- Поле для отметки включения в выборку

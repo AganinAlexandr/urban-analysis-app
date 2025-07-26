@@ -347,25 +347,22 @@ class DataProcessorV2:
             address: Адрес объекта
             
         Returns:
-            Кортеж (широта, долгота, район)
+            Кортеж (широта, долгота, район) или (None, None, None) если геокодирование недоступно
         """
         try:
-            # Временно отключаем геокодирование для ускорения
-            # Используем тестовые координаты для Москвы
-            logger.info(f"Используем тестовые координаты для: {name}, {address}")
-            return 55.7558, 37.6176, 'Центральный район'
-            
-            # Раскомментировать для включения геокодирования:
-            # location_data = self.district_detector.get_location_info(f"{name}, {address}")
-            # if location_data:
-            #     return (
-            #         location_data.get('latitude'),
-            #         location_data.get('longitude'),
-            #         location_data.get('district')
-            #     )
-            # else:
-            #     logger.warning(f"Не удалось получить координаты для: {name}, {address}")
-            #     return None, None, None
+            # Включаем геокодирование для получения реальных координат
+            logger.info(f"Геокодируем: {name}, {address}")
+            location_data = self.district_detector.get_location_info(f"{name}, {address}")
+            if location_data:
+                return (
+                    location_data.get('latitude'),
+                    location_data.get('longitude'),
+                    location_data.get('district')
+                )
+            else:
+                logger.warning(f"Не удалось получить координаты для: {name}, {address}")
+                logger.warning("   Объект будет сохранен без координат")
+                return None, None, None
                 
         except Exception as e:
             logger.error(f"Ошибка получения координат для {name}: {e}")
@@ -425,13 +422,18 @@ class DataProcessorV2:
                 sentiment_result = self.text_analyzer.analyze_sentiment(review_text)
                 
                 if sentiment_result:
+                    # Получаем review_type с проверкой допустимых значений
+                    review_type = sentiment_result.get('review_type')
+                    if review_type not in ['gratitude', 'complaint', 'suggestion', 'informational']:
+                        review_type = 'informational'  # Значение по умолчанию
+                    
                     # Сохраняем результат анализа
                     self.database_manager.insert_analysis_result(
                         review_id=review_id,
                         method_id=method_id,
                         sentiment=sentiment_result.get('sentiment', 'neutral'),
                         confidence=sentiment_result.get('confidence', 0.0),
-                        review_type=sentiment_result.get('review_type'),
+                        review_type=review_type,
                         keywords=sentiment_result.get('keywords'),
                         topics=sentiment_result.get('topics')
                     )

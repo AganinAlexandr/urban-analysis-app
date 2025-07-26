@@ -719,20 +719,28 @@ def get_map_data():
             (df_converted['latitude'] != '') & (df_converted['longitude'] != '') &
             (df_converted['latitude'] != 0) & (df_converted['longitude'] != 0)
         ]
+        
+        # Удаляем дубликаты по координатам, оставляя первую запись
+        coords_df = coords_df.drop_duplicates(subset=['latitude', 'longitude'], keep='first')
 
         # Разделяем на объекты с группой и без группы
+        # Убираем дубликаты по координатам для корректного отображения
+        coords_df = coords_df.drop_duplicates(subset=['latitude', 'longitude'], keep='first')
+        
         has_group = coords_df[group_field].notna() & (coords_df[group_field] != '') & (coords_df[group_field] != 'None')
         with_group = coords_df[has_group]
         without_group = coords_df[~has_group]
 
         archive_data = []
-        if active_filters:
+        
+        # Проверяем, есть ли активные фильтры
+        if active_filters and len(active_filters) > 0:
             # Если фильтры заданы — показываем только объекты этих групп
             filtered = with_group[with_group[group_field].isin(active_filters)]
             for group, group_data in filtered.groupby(group_field):
                 points = []
                 for _, row in group_data.iterrows():
-                    point_color = get_point_color(row, color_scheme, sentiment_method)
+                    point_color = get_point_color(row, color_scheme, sentiment_method, group_type)
                     points.append({
                         'name': row.get('object_name', row.get('name', '')),
                         'address': row.get('object_address', row.get('address', '')),
@@ -747,23 +755,9 @@ def get_map_data():
                 if points:
                     archive_data.append({'group': group, 'points': points})
         else:
-            # Если фильтры не заданы — показываем только объекты без группы (unknown)
-            points = []
-            for _, row in without_group.iterrows():
-                point_color = get_point_color(row, color_scheme, sentiment_method)
-                points.append({
-                    'name': row.get('object_name', row.get('name', '')),
-                    'address': row.get('object_address', row.get('address', '')),
-                    'latitude': float(row.get('latitude', 0)),
-                    'longitude': float(row.get('longitude', 0)),
-                    'district': row.get('district', 'Неизвестный район'),
-                    'group': row.get('group_type', row.get('group', '')),
-                    'determined_group': row.get('detected_group_type', row.get('determined_group', '')),
-                    'color': point_color,
-                    'sentiment': get_sentiment_value(row, sentiment_method)
-                })
-            if points:
-                archive_data.append({'group': 'unknown', 'points': points})
+            # Если фильтры не заданы — НЕ показываем объекты (скрываем все)
+            # archive_data остается пустым списком
+            pass
 
         return jsonify({
             'archive': archive_data,
@@ -777,7 +771,7 @@ def get_map_data():
         logger.error(f"Ошибка при получении данных карты: {e}")
         return jsonify({'error': str(e)}), 500
 
-def get_point_color(row, color_scheme, sentiment_method):
+def get_point_color(row, color_scheme, sentiment_method, group_type='supplier'):
     """Определяет цвет точки на карте"""
     from app.core.config import SENTIMENT_CONFIG, GROUP_CONFIG
     
@@ -787,7 +781,12 @@ def get_point_color(row, color_scheme, sentiment_method):
         return SENTIMENT_CONFIG['colors'].get(sentiment, '#6c757d')
     else:
         # Цвет по группе
-        group = row.get('group', row.get('group_type', ''))
+        if group_type == 'determined':
+            # В режиме "Определенные" используем detected_group_type для цвета
+            group = row.get('detected_group_type', row.get('determined_group', ''))
+        else:
+            # В режиме "От поставщика" используем group_type для цвета
+            group = row.get('group_type', row.get('group', ''))
         return GROUP_CONFIG['colors'].get(group, '#6c757d')
 
 def get_sentiment_value(row, sentiment_method):
@@ -1049,6 +1048,63 @@ def update_detected_groups():
         return jsonify({
             'success': True,
             'message': f'Группы успешно обновлены для {updated_count} объектов'
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Ошибка: {str(e)}'}), 500
+
+@app.route('/api/sentiment/methods')
+def get_available_sentiment_methods():
+    """Получить доступные методы сентимента из БД"""
+    try:
+        conn = sqlite3.connect('urban_analysis_fixed.db')
+        cursor = conn.cursor()
+        
+        # Получаем только те методы, которые реально используются в analysis_results
+        cursor.execute("""
+            SELECT DISTINCT pm.method_name
+            FROM analysis_results ar
+            JOIN processing_methods pm ON ar.method_id = pm.id
+            WHERE pm.is_active = 1
+            ORDER BY pm.method_name
+        """)
+        
+        used_methods = cursor.fetchall()
+        used_method_names = [method[0] for method in used_methods]
+        
+        # Маппинг названий методов из БД в названия для интерфейса
+        method_mapping = {
+            'user_rating': 'rating',
+            'nlp_vader': 'classical_sentiment',
+            'llm_yandex': 'yandexgpt_sentiment',
+            'llm_sber': 'gigachat_sentiment',
+            'llm_qwen': 'qwen_sentiment',
+            'llm_deepseek': 'deepseek_sentiment',
+            'openai': 'openai_sentiment',
+            'gemini': 'google_gemini_sentiment'
+        }
+        
+        # Преобразуем названия методов
+        available_methods = []
+        for db_method in used_method_names:
+            if db_method in method_mapping:
+                ui_method = method_mapping[db_method]
+                if ui_method not in available_methods:
+                    available_methods.append(ui_method)
+            else:
+                # Если метод не найден в маппинге, добавляем как есть
+                if db_method not in available_methods:
+                    available_methods.append(db_method)
+        
+        # Всегда добавляем 'rating' как базовый метод
+        if 'rating' not in available_methods:
+            available_methods.insert(0, 'rating')
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'methods': available_methods
         })
         
     except Exception as e:

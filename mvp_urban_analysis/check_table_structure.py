@@ -1,60 +1,49 @@
-import sqlite3
+#!/usr/bin/env python3
+"""
+Проверка структуры таблицы objects
+"""
+import sys
 import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from app.core.database_fixed import db_manager_fixed
 
 def check_table_structure():
-    db_path = "urban_analysis.db"
+    """Проверяет структуру таблицы objects"""
+    print("=== ПРОВЕРКА СТРУКТУРЫ ТАБЛИЦЫ OBJECTS ===")
     
-    print(f"🔍 Проверяем структуру таблиц в БД: {db_path}")
-    
-    conn = sqlite3.connect(db_path)
-    
-    # Проверяем структуру таблицы objects
-    cursor = conn.execute("PRAGMA table_info(objects)")
-    objects_columns = cursor.fetchall()
-    
-    print(f"\n📋 Структура таблицы objects:")
-    for col in objects_columns:
-        print(f"  {col[1]} ({col[2]}) - {col[3]}")
-    
-    # Проверяем структуру таблицы object_groups
-    cursor = conn.execute("PRAGMA table_info(object_groups)")
-    groups_columns = cursor.fetchall()
-    
-    print(f"\n📋 Структура таблицы object_groups:")
-    for col in groups_columns:
-        print(f"  {col[1]} ({col[2]}) - {col[3]}")
-    
-    # Проверяем структуру таблицы detected_groups
-    cursor = conn.execute("PRAGMA table_info(detected_groups)")
-    detected_columns = cursor.fetchall()
-    
-    print(f"\n📋 Структура таблицы detected_groups:")
-    for col in detected_columns:
-        print(f"  {col[1]} ({col[2]}) - {col[3]}")
-    
-    # Проверяем данные в таблицах
-    cursor = conn.execute("SELECT * FROM objects LIMIT 3")
-    objects_data = cursor.fetchall()
-    
-    print(f"\n📋 Данные в таблице objects (первые 3 записи):")
-    for obj in objects_data:
-        print(f"  {obj}")
-    
-    cursor = conn.execute("SELECT * FROM object_groups")
-    groups_data = cursor.fetchall()
-    
-    print(f"\n📋 Данные в таблице object_groups:")
-    for group in groups_data:
-        print(f"  {group}")
-    
-    cursor = conn.execute("SELECT * FROM detected_groups")
-    detected_data = cursor.fetchall()
-    
-    print(f"\n📋 Данные в таблице detected_groups:")
-    for detected in detected_data:
-        print(f"  {detected}")
-    
-    conn.close()
+    try:
+        with db_manager_fixed.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Получаем информацию о таблице objects
+            cursor.execute("PRAGMA table_info(objects)")
+            columns = cursor.fetchall()
+            
+            print("Колонки таблицы objects:")
+            for col in columns:
+                print(f"  {col[1]} ({col[2]}) - {'NOT NULL' if col[3] else 'NULL'}")
+            
+            # Проверяем данные
+            cursor.execute("SELECT * FROM objects LIMIT 3")
+            rows = cursor.fetchall()
+            
+            print(f"\nПримеры данных:")
+            for i, row in enumerate(rows, 1):
+                print(f"Запись {i}: {row}")
+            
+            # Проверяем все таблицы
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            tables = cursor.fetchall()
+            
+            print(f"\nВсе таблицы в БД:")
+            for table in tables:
+                print(f"  {table[0]}")
+                
+    except Exception as e:
+        print(f"❌ Ошибка: {e}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
     check_table_structure() 

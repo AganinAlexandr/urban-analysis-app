@@ -59,7 +59,9 @@ class DistrictDetector:
                 params['apikey'] = self.api_key
                 logger.info(f"API ключ установлен для геокодирования")
             else:
-                logger.warning("API ключ не установлен для геокодирования")
+                logger.error("❌ API ключ не установлен для геокодирования")
+                logger.error("   Установите переменную окружения YANDEX_GEOCODER_API_KEY")
+                logger.error("   или передайте api_key в конструктор DistrictDetector")
                 return None
             
             logger.info(f"Запрос к API для координат {lat}, {lon}")
@@ -300,13 +302,10 @@ class DistrictDetector:
                 params['apikey'] = self.api_key
                 logger.info(f"API ключ установлен для геокодирования")
             else:
-                logger.warning("API ключ не установлен для геокодирования")
-                # Возвращаем тестовые координаты для Москвы
-                return {
-                    'latitude': 55.7558,
-                    'longitude': 37.6176,
-                    'district': 'Центральный район'
-                }
+                logger.error("❌ API ключ не установлен для геокодирования")
+                logger.error("   Установите переменную окружения YANDEX_GEOCODER_API_KEY")
+                logger.error("   или передайте api_key в конструктор DistrictDetector")
+                return None
             
             logger.info(f"Запрос к API для адреса: {address}")
             response = requests.get(self.base_url, params=params, timeout=10)
@@ -324,15 +323,71 @@ class DistrictDetector:
             return location_info
             
         except Exception as e:
-            logger.error(f"Ошибка получения информации о местоположении для {address}: {str(e)}")
-            # Возвращаем тестовые координаты для Москвы
-            return {
-                'latitude': 55.7558,
-                'longitude': 37.6176,
-                'district': 'Центральный район'
-            }
+            logger.error(f"❌ Ошибка получения информации о местоположении для {address}: {str(e)}")
+            return None
     
-    def _extract_location_from_response(self, data: Dict, address: str) -> Dict:
+    def _get_test_coordinates(self, address: str) -> Dict:
+        """
+        Генерирует разнообразные тестовые координаты для адреса
+        
+        Args:
+            address: Адрес для генерации координат
+            
+        Returns:
+            Словарь с тестовыми координатами
+        """
+        # Создаем хеш от адреса для генерации стабильных координат
+        import hashlib
+        address_hash = hashlib.md5(address.encode()).hexdigest()
+        
+        # Используем первые 4 символа хеша для генерации координат
+        hash_part = int(address_hash[:4], 16)
+        
+        # Генерируем координаты в пределах Москвы
+        # Москва: примерно 55.5-55.9 широта, 37.3-37.8 долгота
+        base_lat = 55.7558
+        base_lon = 37.6176
+        
+        # Добавляем случайность на основе хеша
+        lat_offset = (hash_part % 4000) / 10000.0  # ±0.4 градуса
+        lon_offset = ((hash_part >> 8) % 5000) / 10000.0  # ±0.5 градуса
+        
+        lat = base_lat + lat_offset - 0.2  # Смещаем от центра
+        lon = base_lon + lon_offset - 0.25  # Смещаем от центра
+        
+        # Определяем район на основе координат
+        district = self._get_district_from_test_coordinates(lat, lon)
+        
+        return {
+            'latitude': lat,
+            'longitude': lon,
+            'district': district
+        }
+    
+    def _get_district_from_test_coordinates(self, lat: float, lon: float) -> str:
+        """
+        Определяет район по тестовым координатам
+        
+        Args:
+            lat: Широта
+            lon: Долгота
+            
+        Returns:
+            Название района
+        """
+        # Простая логика определения района по координатам
+        if lat > 55.8:
+            return "Северный район"
+        elif lat < 55.7:
+            return "Южный район"
+        elif lon > 37.7:
+            return "Восточный район"
+        elif lon < 37.5:
+            return "Западный район"
+        else:
+            return "Центральный район"
+    
+    def _extract_location_from_response(self, data: Dict, address: str) -> Optional[Dict]:
         """
         Извлечение информации о местоположении из ответа API
         
@@ -341,18 +396,14 @@ class DistrictDetector:
             address: Исходный адрес
             
         Returns:
-            Словарь с информацией о местоположении
+            Словарь с информацией о местоположении или None
         """
         try:
             features = data.get('response', {}).get('GeoObjectCollection', {}).get('featureMember', [])
             
             if not features:
                 logger.warning(f"Не найдены результаты для адреса: {address}")
-                return {
-                    'latitude': 55.7558,
-                    'longitude': 37.6176,
-                    'district': 'Центральный район'
-                }
+                return None
             
             # Берем первый результат
             feature = features[0]
@@ -369,20 +420,12 @@ class DistrictDetector:
                 return {
                     'latitude': lat,
                     'longitude': lon,
-                    'district': district or 'Центральный район'
+                    'district': district or 'Неизвестный район'
                 }
             else:
                 logger.warning(f"Не удалось извлечь координаты для адреса: {address}")
-                return {
-                    'latitude': 55.7558,
-                    'longitude': 37.6176,
-                    'district': 'Центральный район'
-                }
+                return None
                 
         except Exception as e:
             logger.error(f"Ошибка извлечения информации о местоположении: {e}")
-            return {
-                'latitude': 55.7558,
-                'longitude': 37.6176,
-                'district': 'Центральный район'
-            } 
+            return None 

@@ -242,17 +242,72 @@ class DatabaseManager:
                             stats['reviews_created'] += 1
                         
                         # Добавляем результаты анализа, если есть
-                        for method_name in ['user_rating', 'nlp_vader', 'llm_yandex']:
-                            sentiment_col = f'{method_name}_sentiment'
+                        # Маппинг методов анализа из llm_analyzer в методы БД
+                        method_mapping = {
+                            'classical': 'nlp_vader',  # classical -> nlp_vader
+                            'openai_gpt': 'openai',    # openai_gpt -> openai  
+                            'google_gemini': 'gemini', # google_gemini -> gemini
+                            'yandex_gpt': 'llm_yandex' # yandex_gpt -> llm_yandex
+                        }
+                        
+                        for llm_method, db_method in method_mapping.items():
+                            sentiment_col = f'{llm_method}_sentiment'
+                            confidence_col = f'{llm_method}_sentiment_score'
+                            review_type_col = f'{llm_method}_review_type'
+                            
                             if sentiment_col in row and pd.notna(row[sentiment_col]):
-                                method_id = self.get_method_id(method_name)
+                                method_id = self.get_method_id(db_method)
                                 if method_id:
+                                    # Получаем значения
+                                    sentiment = row[sentiment_col]
+                                    confidence = row.get(confidence_col, 0.5)
+                                    review_type = row.get(review_type_col, 'informational')
+                                    
+                                    # Проверяем допустимые значения review_type
+                                    valid_review_types = ['gratitude', 'complaint', 'suggestion', 'informational']
+                                    if review_type not in valid_review_types:
+                                        review_type = 'informational'
+                                    
                                     self.insert_analysis_result(
                                         review_id=review_id,
                                         method_id=method_id,
-                                        sentiment=row[sentiment_col]
+                                        sentiment=sentiment,
+                                        confidence=confidence,
+                                        review_type=review_type
                                     )
                                     stats['analysis_results_created'] += 1
+                        
+                        # Добавляем user_rating на основе поля rating
+                        if 'rating' in row and pd.notna(row['rating']):
+                            try:
+                                rating = int(row['rating'])
+                                if 1 <= rating <= 5:
+                                    user_rating_method_id = self.get_method_id('user_rating')
+                                    if user_rating_method_id:
+                                        # Конвертируем рейтинг в сентимент
+                                        if rating == 5:
+                                            sentiment = "positive"
+                                            confidence = 1.0
+                                        elif rating in [1, 2]:
+                                            sentiment = "negative"
+                                            confidence = 0.8
+                                        elif rating in [3, 4]:
+                                            sentiment = "neutral"
+                                            confidence = 0.6
+                                        else:
+                                            sentiment = "neutral"
+                                            confidence = 0.5
+                                        
+                                        self.insert_analysis_result(
+                                            review_id=review_id,
+                                            method_id=user_rating_method_id,
+                                            sentiment=sentiment,
+                                            confidence=confidence,
+                                            review_type='informational'
+                                        )
+                                        stats['analysis_results_created'] += 1
+                            except (ValueError, TypeError):
+                                pass  # Игнорируем некорректные значения рейтинга
         
         return stats
     

@@ -211,6 +211,37 @@
         .sentiment-section-disabled input[type="radio"] {
             pointer-events: none;
         }
+        
+        /* Стили для неактивных кнопок сентимента */
+        .btn-outline-secondary[style*="opacity: 0.5"] {
+            pointer-events: none !important;
+            cursor: not-allowed !important;
+        }
+        
+        /* Стили для активных кнопок сентимента */
+        .btn-outline-success:not([style*="opacity: 0.5"]) {
+            cursor: pointer !important;
+        }
+        
+        /* Принудительные стили для активных кнопок сентимента */
+        #sentimentMethodsContainer .btn-outline-success {
+            color: #198754 !important;
+            border-color: #198754 !important;
+            background-color: transparent !important;
+        }
+        
+        #sentimentMethodsContainer .btn-outline-success:hover {
+            color: #fff !important;
+            background-color: #198754 !important;
+            border-color: #198754 !important;
+        }
+        
+        /* Стили для выбранной кнопки */
+        #sentimentMethodsContainer input[type="radio"]:checked + .btn-outline-success {
+            color: #fff !important;
+            background-color: #198754 !important;
+            border-color: #198754 !important;
+        }
     </style>
 </head>
 <body>
@@ -1204,6 +1235,7 @@
             const columnNames = {
                 'group': 'Группа',
                 'name': 'Название',
+                'determined_group': 'Опред_групп',
                 'address': 'Адрес',
                 'review_text': 'Текст отзыва',
                 'rating': 'Рейтинг',
@@ -1381,7 +1413,6 @@
             // Получаем параметры с проверками
             const groupTypeElement = document.querySelector('input[name="groupType"]:checked');
             const colorSchemeElement = document.querySelector('input[name="colorScheme"]:checked');
-            const sentimentMethodElement = document.querySelector('input[name="sentimentMethod"]:checked');
             
             // Проверяем существование элементов
             if (!groupTypeElement) {
@@ -1392,23 +1423,14 @@
                 console.error('Элемент colorScheme не найден');
                 return;
             }
-            // Объявляем переменные в правильной области видимости
-            let groupType, colorScheme, sentimentMethod;
             
-            if (!sentimentMethodElement) {
-                console.error('Элемент sentimentMethod не найден, используем fallback');
-                // Используем fallback значение
-                const fallbackSentimentMethod = 'rating';
-                console.log('Используем fallback sentimentMethod:', fallbackSentimentMethod);
-                
-                groupType = groupTypeElement.value;
-                colorScheme = colorSchemeElement.value;
-                sentimentMethod = fallbackSentimentMethod;
-            } else {
-                groupType = groupTypeElement.value;
-                colorScheme = colorSchemeElement.value;
-                sentimentMethod = sentimentMethodElement.value;
-            }
+            // Получаем выбранный метод сентимента
+            let sentimentMethod = window.selectedSentimentMethod || 'rating';
+            
+            // Объявляем переменные в правильной области видимости
+            let groupType, colorScheme;
+            groupType = groupTypeElement.value;
+            colorScheme = colorSchemeElement.value;
             
             // Проверяем существование карты
             if (!myMap) {
@@ -1628,24 +1650,27 @@
             
             if (colorScheme === 'sentiment') {
                 sentimentSection.classList.remove('sentiment-section-disabled');
-                // Активируем все кнопки методов сентимента
+                // Активируем только те кнопки, которые имеют данные
                 const sentimentButtons = sentimentSection.querySelectorAll('input[type="radio"]');
                 sentimentButtons.forEach(button => {
-                    button.disabled = false;
-                });
-            } else {
-                sentimentSection.classList.add('sentiment-section-disabled');
-                // Деактивируем все кнопки методов сентимента, кроме рейтинга
-                const sentimentButtons = sentimentSection.querySelectorAll('input[type="radio"]');
-                sentimentButtons.forEach(button => {
-                    if (button.value !== 'rating') {
+                    // Проверяем, есть ли данные для этого метода
+                    const hasData = !button.disabled; // Кнопка уже была настроена в updateSentimentMethodsUI
+                    if (!hasData) {
                         button.disabled = true;
                     }
                 });
-                // Принудительно выбираем рейтинг при переключении на группы
-                const ratingButton = document.getElementById('sentimentRating');
-                if (ratingButton) {
-                    ratingButton.checked = true;
+            } else {
+                sentimentSection.classList.add('sentiment-section-disabled');
+                // Деактивируем все кнопки методов сентимента
+                const sentimentButtons = sentimentSection.querySelectorAll('input[type="radio"]');
+                sentimentButtons.forEach(button => {
+                    button.disabled = true;
+                });
+                
+                // Выбираем первую доступную кнопку (если есть)
+                const firstAvailableButton = sentimentSection.querySelector('input[type="radio"]:not([disabled])');
+                if (firstAvailableButton) {
+                    firstAvailableButton.checked = true;
                 }
             }
             
@@ -2051,48 +2076,97 @@
             const container = document.getElementById('sentimentMethodsContainer');
             container.innerHTML = '';
             
-            if (methods.length === 0) {
-                container.innerHTML = '<div class="text-muted">Нет доступных методов сентимента</div>';
-                return;
-            }
+            // Все возможные методы (фиксированный список)
+            const allPossibleMethods = [
+                'rating',
+                'classical_sentiment', 
+                'openai_sentiment',
+                'google_gemini_sentiment',
+                'yandexgpt_sentiment',
+                'gigachat_sentiment',
+                'qwen_sentiment',
+                'deepseek_sentiment'
+            ];
             
-            // Создаем строки по 2 метода в каждой
-            const methodsPerRow = 2;
-            for (let i = 0; i < methods.length; i += methodsPerRow) {
+            // Создаем фиксированную сетку 4x2 (4 кнопки в ряду, 2 ряда)
+            const methodsPerRow = 4;
+            const rows = 2;
+            
+            for (let rowIndex = 0; rowIndex < rows; rowIndex++) {
                 const row = document.createElement('div');
-                row.className = 'row' + (i > 0 ? ' mt-1' : '');
+                row.className = 'row' + (rowIndex > 0 ? ' mt-1' : '');
                 
-                for (let j = 0; j < methodsPerRow && i + j < methods.length; j++) {
-                    const method = methods[i + j];
-                    const col = document.createElement('div');
-                    col.className = 'col-6';
+                for (let colIndex = 0; colIndex < methodsPerRow; colIndex++) {
+                    const methodIndex = rowIndex * methodsPerRow + colIndex;
+                    const method = allPossibleMethods[methodIndex];
                     
-                    const btnGroup = document.createElement('div');
-                    btnGroup.className = 'btn-group btn-group-sm w-100';
-                    btnGroup.setAttribute('role', 'group');
-                    
-                    const input = document.createElement('input');
-                    input.type = 'radio';
-                    input.className = 'btn-check';
-                    input.name = 'sentimentMethod';
-                    input.id = `sentiment${method.charAt(0).toUpperCase() + method.slice(1)}`;
-                    input.value = method;
-                    input.checked = method === 'rating'; // По умолчанию выбран рейтинг
-                    
-                    const label = document.createElement('label');
-                    label.className = 'btn btn-outline-success';
-                    label.htmlFor = input.id;
-                    label.style.cssText = 'padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;';
-                    
-                    // Добавляем иконку и название метода
-                    const icon = getSentimentMethodIcon(method);
-                    const displayName = getSentimentMethodDisplayName(method);
-                    label.innerHTML = `${icon} ${displayName}`;
-                    
-                    btnGroup.appendChild(input);
-                    btnGroup.appendChild(label);
-                    col.appendChild(btnGroup);
-                    row.appendChild(col);
+                    if (method) {
+                        const col = document.createElement('div');
+                        col.className = 'col-3';
+                        
+                        const btnGroup = document.createElement('div');
+                        btnGroup.className = 'btn-group btn-group-sm w-100';
+                        btnGroup.setAttribute('role', 'group');
+                        
+                        // Проверяем, есть ли данные для этого метода
+                        const hasData = methods.includes(method);
+                        
+                        // Создаем кнопку
+                        const button = document.createElement('button');
+                        button.type = 'button';
+                        button.className = 'btn btn-sm';
+                        button.style.cssText = 'padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important; width: 100% !important;';
+                        
+                        // Добавляем иконку и название метода
+                        const icon = getSentimentMethodIcon(method);
+                        const displayName = getSentimentMethodDisplayName(method);
+                        button.innerHTML = `${icon} ${displayName}`;
+                        
+                        if (hasData) {
+                            // Активная кнопка
+                            button.className = 'btn btn-outline-success btn-sm';
+                            
+                            // Выбираем первую доступную кнопку по умолчанию
+                            const isFirstAvailable = methods.indexOf(method) === 0;
+                            if (isFirstAvailable) {
+                                button.classList.remove('btn-outline-success');
+                                button.classList.add('btn-success');
+                                // Сохраняем выбранный метод
+                                window.selectedSentimentMethod = method;
+                            }
+                            
+                            // Добавляем обработчик для активных кнопок
+                            button.addEventListener('click', function() {
+                                // Снимаем выделение со всех кнопок
+                                const allButtons = container.querySelectorAll('.btn-success');
+                                allButtons.forEach(btn => {
+                                    btn.classList.remove('btn-success');
+                                    btn.classList.add('btn-outline-success');
+                                });
+                                
+                                // Выделяем текущую кнопку
+                                this.classList.remove('btn-outline-success');
+                                this.classList.add('btn-success');
+                                
+                                // Сохраняем выбранный метод
+                                window.selectedSentimentMethod = method;
+                                console.log(`Выбран метод: ${method}`);
+                                updateMap(); // Обновляем карту при изменении метода
+                            });
+                        } else {
+                            // Неактивная кнопка
+                            button.className = 'btn btn-outline-secondary btn-sm';
+                            button.style.opacity = '0.5';
+                            button.style.cursor = 'not-allowed';
+                            button.title = 'Нет данных для этого метода';
+                            button.disabled = true;
+                        }
+                        
+                        // Добавляем кнопку в DOM
+                        btnGroup.appendChild(button);
+                        col.appendChild(btnGroup);
+                        row.appendChild(col);
+                    }
                 }
                 
                 container.appendChild(row);
@@ -2133,6 +2207,9 @@
         function showDefaultSentimentMethods() {
             const container = document.getElementById('sentimentMethodsContainer');
             container.innerHTML = '<div class="text-muted">Ошибка загрузки методов. Показываем стандартные методы.</div>';
+            
+            // Показываем фиксированную сетку с неактивными кнопками
+            updateSentimentMethodsUI([]);
         }
     </script>
 </body>

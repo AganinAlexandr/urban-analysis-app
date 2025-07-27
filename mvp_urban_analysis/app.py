@@ -273,7 +273,7 @@ def upload_file():
                 success = False
             
             # Подготавливаем результаты для отображения
-            display_columns = ['group', 'name', 'address', 'review_text', 'rating']
+            display_columns = ['group', 'name', 'determined_group', 'address', 'review_text', 'rating']
             # Добавляем колонки для каждого метода анализа
             for method in used_methods:
                 display_columns.extend([f'{method}_sentiment', f'{method}_sentiment_score', f'{method}_review_type'])

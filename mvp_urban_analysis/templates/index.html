@@ -651,9 +651,13 @@
                                 <label class="btn btn-outline-primary btn-sm" for="chartView">
                                     <i class="fas fa-chart-bar"></i> Диаграмма
                                 </label>
-                                <input type="radio" class="btn-check" name="viewMode" id="sentimentTableView" value="sentiment_table">
+                                <input type="radio" class="btn-check" name="viewMode" id="sentimentTableView" value="sentimentTable">
                                 <label class="btn btn-outline-primary btn-sm" for="sentimentTableView">
                                     <i class="fas fa-th"></i> Таблица сентиментов
+                                </label>
+                                <input type="radio" class="btn-check" name="viewMode" id="correlationHeatmapView" value="correlationHeatmap">
+                                <label class="btn btn-outline-primary btn-sm" for="correlationHeatmapView">
+                                    <i class="fas fa-fire"></i> Тепловая карта
                                 </label>
                             </div>
                         </div>
@@ -684,14 +688,22 @@
                         </div>
                         
                         <!-- Контейнер для таблицы сентиментов -->
-                        <div id="sentimentTable" class="table-responsive" style="display: none;">
+                        <div id="sentimentTable" style="display: none;">
                             <div id="sentimentTableLoading" class="text-center">
-                                <div class="spinner-border text-primary" role="status">
-                                    <span class="visually-hidden">Загрузка таблицы сентиментов...</span>
+                                <div class="spinner-border" role="status">
+                                    <span class="visually-hidden">Загрузка...</span>
                                 </div>
-                                <p class="mt-2">Загрузка данных таблицы сентиментов...</p>
                             </div>
                             <div id="sentimentTableContainer"></div>
+                        </div>
+                        
+                        <div id="correlationHeatmap" style="display: none;">
+                            <div id="correlationHeatmapLoading" class="text-center">
+                                <div class="spinner-border" role="status">
+                                    <span class="visually-hidden">Загрузка...</span>
+                                </div>
+                            </div>
+                            <div id="correlationHeatmapContainer"></div>
                         </div>
                     </div>
                 </div>
@@ -2311,38 +2323,39 @@
 
         // Функция для переключения между таблицей и диаграммой
         function setupViewModeToggle() {
-            const tableView = document.getElementById('tableView');
             const chartView = document.getElementById('chartView');
             const sentimentTableView = document.getElementById('sentimentTableView');
-            const resultsTable = document.getElementById('resultsTable');
-            const resultsChart = document.getElementById('resultsChart');
+            const correlationHeatmapView = document.getElementById('correlationHeatmapView');
+            const chartContainer = document.getElementById('chartContainer');
             const sentimentTable = document.getElementById('sentimentTable');
+            const correlationHeatmap = document.getElementById('correlationHeatmap');
             
-            tableView.addEventListener('change', function() {
-                if (this.checked) {
-                    resultsTable.style.display = 'block';
-                    resultsChart.style.display = 'none';
-                    sentimentTable.style.display = 'none';
-                }
-            });
-            
-            chartView.addEventListener('change', function() {
-                if (this.checked) {
-                    resultsTable.style.display = 'none';
-                    resultsChart.style.display = 'block';
-                    sentimentTable.style.display = 'none';
+            if (chartView) {
+                chartView.addEventListener('change', function() {
+                    if (chartContainer) chartContainer.style.display = 'block';
+                    if (sentimentTable) sentimentTable.style.display = 'none';
+                    if (correlationHeatmap) correlationHeatmap.style.display = 'none';
                     loadChartData();
-                }
-            });
+                });
+            }
             
-            sentimentTableView.addEventListener('change', function() {
-                if (this.checked) {
-                    resultsTable.style.display = 'none';
-                    resultsChart.style.display = 'none';
-                    sentimentTable.style.display = 'block';
+            if (sentimentTableView) {
+                sentimentTableView.addEventListener('change', function() {
+                    if (chartContainer) chartContainer.style.display = 'none';
+                    if (sentimentTable) sentimentTable.style.display = 'block';
+                    if (correlationHeatmap) correlationHeatmap.style.display = 'none';
                     loadSentimentTableData();
-                }
-            });
+                });
+            }
+            
+            if (correlationHeatmapView) {
+                correlationHeatmapView.addEventListener('change', function() {
+                    if (chartContainer) chartContainer.style.display = 'none';
+                    if (sentimentTable) sentimentTable.style.display = 'none';
+                    if (correlationHeatmap) correlationHeatmap.style.display = 'block';
+                    loadCorrelationHeatmapData();
+                });
+            }
         }
         
         // Функция для загрузки данных таблицы сентиментов
@@ -2648,9 +2661,134 @@
         // Функция для обновления таблицы сентиментов при изменении фильтров
         function updateSentimentTableOnFilterChange() {
             const sentimentTableView = document.getElementById('sentimentTableView');
+            const correlationHeatmapView = document.getElementById('correlationHeatmapView');
+            
             if (sentimentTableView && sentimentTableView.checked) {
                 loadSentimentTableData();
             }
+            
+            if (correlationHeatmapView && correlationHeatmapView.checked) {
+                loadCorrelationHeatmapData();
+            }
+        }
+
+        // Функция для загрузки данных тепловой карты корреляции
+        async function loadCorrelationHeatmapData() {
+            const correlationHeatmapLoading = document.getElementById('correlationHeatmapLoading');
+            const correlationHeatmapContainer = document.getElementById('correlationHeatmapContainer');
+            
+            if (!correlationHeatmapLoading || !correlationHeatmapContainer) {
+                console.error('Элементы тепловой карты не найдены');
+                return;
+            }
+            
+            try {
+                correlationHeatmapLoading.style.display = 'block';
+                correlationHeatmapContainer.style.display = 'none';
+                
+                const filterParams = getAllFilterParams();
+                const filtersParam = filterParams.group_filters.join(',');
+                const groupTypeParam = filterParams.group_type;
+                const colorSchemeParam = filterParams.color_scheme;
+                const sentimentMethodParam = filterParams.sentiment_method;
+                
+                const response = await fetch(`/chart/correlation?filters=${filtersParam}&group_type=${groupTypeParam}&color_scheme=${colorSchemeParam}&sentiment_method=${sentimentMethodParam}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    createCorrelationHeatmap(result.data);
+                } else {
+                    console.error('Ошибка загрузки данных тепловой карты:', result.error);
+                    correlationHeatmapContainer.innerHTML = '<div class="alert alert-danger">Ошибка загрузки данных тепловой карты</div>';
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки данных тепловой карты:', error);
+                correlationHeatmapContainer.innerHTML = '<div class="alert alert-danger">Ошибка загрузки данных тепловой карты</div>';
+            } finally {
+                correlationHeatmapLoading.style.display = 'none';
+                correlationHeatmapContainer.style.display = 'block';
+            }
+        }
+        
+        // Функция для создания тепловой карты корреляции
+        function createCorrelationHeatmap(correlationData) {
+            const container = document.getElementById('correlationHeatmapContainer');
+            
+            if (!container) {
+                console.error('Контейнер тепловой карты не найден');
+                return;
+            }
+            
+            const methods = correlationData.methods;
+            const correlationMatrix = correlationData.correlation_matrix;
+            
+            // Создаем HTML таблицу для тепловой карты с квадратной геометрией
+            let heatmapHtml = '<div class="table-responsive" style="max-width: 600px; margin: 0 auto;">';
+            heatmapHtml += '<table class="table table-bordered table-sm" style="font-size: 24px; width: 100%; table-layout: fixed;">';
+            
+            // Заголовок таблицы
+            heatmapHtml += '<thead><tr><th style="width: 120px; height: 50px;">Методы</th>';
+            methods.forEach(method => {
+                heatmapHtml += `<th style="text-align: center; font-size: 20px; height: 50px; width: ${Math.max(80, 400 / methods.length)}px;">${getSentimentMethodDisplayName(method)}</th>`;
+            });
+            heatmapHtml += '</tr></thead>';
+            
+            // Тело таблицы
+            heatmapHtml += '<tbody>';
+            methods.forEach((method, i) => {
+                heatmapHtml += `<tr><td style="width: 120px; height: 50px; font-weight: bold; vertical-align: middle; font-size: 20px;">${getSentimentMethodDisplayName(method)}</td>`;
+                
+                methods.forEach((otherMethod, j) => {
+                    const correlation = correlationMatrix[i][j];
+                    let cellClass = '';
+                    let cellStyle = '';
+                    
+                    // Определяем цвет на основе корреляции
+                    if (i === j) {
+                        // Диагональ - всегда 1.0
+                        cellClass = 'table-primary';
+                        cellStyle = `background-color: #007bff; color: white; text-align: center; font-weight: bold; height: 50px; width: ${Math.max(80, 400 / methods.length)}px; vertical-align: middle;`;
+                    } else if (correlation >= 0.8) {
+                        cellClass = 'table-success';
+                        cellStyle = `background-color: #28a745; color: white; text-align: center; height: 50px; width: ${Math.max(80, 400 / methods.length)}px; vertical-align: middle;`;
+                    } else if (correlation >= 0.6) {
+                        cellClass = 'table-info';
+                        cellStyle = `background-color: #17a2b8; color: white; text-align: center; height: 50px; width: ${Math.max(80, 400 / methods.length)}px; vertical-align: middle;`;
+                    } else if (correlation >= 0.4) {
+                        cellClass = 'table-warning';
+                        cellStyle = `background-color: #ffc107; color: black; text-align: center; height: 50px; width: ${Math.max(80, 400 / methods.length)}px; vertical-align: middle;`;
+                    } else if (correlation >= 0.2) {
+                        cellClass = 'table-danger';
+                        cellStyle = `background-color: #dc3545; color: white; text-align: center; height: 50px; width: ${Math.max(80, 400 / methods.length)}px; vertical-align: middle;`;
+                    } else {
+                        cellClass = 'table-secondary';
+                        cellStyle = `background-color: #6c757d; color: white; text-align: center; height: 50px; width: ${Math.max(80, 400 / methods.length)}px; vertical-align: middle;`;
+                    }
+                    
+                    heatmapHtml += `<td class="${cellClass}" style="${cellStyle} font-size: 20px;">${correlation.toFixed(3)}</td>`;
+                });
+                
+                heatmapHtml += '</tr>';
+            });
+            heatmapHtml += '</tbody></table></div>';
+            
+            // Добавляем легенду
+            heatmapHtml += '<div class="mt-3">';
+            heatmapHtml += '<div class="d-flex justify-content-center flex-wrap">';
+            heatmapHtml += '<div class="d-flex align-items-center me-3"><div style="width: 15px; height: 15px; background-color: #007bff; margin-right: 5px;"></div><span style="font-size: 16px;">Диагональ (1.000)</span></div>';
+            heatmapHtml += '<div class="d-flex align-items-center me-3"><div style="width: 15px; height: 15px; background-color: #28a745; margin-right: 5px;"></div><span style="font-size: 16px;">Высокая (≥0.8)</span></div>';
+            heatmapHtml += '<div class="d-flex align-items-center me-3"><div style="width: 15px; height: 15px; background-color: #17a2b8; margin-right: 5px;"></div><span style="font-size: 16px;">Средняя (≥0.6)</span></div>';
+            heatmapHtml += '<div class="d-flex align-items-center me-3"><div style="width: 15px; height: 15px; background-color: #ffc107; margin-right: 5px;"></div><span style="font-size: 16px;">Низкая (≥0.4)</span></div>';
+            heatmapHtml += '<div class="d-flex align-items-center me-3"><div style="width: 15px; height: 15px; background-color: #dc3545; margin-right: 5px;"></div><span style="font-size: 16px;">Очень низкая (≥0.2)</span></div>';
+            heatmapHtml += '<div class="d-flex align-items-center"><div style="width: 15px; height: 15px; background-color: #6c757d; margin-right: 5px;"></div><span style="font-size: 16px;">Минимальная (<0.2)</span></div>';
+            heatmapHtml += '</div></div>';
+            
+            container.innerHTML = heatmapHtml;
         }
     </script>
 </body>

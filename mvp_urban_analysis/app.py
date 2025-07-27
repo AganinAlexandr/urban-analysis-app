@@ -1566,5 +1566,176 @@ def get_chart_table():
             'error': str(e)
         }), 500
 
+@app.route('/chart/correlation')
+def get_correlation_data():
+    """Получение данных для тепловой карты корреляции между методами обработки отзывов"""
+    try:
+        active_filters = request.args.get('filters', '').split(',') if request.args.get('filters') else []
+        active_filters = [f.strip() for f in active_filters if f.strip()]
+        group_type = request.args.get('group_type', 'supplier')
+        color_scheme = request.args.get('color_scheme', 'group')
+        sentiment_method = request.args.get('sentiment_method', 'rating')
+        
+        logger.info(f"Запрос данных корреляции с параметрами: filters={active_filters}, group_type={group_type}, color_scheme={color_scheme}, sentiment_method={sentiment_method}")
+        
+        # Подключение к базе данных
+        conn = sqlite3.connect('urban_analysis_fixed.db')
+        cursor = conn.cursor()
+        
+        # Фильтрация объектов
+        if group_type == 'supplier':
+            base_query = """
+                SELECT DISTINCT o.id, o.name, o.address, o.latitude, o.longitude,
+                       og.group_name as group_type, dg.group_name as determined_group
+                FROM objects o
+                LEFT JOIN object_groups og ON o.group_id = og.id
+                LEFT JOIN detected_groups dg ON o.detected_group_id = dg.id
+                WHERE o.latitude IS NOT NULL AND o.longitude IS NOT NULL
+            """
+            if active_filters and len(active_filters) > 0:
+                placeholders = ','.join(['?' for _ in active_filters])
+                base_query += f" AND og.group_name IN ({placeholders})"
+        else:  # group_type == 'determined'
+            base_query = """
+                SELECT DISTINCT o.id, o.name, o.address, o.latitude, o.longitude,
+                       og.group_name as group_type, dg.group_name as determined_group
+                FROM objects o
+                LEFT JOIN object_groups og ON o.group_id = og.id
+                LEFT JOIN detected_groups dg ON o.detected_group_id = dg.id
+                WHERE o.latitude IS NOT NULL AND o.longitude IS NOT NULL
+            """
+            if active_filters and len(active_filters) > 0:
+                placeholders = ','.join(['?' for _ in active_filters])
+                base_query += f" AND dg.group_name IN ({placeholders})"
+        
+        # Выполняем запрос с параметрами
+        if active_filters and len(active_filters) > 0:
+            cursor.execute(base_query, active_filters)
+        else:
+            cursor.execute(base_query)
+        
+        filtered_objects = cursor.fetchall()
+        logger.info(f"Найдено объектов после фильтрации: {len(filtered_objects)}")
+        
+        if not filtered_objects:
+            return jsonify({
+                'success': True,
+                'data': {
+                    'methods': [],
+                    'correlation_matrix': []
+                }
+            })
+        
+        # Получаем ID отфильтрованных объектов
+        object_ids = [obj[0] for obj in filtered_objects]
+        placeholders = ','.join(['?' for _ in object_ids])
+        
+        # Получаем все отзывы и результаты анализа для отфильтрованных объектов
+        query = f"""
+            SELECT r.id as review_id, r.object_id, r.review_text, r.rating,
+                   pm.method_name, ar.sentiment, ar.confidence
+            FROM reviews r
+            JOIN analysis_results ar ON r.id = ar.review_id
+            JOIN processing_methods pm ON ar.method_id = pm.id
+            WHERE r.object_id IN ({placeholders})
+            ORDER BY r.id, pm.method_name
+        """
+        
+        cursor.execute(query, object_ids)
+        results = cursor.fetchall()
+        
+        # Группируем данные по отзывам
+        reviews_data = {}
+        for row in results:
+            review_id, object_id, review_text, rating, method_name, sentiment, confidence = row
+            
+            if review_id not in reviews_data:
+                reviews_data[review_id] = {
+                    'object_id': object_id,
+                    'review_text': review_text,
+                    'rating': rating,
+                    'methods': {}
+                }
+            
+            reviews_data[review_id]['methods'][method_name] = {
+                'sentiment': sentiment,
+                'confidence': confidence
+            }
+        
+        # Получаем список всех методов
+        methods_query = """
+            SELECT DISTINCT pm.method_name
+            FROM processing_methods pm
+            JOIN analysis_results ar ON pm.id = ar.method_id
+            ORDER BY pm.method_name
+        """
+        cursor.execute(methods_query)
+        all_methods = [row[0] for row in cursor.fetchall()]
+        
+        # Добавляем user_rating если его нет
+        if 'user_rating' not in all_methods:
+            all_methods.insert(0, 'user_rating')
+        
+        # Создаем матрицу данных для корреляции
+        # Каждая строка - отзыв, каждый столбец - метод
+        correlation_data = []
+        for review_id, review_data in reviews_data.items():
+            row = []
+            for method in all_methods:
+                if method == 'user_rating':
+                    # Для user_rating используем рейтинг
+                    rating = review_data['rating']
+                    if rating and pd.notna(rating):
+                        from app.core.config import SENTIMENT_CONFIG
+                        sentiment = SENTIMENT_CONFIG['rating_to_sentiment'].get(int(rating), 'удовлетворительно')
+                        # Преобразуем в числовое значение
+                        if sentiment == 'положительный':
+                            row.append(1)
+                        elif sentiment == 'отрицательный':
+                            row.append(-1)
+                        else:
+                            row.append(0)
+                    else:
+                        row.append(0)
+                else:
+                    # Для других методов используем sentiment из БД
+                    method_data = review_data['methods'].get(method)
+                    if method_data and method_data['sentiment']:
+                        sentiment = method_data['sentiment']
+                        # Преобразуем в числовое значение
+                        if sentiment == 'positive' or sentiment == 'положительный':
+                            row.append(1)
+                        elif sentiment == 'negative' or sentiment == 'отрицательный':
+                            row.append(-1)
+                        else:
+                            row.append(0)
+                    else:
+                        row.append(0)
+            correlation_data.append(row)
+        
+        # Рассчитываем корреляционную матрицу
+        if correlation_data:
+            df = pd.DataFrame(correlation_data, columns=all_methods)
+            correlation_matrix = df.corr().values.tolist()
+        else:
+            correlation_matrix = []
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'methods': all_methods,
+                'correlation_matrix': correlation_matrix
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Ошибка при получении данных корреляции: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000) 

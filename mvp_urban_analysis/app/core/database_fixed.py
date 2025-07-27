@@ -8,6 +8,7 @@ from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 import pandas as pd
 from pathlib import Path
+import logging
 
 
 class DatabaseManager:
@@ -122,6 +123,17 @@ class DatabaseManager:
                              confidence: float = None, review_type: str = None,
                              keywords: List[str] = None, topics: List[str] = None) -> int:
         """Добавление результата анализа"""
+        # Валидация confidence
+        if confidence is not None:
+            # Ограничиваем confidence в диапазоне [0, 1]
+            confidence = max(0.0, min(1.0, float(confidence)))
+        else:
+            confidence = 0.5  # Значение по умолчанию
+        
+        # Логируем для отладки
+        logger = logging.getLogger(__name__)
+        logger.info(f"Сохранение анализа: review_id={review_id}, method_id={method_id}, sentiment={sentiment}, confidence={confidence}")
+        
         keywords_json = json.dumps(keywords) if keywords else None
         topics_json = json.dumps(topics) if topics else None
         
@@ -261,6 +273,17 @@ class DatabaseManager:
                                     # Получаем значения
                                     sentiment = row[sentiment_col]
                                     confidence = row.get(confidence_col, 0.5)
+                                    
+                                    # Валидация confidence
+                                    if confidence is not None:
+                                        try:
+                                            confidence = float(confidence)
+                                            confidence = max(0.0, min(1.0, confidence))
+                                        except (ValueError, TypeError):
+                                            confidence = 0.5
+                                    else:
+                                        confidence = 0.5
+                                    
                                     review_type = row.get(review_type_col, 'informational')
                                     
                                     # Проверяем допустимые значения review_type

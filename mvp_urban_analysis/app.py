@@ -700,6 +700,21 @@ def get_map_data():
         # Диагностика: выводим уникальные значения групп
         print("Уникальные group_type:", df_converted['group_type'].unique() if 'group_type' in df_converted.columns else 'нет поля')
         print("Уникальные detected_group_type:", df_converted['detected_group_type'].unique() if 'detected_group_type' in df_converted.columns else 'нет поля')
+        
+        # Диагностика: выводим доступные поля для сентимента
+        sentiment_fields = [col for col in df_converted.columns if 'sentiment' in col.lower()]
+        print("Поля сентимента в данных:", sentiment_fields)
+        print("Пример данных для первого объекта:", df_converted.iloc[0].to_dict() if not df_converted.empty else "Нет данных")
+        
+        # Диагностика: выводим распределение сентиментов для nlp_vader
+        if 'nlp_vader_sentiment' in df_converted.columns:
+            vader_sentiments = df_converted['nlp_vader_sentiment'].value_counts()
+            print("Распределение сентиментов nlp_vader:", vader_sentiments.to_dict())
+        
+        # Диагностика: выводим распределение сентиментов для user_rating
+        if 'user_rating_sentiment' in df_converted.columns:
+            rating_sentiments = df_converted['user_rating_sentiment'].value_counts()
+            print("Распределение сентиментов user_rating:", rating_sentiments.to_dict())
 
         # Выбираем поле группировки
         if group_type == 'supplier':
@@ -791,17 +806,37 @@ def get_point_color(row, color_scheme, sentiment_method, group_type='supplier'):
 
 def get_sentiment_value(row, sentiment_method):
     """Получает значение сентимента для строки"""
-    if sentiment_method == 'rating':
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    if sentiment_method == 'user_rating':
         # Используем преобразованный рейтинг
         rating = row.get('rating')
+        logger.info(f"user_rating: rating={rating}, sentiment_method={sentiment_method}")
         if rating and pd.notna(rating):
             from app.core.config import SENTIMENT_CONFIG
-            return SENTIMENT_CONFIG['rating_to_sentiment'].get(int(rating), 'удовлетворительно')
+            result = SENTIMENT_CONFIG['rating_to_sentiment'].get(int(rating), 'удовлетворительно')
+            logger.info(f"user_rating result: {result}")
+            return result
         return 'удовлетворительно'
     else:
-        # Используем поле сентимента (если есть)
+        # Используем поле сентимента для конкретного метода
         sentiment_field = f'{sentiment_method}_sentiment'
-        return row.get(sentiment_field, 'удовлетворительно')
+        sentiment_value = row.get(sentiment_field)
+        logger.info(f"{sentiment_method}: field={sentiment_field}, value={sentiment_value}")
+        
+        if sentiment_value and pd.notna(sentiment_value):
+            # Преобразуем английские значения в русские
+            sentiment_mapping = {
+                'positive': 'положительный',
+                'negative': 'отрицательный', 
+                'neutral': 'нейтральный'
+            }
+            result = sentiment_mapping.get(sentiment_value, sentiment_value)
+            logger.info(f"{sentiment_method} result: {result}")
+            return result
+        
+        return 'удовлетворительно'
 
 @app.route('/sample/create', methods=['POST'])
 def create_sample():
@@ -1070,35 +1105,11 @@ def get_available_sentiment_methods():
         """)
         
         used_methods = cursor.fetchall()
-        used_method_names = [method[0] for method in used_methods]
+        available_methods = [method[0] for method in used_methods]
         
-        # Маппинг названий методов из БД в названия для интерфейса
-        method_mapping = {
-            'user_rating': 'rating',
-            'nlp_vader': 'classical_sentiment',
-            'llm_yandex': 'yandexgpt_sentiment',
-            'llm_sber': 'gigachat_sentiment',
-            'llm_qwen': 'qwen_sentiment',
-            'llm_deepseek': 'deepseek_sentiment',
-            'openai': 'openai_sentiment',
-            'gemini': 'google_gemini_sentiment'
-        }
-        
-        # Преобразуем названия методов
-        available_methods = []
-        for db_method in used_method_names:
-            if db_method in method_mapping:
-                ui_method = method_mapping[db_method]
-                if ui_method not in available_methods:
-                    available_methods.append(ui_method)
-            else:
-                # Если метод не найден в маппинге, добавляем как есть
-                if db_method not in available_methods:
-                    available_methods.append(db_method)
-        
-        # Всегда добавляем 'rating' как базовый метод
-        if 'rating' not in available_methods:
-            available_methods.insert(0, 'rating')
+        # Всегда добавляем 'user_rating' как базовый метод, если его нет
+        if 'user_rating' not in available_methods:
+            available_methods.insert(0, 'user_rating')
         
         conn.close()
         
@@ -1170,6 +1181,390 @@ def get_keywords_status():
         
     except Exception as e:
         return jsonify({'error': f'Ошибка: {str(e)}'}), 500
+
+@app.route('/chart/data')
+def get_chart_data():
+    """Получение данных для диаграммы с учетом фильтров карты"""
+    try:
+        # Получаем параметры фильтров (те же, что и для карты)
+        active_filters = request.args.get('filters', '').split(',') if request.args.get('filters') else []
+        active_filters = [f.strip() for f in active_filters if f.strip()]
+        
+        logger.info(f"Запрос данных диаграммы с фильтрами: {active_filters}")
+        
+        # Подключаемся к БД
+        conn = sqlite3.connect('urban_analysis_fixed.db')
+        cursor = conn.cursor()
+        
+        # Базовый запрос для получения объектов с учетом фильтров
+        base_query = """
+            SELECT DISTINCT o.id, o.name, o.address, o.latitude, o.longitude, 
+                   og.group_name as group_type, dg.group_name as determined_group
+            FROM objects o
+            LEFT JOIN object_groups og ON o.group_id = og.id
+            LEFT JOIN detected_groups dg ON o.detected_group_id = dg.id
+            WHERE o.latitude IS NOT NULL AND o.longitude IS NOT NULL
+        """
+        
+        params = []
+        if active_filters and len(active_filters) > 0:
+            placeholders = ','.join(['?' for _ in active_filters])
+            base_query += f" AND og.group_name IN ({placeholders})"
+            params.extend(active_filters)
+        
+        cursor.execute(base_query, params)
+        filtered_objects = cursor.fetchall()
+        
+        logger.info(f"Найдено объектов после фильтрации: {len(filtered_objects)}")
+        
+        if not filtered_objects:
+            return jsonify({
+                'success': True,
+                'data': [],
+                'methods': [],
+                'reviews': [],
+                'message': 'Нет данных для отображения'
+            })
+        
+        # Получаем ID объектов
+        object_ids = [obj[0] for obj in filtered_objects]
+        object_ids_str = ','.join(['?' for _ in object_ids])
+        
+        # Запрос для получения отзывов и результатов анализа
+        chart_query = """
+            SELECT 
+                r.id as review_id,
+                r.review_text,
+                r.rating,
+                o.name as object_name,
+                og.group_name as object_group,
+                pm.method_name,
+                ar.sentiment,
+                ar.confidence,
+                ar.review_type
+            FROM reviews r
+            JOIN objects o ON r.object_id = o.id
+            LEFT JOIN object_groups og ON o.group_id = og.id
+            LEFT JOIN analysis_results ar ON r.id = ar.review_id
+            LEFT JOIN processing_methods pm ON ar.method_id = pm.id
+            WHERE r.object_id IN ({})
+            ORDER BY r.id, pm.method_name
+        """.format(object_ids_str)
+        
+        cursor.execute(chart_query, object_ids)
+        chart_data = cursor.fetchall()
+        
+        # Группируем данные по отзывам и методам
+        reviews_data = {}
+        methods_set = set()
+        
+        for row in chart_data:
+            review_id = row[0]
+            review_text = row[1]
+            rating = row[2]
+            object_name = row[3]
+            object_group = row[4]
+            method_name = row[5]
+            sentiment = row[6]
+            confidence = row[7]
+            review_type = row[8]
+            
+            if review_id not in reviews_data:
+                reviews_data[review_id] = {
+                    'review_id': review_id,
+                    'review_text': review_text,
+                    'rating': rating,
+                    'object_name': object_name,
+                    'object_group': object_group,
+                    'methods': {}
+                }
+            
+            if method_name:
+                methods_set.add(method_name)
+                if method_name not in reviews_data[review_id]['methods']:
+                    reviews_data[review_id]['methods'][method_name] = {
+                        'positive': 0,
+                        'negative': 0,
+                        'neutral': 0
+                    }
+                
+                # Увеличиваем счетчик для соответствующего сентимента
+                if sentiment == 'positive':
+                    reviews_data[review_id]['methods'][method_name]['positive'] = 1
+                elif sentiment == 'negative':
+                    reviews_data[review_id]['methods'][method_name]['negative'] = 1
+                else:  # neutral или null
+                    reviews_data[review_id]['methods'][method_name]['neutral'] = 1
+        
+        # Преобразуем в формат для диаграммы: методы по оси Y, отзывы по оси X
+        methods_list = sorted(list(methods_set))
+        reviews_list = []
+        
+        # Создаем серии для каждого сентимента
+        chart_series = []
+        
+        # Создаем список отзывов для оси X
+        for review_id, review_data in reviews_data.items():
+            reviews_list.append({
+                'id': review_id,
+                'object_name': review_data['object_name'],
+                'rating': review_data['rating']
+            })
+        
+        # Создаем серии для каждого сентимента
+        positive_series = {
+            'name': 'Положительный',
+            'data': [],
+            'color': '#28a745'  # Зеленый
+        }
+        
+        neutral_series = {
+            'name': 'Нейтральный',
+            'data': [],
+            'color': '#ffc107'  # Желтый
+        }
+        
+        negative_series = {
+            'name': 'Отрицательный',
+            'data': [],
+            'color': '#dc3545'  # Красный
+        }
+        
+        # Заполняем данные для каждого отзыва
+        for review_id, review_data in reviews_data.items():
+            positive_data = [];
+            neutral_data = [];
+            negative_data = [];
+            
+            for method in methods_list:
+                if method in review_data['methods']:
+                    method_data = review_data['methods'][method]
+                    if method_data['positive'] == 1:
+                        positive_data.push(1);
+                        neutral_data.push(0);
+                        negative_data.push(0);
+                    elif method_data['negative'] == 1:
+                        positive_data.push(0);
+                        neutral_data.push(0);
+                        negative_data.push(1);
+                    else:
+                        positive_data.push(0);
+                        neutral_data.push(1);
+                        negative_data.push(0);
+                else:
+                    positive_data.push(0);
+                    neutral_data.push(0);
+                    negative_data.push(0);
+            
+            positive_series['data'].push(positive_data);
+            neutral_series['data'].push(neutral_data);
+            negative_series['data'].push(negative_data);
+        
+        chart_series = [positive_series, neutral_series, negative_series];
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'data': chart_series,
+            'methods': methods_list,
+            'reviews': reviews_list,
+            'total_reviews': len(reviews_data)
+        })
+        
+    except Exception as e:
+        logger.error(f"Ошибка получения данных диаграммы: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/chart/table')
+def get_chart_table():
+    """Получение данных для таблицы сентиментов с учетом фильтров карты"""
+    try:
+        # Получаем все параметры фильтрации
+        active_filters = request.args.get('filters', '').split(',') if request.args.get('filters') else []
+        active_filters = [f.strip() for f in active_filters if f.strip()]
+        group_type = request.args.get('group_type', 'supplier')
+        color_scheme = request.args.get('color_scheme', 'group')
+        sentiment_method = request.args.get('sentiment_method', 'rating')
+        
+        logger.info(f"Запрос данных таблицы с параметрами: filters={active_filters}, group_type={group_type}, color_scheme={color_scheme}, sentiment_method={sentiment_method}")
+        
+        # Подключаемся к БД
+        conn = sqlite3.connect('urban_analysis_fixed.db')
+        cursor = conn.cursor()
+        
+        # Базовый запрос для получения объектов с учетом фильтров
+        if group_type == 'supplier':
+            # Используем группы от поставщика
+            base_query = """
+                SELECT DISTINCT o.id, o.name, o.address, o.latitude, o.longitude, 
+                       og.group_name as group_type, dg.group_name as determined_group
+                FROM objects o
+                LEFT JOIN object_groups og ON o.group_id = og.id
+                LEFT JOIN detected_groups dg ON o.detected_group_id = dg.id
+                WHERE o.latitude IS NOT NULL AND o.longitude IS NOT NULL
+            """
+        else:
+            # Используем определенные группы
+            base_query = """
+                SELECT DISTINCT o.id, o.name, o.address, o.latitude, o.longitude, 
+                       og.group_name as group_type, dg.group_name as determined_group
+                FROM objects o
+                LEFT JOIN object_groups og ON o.group_id = og.id
+                LEFT JOIN detected_groups dg ON o.detected_group_id = dg.id
+                WHERE o.latitude IS NOT NULL AND o.longitude IS NOT NULL
+            """
+        
+        params = []
+        if active_filters and len(active_filters) > 0:
+            if group_type == 'supplier':
+                placeholders = ','.join(['?' for _ in active_filters])
+                base_query += f" AND og.group_name IN ({placeholders})"
+            else:
+                placeholders = ','.join(['?' for _ in active_filters])
+                base_query += f" AND dg.group_name IN ({placeholders})"
+            params.extend(active_filters)
+        
+        cursor.execute(base_query, params)
+        filtered_objects = cursor.fetchall()
+        
+        logger.info(f"Найдено объектов после фильтрации: {len(filtered_objects)}")
+        
+        if not filtered_objects:
+            return jsonify({
+                'success': True,
+                'data': {
+                    'methods': [],
+                    'reviews': [],
+                    'sentiments': []
+                },
+                'total_reviews': 0,
+                'message': 'Нет данных для отображения'
+            })
+        
+        # Получаем ID объектов
+        object_ids = [obj[0] for obj in filtered_objects]
+        object_ids_str = ','.join(['?' for _ in object_ids])
+        
+        # Запрос для получения отзывов и результатов анализа
+        chart_query = """
+            SELECT 
+                r.id as review_id,
+                r.review_text,
+                r.rating,
+                o.name as object_name,
+                og.group_name as object_group,
+                pm.method_name,
+                ar.sentiment,
+                ar.confidence,
+                ar.review_type
+            FROM reviews r
+            JOIN objects o ON r.object_id = o.id
+            LEFT JOIN object_groups og ON o.group_id = og.id
+            LEFT JOIN analysis_results ar ON r.id = ar.review_id
+            LEFT JOIN processing_methods pm ON ar.method_id = pm.id
+            WHERE r.object_id IN ({})
+            ORDER BY r.id, pm.method_name
+        """.format(object_ids_str)
+        
+        cursor.execute(chart_query, object_ids)
+        chart_data = cursor.fetchall()
+        
+        # Группируем данные по отзывам и методам
+        reviews_data = {}
+        methods_set = set()
+        
+        for row in chart_data:
+            review_id = row[0]
+            review_text = row[1]
+            rating = row[2]
+            object_name = row[3]
+            object_group = row[4]
+            method_name = row[5]
+            sentiment = row[6]
+            confidence = row[7]
+            review_type = row[8]
+            
+            if review_id not in reviews_data:
+                reviews_data[review_id] = {
+                    'review_id': review_id,
+                    'review_text': review_text,
+                    'rating': rating,
+                    'object_name': object_name,
+                    'object_group': object_group,
+                    'methods': {}
+                }
+            
+            if method_name:
+                methods_set.add(method_name)
+                if method_name not in reviews_data[review_id]['methods']:
+                    reviews_data[review_id]['methods'][method_name] = {
+                        'positive': 0,
+                        'negative': 0,
+                        'neutral': 0
+                    }
+                
+                # Увеличиваем счетчик для соответствующего сентимента
+                if sentiment == 'positive':
+                    reviews_data[review_id]['methods'][method_name]['positive'] = 1
+                elif sentiment == 'negative':
+                    reviews_data[review_id]['methods'][method_name]['negative'] = 1
+                else:  # neutral или null
+                    reviews_data[review_id]['methods'][method_name]['neutral'] = 1
+        
+        # Создаем таблицу данных
+        methods_list = sorted(list(methods_set))
+        reviews_list = []
+        
+        # Создаем структуру таблицы
+        table_data = {
+            'methods': methods_list,
+            'reviews': [],
+            'sentiments': []
+        }
+        
+        # Заполняем данные таблицы
+        for review_id, review_data in reviews_data.items():
+            review_info = {
+                'id': review_id,
+                'object_name': review_data['object_name'],
+                'rating': review_data['rating']
+            }
+            table_data['reviews'].append(review_info)
+            
+            # Создаем строку сентиментов для этого отзыва
+            review_sentiments = []
+            for method in methods_list:
+                if method in review_data['methods']:
+                    method_data = review_data['methods'][method]
+                    if method_data['positive'] == 1:
+                        review_sentiments.append('positive')
+                    elif method_data['negative'] == 1:
+                        review_sentiments.append('negative')
+                    else:
+                        review_sentiments.append('neutral')
+                else:
+                    review_sentiments.append('none')
+            
+            table_data['sentiments'].append(review_sentiments)
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'data': table_data,
+            'total_reviews': len(reviews_data)
+        })
+        
+    except Exception as e:
+        logger.error(f"Ошибка получения данных таблицы: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000) 

@@ -7,6 +7,9 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://api-maps.yandex.ru/2.1/?apikey=9ebd7ddf-330b-4b61-97f4-71b8c488a9a7&lang=ru_RU" type="text/javascript"></script>
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://code.highcharts.com/modules/exporting.js"></script>
+    <script src="https://code.highcharts.com/modules/export-data.js"></script>
     <style>
         .upload-area {
             border: 2px dashed #ccc;
@@ -58,7 +61,7 @@
             margin-top: 15px;
         }
         .map-container {
-            height: 1000px;
+            height: 750px;
             width: 100%;
             border-radius: 10px;
             overflow: hidden;
@@ -67,7 +70,7 @@
             margin-bottom: 10px;
         }
         .analysis-results {
-            height: 1000px;
+            height: 750px;
             overflow-y: auto;
         }
         .left-panel {
@@ -481,7 +484,7 @@
             </div>
 
             <!-- Центральная панель: Карта -->
-            <div class="col-md-5">
+            <div class="col-md-4">
                 <div class="card">
                     <div class="card-header">
                         <h6><i class="fas fa-map"></i> Карта объектов</h6>
@@ -630,14 +633,65 @@
             </div>
 
             <!-- Правая панель: Результаты анализа -->
-            <div class="col-md-4">
+            <div class="col-md-5">
                 <div class="card">
                     <div class="card-header">
                         <h6><i class="fas fa-chart-bar"></i> Результаты анализа</h6>
                     </div>
                     <div class="card-body">
-                        <div class="analysis-results" id="resultsContent">
-                            <p class="text-muted text-center">Загрузите файл для начала анализа</p>
+                        <!-- Переключатель вида -->
+                        <div class="mb-3">
+                            <label class="form-label"><strong>Вид результатов:</strong></label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="viewMode" id="tableView" value="table" checked>
+                                <label class="btn btn-outline-primary btn-sm" for="tableView">
+                                    <i class="fas fa-table"></i> Таблица
+                                </label>
+                                <input type="radio" class="btn-check" name="viewMode" id="chartView" value="chart">
+                                <label class="btn btn-outline-primary btn-sm" for="chartView">
+                                    <i class="fas fa-chart-bar"></i> Диаграмма
+                                </label>
+                                <input type="radio" class="btn-check" name="viewMode" id="sentimentTableView" value="sentiment_table">
+                                <label class="btn btn-outline-primary btn-sm" for="sentimentTableView">
+                                    <i class="fas fa-th"></i> Таблица сентиментов
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Таблица результатов -->
+                        <div id="resultsTable" class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr id="resultsTableHeader">
+                                        <!-- Заголовки будут добавлены динамически -->
+                                    </tr>
+                                </thead>
+                                <tbody id="resultsTableBody">
+                                    <!-- Данные будут добавлены динамически -->
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Контейнер для диаграммы -->
+                        <div id="resultsChart" class="chart-container" style="display: none;">
+                            <div id="chartLoading" class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Загрузка диаграммы...</span>
+                                </div>
+                                <p class="mt-2">Загрузка данных диаграммы...</p>
+                            </div>
+                            <div id="chartContainer" style="height: 400px; width: 100%;"></div>
+                        </div>
+                        
+                        <!-- Контейнер для таблицы сентиментов -->
+                        <div id="sentimentTable" class="table-responsive" style="display: none;">
+                            <div id="sentimentTableLoading" class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Загрузка таблицы сентиментов...</span>
+                                </div>
+                                <p class="mt-2">Загрузка данных таблицы сентиментов...</p>
+                            </div>
+                            <div id="sentimentTableContainer"></div>
                         </div>
                     </div>
                 </div>
@@ -927,6 +981,14 @@
         }
 
         function showStatus(message, type) {
+            const statusCard = document.getElementById('statusCard');
+            const statusAlert = document.getElementById('statusAlert');
+            
+            if (!statusCard || !statusAlert) {
+                console.error('Элементы statusCard или statusAlert не найдены');
+                return;
+            }
+            
             if (message) {
                 statusAlert.className = `alert alert-${type} alert-sm`;
                 statusAlert.textContent = message;
@@ -943,6 +1005,11 @@
                     const infoDiv = document.getElementById('archiveInfo');
                     const contentDiv = document.getElementById('archiveInfoContent');
                     const completenessDiv = document.getElementById('completenessInfoContent');
+                    
+                    if (!infoDiv || !contentDiv || !completenessDiv) {
+                        console.error('Элементы archiveInfo, archiveInfoContent или completenessInfoContent не найдены');
+                        return;
+                    }
                     
                     if (data.total_records > 0) {
                         // Левая колонка - основная информация об архиве
@@ -1113,49 +1180,57 @@
         }
 
         function displayResults(data, columns) {
-            const resultsContent = document.getElementById('resultsContent');
+            const resultsTableHeader = document.getElementById('resultsTableHeader');
+            const resultsTableBody = document.getElementById('resultsTableBody');
+            
+            if (!resultsTableHeader || !resultsTableBody) {
+                console.error('Элементы resultsTableHeader или resultsTableBody не найдены');
+                return;
+            }
             
             if (data.length === 0) {
-                resultsContent.innerHTML = '<p class="text-muted text-center">Нет данных для отображения</p>';
+                resultsTableHeader.innerHTML = '';
+                resultsTableBody.innerHTML = '<tr><td colspan="100%" class="text-muted text-center">Нет данных для отображения</td></tr>';
                 return;
             }
 
-            let html = '<div class="table-responsive"><table class="table table-striped table-sm">';
-            
             // Заголовки
-            html += '<thead><tr>';
+            let headerHtml = '';
             columns.forEach(column => {
-                html += `<th>${getColumnDisplayName(column)}</th>`;
+                headerHtml += `<th>${getColumnDisplayName(column)}</th>`;
             });
-            html += '</tr></thead>';
+            resultsTableHeader.innerHTML = headerHtml;
             
             // Данные
-            html += '<tbody>';
+            let bodyHtml = '';
             data.forEach(row => {
-                html += '<tr>';
+                bodyHtml += '<tr>';
                 columns.forEach(column => {
                     let value = row[column] || '';
                     
                     // Специальное форматирование для некоторых полей
-                    if (column === 'sentiment') {
+                    if (column.includes('_sentiment')) {
                         value = getSentimentBadge(value);
-                    } else if (column === 'sentiment_score') {
+                    } else if (column.includes('_sentiment_score')) {
                         value = (parseFloat(value) * 100).toFixed(1) + '%';
                     } else if (column === 'review_text' && value.length > 100) {
                         value = value.substring(0, 100) + '...';
                     }
                     
-                    html += `<td>${value}</td>`;
+                    bodyHtml += `<td>${value}</td>`;
                 });
-                html += '</tr>';
+                bodyHtml += '</tr>';
             });
-            html += '</tbody></table></div>';
-            
-            resultsContent.innerHTML = html;
+            resultsTableBody.innerHTML = bodyHtml;
         }
 
         function displayAnalysisResults(analysisResults) {
             const resultsContent = document.getElementById('resultsContent');
+            
+            if (!resultsContent) {
+                console.error('Элемент resultsContent не найден');
+                return;
+            }
             
             let html = '<div class="alert alert-success alert-sm">';
             html += '<h6><i class="fas fa-check-circle"></i> Анализ завершен</h6>';
@@ -1176,44 +1251,9 @@
             }
             
             if (analysisResults.data && analysisResults.data.length > 0) {
-                html += '<div class="row">';
-                html += '<div class="col-md-12">';
-                html += '<h6><i class="fas fa-table"></i> Результаты анализа (первые 10 записей):</h6>';
-                html += '<div class="table-responsive"><table class="table table-striped table-sm">';
-                
-                // Заголовки
-                html += '<thead><tr>';
-                analysisResults.columns.forEach(column => {
-                    html += `<th>${getColumnDisplayName(column)}</th>`;
-                });
-                html += '</tr></thead>';
-                
-                // Данные
-                html += '<tbody>';
-                analysisResults.data.forEach(row => {
-                    html += '<tr>';
-                    analysisResults.columns.forEach(column => {
-                        let value = row[column] || '';
-                        
-                        // Специальное форматирование
-                        if (column.includes('_sentiment')) {
-                            value = getSentimentBadge(value);
-                        } else if (column.includes('_sentiment_score')) {
-                            value = (parseFloat(value) * 100).toFixed(1) + '%';
-                        } else if (column === 'review_text' && value.length > 50) {
-                            value = value.substring(0, 50) + '...';
-                        }
-                        
-                        html += `<td>${value}</td>`;
-                    });
-                    html += '</tr>';
-                });
-                html += '</tbody></table></div>';
-                html += '</div>';
-                html += '</div>';
+                // Отображаем результаты в таблице
+                displayResults(analysisResults.data, analysisResults.columns);
             }
-            
-            html += '</div>';
             
             resultsContent.innerHTML = html;
         }
@@ -1336,7 +1376,26 @@
 
         ymaps.ready(init);
 
+        // Инициализация приложения
         function init() {
+            console.log('Инициализация приложения...');
+            
+            // Инициализируем карту
+            ymaps.ready(function() {
+                initMap();
+            });
+            
+            // Инициализируем переключатель вида
+            setupViewModeToggle();
+            
+            // Инициализируем обработчики событий
+            setupEventHandlers();
+            
+            // Загружаем методы сентимента
+            loadSentimentMethods();
+        }
+
+        function initMap() {
             myMap = new ymaps.Map('map', {
                 center: [55.7558, 37.6176], // Москва
                 zoom: 10,
@@ -1364,24 +1423,39 @@
             }, 200);
 
             // Обработчики переключателя типа групп
-            document.getElementById('supplierGroups').addEventListener('change', updateMap);
-            document.getElementById('determinedGroups').addEventListener('change', updateMap);
+            document.getElementById('supplierGroups').addEventListener('change', function() {
+                updateMap();
+                updateSentimentTableOnFilterChange();
+            });
+            document.getElementById('determinedGroups').addEventListener('change', function() {
+                updateMap();
+                updateSentimentTableOnFilterChange();
+            });
 
             // Обработчики цветовых схем
             document.getElementById('colorGroup').addEventListener('change', function() {
                 updateSentimentMethodVisibility();
                 updateMap();
                 updateLegend();
+                updateSentimentTableOnFilterChange();
             });
             document.getElementById('colorSentiment').addEventListener('change', function() {
                 updateSentimentMethodVisibility();
                 updateMap();
                 updateLegend();
+                updateSentimentTableOnFilterChange();
             });
 
             // Обработчики методов сентимента
-            document.getElementById('sentimentRating').addEventListener('change', updateMap);
-            document.getElementById('sentimentClassical').addEventListener('change', updateMap);
+            // Удаляем старые обработчики, так как теперь используются динамические кнопки
+            // document.getElementById('sentimentRating').addEventListener('change', function() {
+            //     updateMap();
+            //     updateSentimentTableOnFilterChange();
+            // });
+            // document.getElementById('sentimentClassical').addEventListener('change', function() {
+            //     updateMap();
+            //     updateSentimentTableOnFilterChange();
+            // });
 
             // Обработчики фильтров будут добавлены в DOMContentLoaded
             
@@ -1577,6 +1651,10 @@
                 })
                 .catch(error => {
                     console.error('Ошибка загрузки данных карты:', error);
+                })
+                .finally(() => {
+                    // Обновляем диаграмму если она активна
+                    updateChartOnFilterChange();
                 });
         }
 
@@ -1621,6 +1699,19 @@
             console.log('Активные фильтры:', filters);
             return filters;
         }
+        
+        // Функция для получения всех параметров фильтрации
+        function getAllFilterParams() {
+            const params = {
+                group_filters: getActiveFilters(),
+                group_type: document.querySelector('input[name="groupType"]:checked')?.value || 'supplier',
+                color_scheme: document.querySelector('input[name="colorScheme"]:checked')?.value || 'group',
+                sentiment_method: window.selectedSentimentMethod || 'user_rating'
+            };
+            
+            console.log('Все параметры фильтрации:', params);
+            return params;
+        }
 
         function selectAllFilters() {
             console.log('Вызываем selectAllFilters');
@@ -1631,6 +1722,8 @@
             });
             console.log('Вызываем updateMap после selectAllFilters');
             updateMap();
+            // Обновляем таблицу сентиментов
+            updateSentimentTableOnFilterChange();
         }
 
         function deselectAllFilters() {
@@ -1642,6 +1735,8 @@
             });
             console.log('Вызываем updateMap после deselectAllFilters');
             updateMap();
+            // Обновляем таблицу сентиментов
+            updateSentimentTableOnFilterChange();
         }
 
         function updateSentimentMethodVisibility() {
@@ -1724,6 +1819,8 @@
                 checkbox.addEventListener('change', function(e) {
                     console.log(`Изменение фильтра ${this.id}: checked=${this.checked}, value=${this.value}`);
                     updateMap();
+                    // Обновляем таблицу сентиментов при изменении фильтров
+                    updateSentimentTableOnFilterChange();
                 });
                 
                 // Защита от случайного снятия состояния при инициализации
@@ -2076,16 +2173,16 @@
             const container = document.getElementById('sentimentMethodsContainer');
             container.innerHTML = '';
             
-            // Все возможные методы (фиксированный список)
+            // Все возможные методы (соответствуют именам в БД)
             const allPossibleMethods = [
-                'rating',
-                'classical_sentiment', 
-                'openai_sentiment',
-                'google_gemini_sentiment',
-                'yandexgpt_sentiment',
-                'gigachat_sentiment',
-                'qwen_sentiment',
-                'deepseek_sentiment'
+                'user_rating',
+                'nlp_vader', 
+                'llm_yandex',
+                'openai',
+                'google_gemini',
+                'gigachat',
+                'qwen',
+                'deepseek'
             ];
             
             // Создаем фиксированную сетку 4x2 (4 кнопки в ряду, 2 ряда)
@@ -2178,31 +2275,31 @@
         
         function getSentimentMethodIcon(method) {
             const icons = {
-                'rating': '<i class="fas fa-star"></i>',
-                'classical_sentiment': '<i class="fas fa-brain"></i>',
-                'openai_sentiment': '<i class="fas fa-robot"></i>',
-                'google_gemini_sentiment': '<i class="fas fa-gem"></i>',
-                'yandexgpt_sentiment': '<i class="fas fa-search"></i>',
-                'gigachat_sentiment': '<i class="fas fa-comments"></i>',
-                'qwen_sentiment': '<i class="fas fa-bolt"></i>',
-                'deepseek_sentiment': '<i class="fas fa-rocket"></i>'
+                'user_rating': '<i class="fas fa-star"></i>',
+                'nlp_vader': '<i class="fas fa-brain"></i>',
+                'llm_yandex': '<i class="fas fa-search"></i>',
+                'openai': '<i class="fas fa-robot"></i>',
+                'google_gemini': '<i class="fas fa-gem"></i>',
+                'gigachat': '<i class="fas fa-comments"></i>',
+                'qwen': '<i class="fas fa-bolt"></i>',
+                'deepseek': '<i class="fas fa-rocket"></i>'
             };
             return icons[method] || '<i class="fas fa-cog"></i>';
         }
         
-               function getSentimentMethodDisplayName(method) {
-           const names = {
-               'rating': 'Рейтинг',
-               'classical_sentiment': 'VADER',
-               'openai_sentiment': 'OpenAI',
-               'google_gemini_sentiment': 'Gemini',
-               'yandexgpt_sentiment': 'YandexGPT',
-               'gigachat_sentiment': 'GigaChat',
-               'qwen_sentiment': 'Qwen',
-               'deepseek_sentiment': 'DeepSeek'
-           };
-           return names[method] || method;
-       }
+        function getSentimentMethodDisplayName(method) {
+            const names = {
+                'user_rating': 'Рейтинг',
+                'nlp_vader': 'VADER',
+                'llm_yandex': 'YandexGPT',
+                'openai': 'OpenAI',
+                'google_gemini': 'Gemini',
+                'gigachat': 'GigaChat',
+                'qwen': 'Qwen',
+                'deepseek': 'DeepSeek'
+            };
+            return names[method] || method;
+        }
         
         function showDefaultSentimentMethods() {
             const container = document.getElementById('sentimentMethodsContainer');
@@ -2210,6 +2307,302 @@
             
             // Показываем фиксированную сетку с неактивными кнопками
             updateSentimentMethodsUI([]);
+        }
+
+        // Функция для переключения между таблицей и диаграммой
+        function setupViewModeToggle() {
+            const tableView = document.getElementById('tableView');
+            const chartView = document.getElementById('chartView');
+            const sentimentTableView = document.getElementById('sentimentTableView');
+            const resultsTable = document.getElementById('resultsTable');
+            const resultsChart = document.getElementById('resultsChart');
+            const sentimentTable = document.getElementById('sentimentTable');
+            
+            tableView.addEventListener('change', function() {
+                if (this.checked) {
+                    resultsTable.style.display = 'block';
+                    resultsChart.style.display = 'none';
+                    sentimentTable.style.display = 'none';
+                }
+            });
+            
+            chartView.addEventListener('change', function() {
+                if (this.checked) {
+                    resultsTable.style.display = 'none';
+                    resultsChart.style.display = 'block';
+                    sentimentTable.style.display = 'none';
+                    loadChartData();
+                }
+            });
+            
+            sentimentTableView.addEventListener('change', function() {
+                if (this.checked) {
+                    resultsTable.style.display = 'none';
+                    resultsChart.style.display = 'none';
+                    sentimentTable.style.display = 'block';
+                    loadSentimentTableData();
+                }
+            });
+        }
+        
+        // Функция для загрузки данных таблицы сентиментов
+        async function loadSentimentTableData() {
+            try {
+                const sentimentTableLoading = document.getElementById('sentimentTableLoading');
+                const sentimentTableContainer = document.getElementById('sentimentTableContainer');
+                
+                if (!sentimentTableLoading || !sentimentTableContainer) {
+                    console.error('Элементы sentimentTableLoading или sentimentTableContainer не найдены');
+                    return;
+                }
+                
+                sentimentTableLoading.style.display = 'block';
+                sentimentTableContainer.innerHTML = '';
+                
+                // Получаем все параметры фильтрации
+                const filterParams = getAllFilterParams();
+                const filtersParam = filterParams.group_filters.join(',');
+                const groupTypeParam = filterParams.group_type;
+                const colorSchemeParam = filterParams.color_scheme;
+                const sentimentMethodParam = filterParams.sentiment_method;
+                
+                // Загружаем данные таблицы сентиментов с полными параметрами
+                const response = await fetch(`/chart/table?filters=${filtersParam}&group_type=${groupTypeParam}&color_scheme=${colorSchemeParam}&sentiment_method=${sentimentMethodParam}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (data.data.reviews.length === 0) {
+                        sentimentTableContainer.innerHTML = '<p class="text-muted text-center">Нет данных для отображения</p>';
+                        return;
+                    }
+                    
+                    createSentimentTable(data.data);
+                } else {
+                    sentimentTableContainer.innerHTML = `<p class="text-danger text-center">Ошибка: ${data.error}</p>`;
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки данных таблицы сентиментов:', error);
+                const container = document.getElementById('sentimentTableContainer');
+                if (container) {
+                    container.innerHTML = '<p class="text-danger text-center">Ошибка загрузки данных</p>';
+                }
+            } finally {
+                const loading = document.getElementById('sentimentTableLoading');
+                if (loading) {
+                    loading.style.display = 'none';
+                }
+            }
+        }
+        
+        // Функция для создания таблицы сентиментов
+        function createSentimentTable(tableData) {
+            const container = document.getElementById('sentimentTableContainer');
+            
+            if (!container) {
+                console.error('Элемент sentimentTableContainer не найден');
+                return;
+            }
+            
+            // Создаем таблицу с фиксированными размерами
+            let tableHtml = '<table class="table table-bordered table-sm" style="font-size: 10px; table-layout: fixed; width: 100%;">';
+            
+            // Заголовок таблицы
+            tableHtml += '<thead><tr><th style="width: 120px; font-size: 20px;">Методы</th>';
+            tableData.reviews.forEach((review, index) => {
+                tableHtml += `<th style="width: 3px; text-align: center; font-size: 4px; padding: 1px;">${index + 1}</th>`;
+            });
+            tableHtml += '</tr></thead>';
+            
+            // Тело таблицы
+            tableHtml += '<tbody>';
+            tableData.methods.forEach(method => {
+                tableHtml += `<tr><td style="width: 120px; font-size: 20px;"><strong>${method}</strong></td>`;
+                tableData.sentiments.forEach((reviewSentiments, reviewIndex) => {
+                    const sentiment = reviewSentiments[tableData.methods.indexOf(method)];
+                    let cellClass = '';
+                    let cellStyle = '';
+                    
+                    switch(sentiment) {
+                        case 'positive':
+                            cellClass = 'table-success';
+                            cellStyle = 'background-color: #28a745; width: 3px; height: 20px; padding: 0;';
+                            break;
+                        case 'negative':
+                            cellClass = 'table-danger';
+                            cellStyle = 'background-color: #dc3545; width: 3px; height: 20px; padding: 0;';
+                            break;
+                        case 'neutral':
+                            cellClass = 'table-warning';
+                            cellStyle = 'background-color: #ffc107; width: 3px; height: 20px; padding: 0;';
+                            break;
+                        default:
+                            cellClass = 'table-secondary';
+                            cellStyle = 'background-color: #6c757d; width: 3px; height: 20px; padding: 0;';
+                    }
+                    
+                    tableHtml += `<td class="${cellClass}" style="${cellStyle}">&nbsp;</td>`;
+                });
+                tableHtml += '</tr>';
+            });
+            tableHtml += '</tbody></table>';
+            
+            // Добавляем легенду
+            tableHtml += '<div class="mt-2">';
+            tableHtml += '<small><strong>Легенда:</strong></small><br>';
+            tableHtml += '<small>';
+            tableHtml += '<span style="display: inline-block; width: 12px; height: 12px; background-color: #28a745; margin-right: 3px;"></span> Положительный ';
+            tableHtml += '<span style="display: inline-block; width: 12px; height: 12px; background-color: #ffc107; margin-right: 3px; margin-left: 8px;"></span> Нейтральный ';
+            tableHtml += '<span style="display: inline-block; width: 12px; height: 12px; background-color: #dc3545; margin-right: 3px; margin-left: 8px;"></span> Отрицательный ';
+            tableHtml += '<span style="display: inline-block; width: 12px; height: 12px; background-color: #6c757d; margin-right: 3px; margin-left: 8px;"></span> Нет данных';
+            tableHtml += '</small>';
+            tableHtml += '</div>';
+            
+            container.innerHTML = tableHtml;
+        }
+        
+        // Функция для загрузки данных диаграммы
+        async function loadChartData() {
+            try {
+                const chartLoading = document.getElementById('chartLoading');
+                const chartContainer = document.getElementById('chartContainer');
+                
+                if (!chartLoading || !chartContainer) {
+                    console.error('Элементы chartLoading или chartContainer не найдены');
+                    return;
+                }
+                
+                chartLoading.style.display = 'block';
+                chartContainer.innerHTML = '';
+                
+                // Получаем активные фильтры
+                const activeFilters = getActiveFilters();
+                const filtersParam = activeFilters.join(',');
+                
+                // Загружаем данные диаграммы
+                const response = await fetch(`/chart/data?filters=${filtersParam}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (data.data.length === 0) {
+                        chartContainer.innerHTML = '<p class="text-muted text-center">Нет данных для отображения</p>';
+                        return;
+                    }
+                    
+                    createChart(data.data, data.methods, data.reviews);
+                } else {
+                    chartContainer.innerHTML = `<p class="text-danger text-center">Ошибка: ${data.error}</p>`;
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки данных диаграммы:', error);
+                const container = document.getElementById('chartContainer');
+                if (container) {
+                    container.innerHTML = '<p class="text-danger text-center">Ошибка загрузки данных</p>';
+                }
+            } finally {
+                const loading = document.getElementById('chartLoading');
+                if (loading) {
+                    loading.style.display = 'none';
+                }
+            }
+        }
+        
+        // Функция для создания диаграммы
+        function createChart(chartData, methods, reviews) {
+            const chartContainer = document.getElementById('chartContainer');
+            
+            if (!chartContainer) {
+                console.error('Элемент chartContainer не найден');
+                return;
+            }
+            
+            // Создаем категории (отзывы) для оси X
+            const categories = reviews.map((review, index) => `Отзыв ${index + 1}`);
+            
+            // Создаем диаграмму
+            Highcharts.chart(chartContainer, {
+                chart: {
+                    type: 'column'  // Вертикальная столбчатая диаграмма
+                },
+                title: {
+                    text: `Анализ сентимента по отзывам (${reviews.length} отзывов, ${methods.length} методов)`
+                },
+                xAxis: {
+                    categories: categories,
+                    title: {
+                        text: 'Отзывы'
+                    },
+                    labels: {
+                        style: {
+                            fontSize: '10px'
+                        }
+                    }
+                },
+                yAxis: {
+                    title: {
+                        text: 'Сентимент'
+                    },
+                    labels: {
+                        formatter: function() {
+                            if (this.value === 1) return 'Положительный';
+                            if (this.value === -1) return 'Отрицательный';
+                            if (this.value === 0) return 'Нейтральный';
+                            return this.value;
+                        }
+                    },
+                    min: -1,
+                    max: 1,
+                    tickInterval: 1
+                },
+                tooltip: {
+                    formatter: function() {
+                        const method = this.series.name;
+                        const reviewIndex = this.x + 1;
+                        const review = reviews[this.x];
+                        let sentiment = '';
+                        
+                        if (this.y === 1) sentiment = 'Положительный';
+                        else if (this.y === -1) sentiment = 'Отрицательный';
+                        else if (this.y === 0) sentiment = 'Нейтральный';
+                        else sentiment = 'Нет данных';
+                        
+                        return `<b>${method}</b><br/>
+                                Отзыв ${reviewIndex}<br/>
+                                Объект: ${review.object_name}<br/>
+                                Оценка: ${review.rating}<br/>
+                                Сентимент: ${sentiment}`;
+                    }
+                },
+                plotOptions: {
+                    column: {
+                        stacking: 'normal',
+                        dataLabels: {
+                            enabled: false
+                        }
+                    }
+                },
+                series: chartData,
+                legend: {
+                    align: 'right',
+                    verticalAlign: 'top',
+                    layout: 'vertical'
+                }
+            });
+        }
+        
+        // Функция для обновления данных при изменении фильтров
+        function updateChartOnFilterChange() {
+            const chartView = document.getElementById('chartView');
+            if (chartView.checked) {
+                loadChartData();
+            }
+        }
+        
+        // Функция для обновления таблицы сентиментов при изменении фильтров
+        function updateSentimentTableOnFilterChange() {
+            const sentimentTableView = document.getElementById('sentimentTableView');
+            if (sentimentTableView && sentimentTableView.checked) {
+                loadSentimentTableData();
+            }
         }
     </script>
 </body>

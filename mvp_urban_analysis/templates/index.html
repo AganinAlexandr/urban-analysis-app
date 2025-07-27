@@ -2394,7 +2394,7 @@
             }
         }
         
-        // Функция для создания таблицы сентиментов
+        // Функция для создания многоуровневой таблицы сентиментов
         function createSentimentTable(tableData) {
             const container = document.getElementById('sentimentTableContainer');
             
@@ -2403,61 +2403,109 @@
                 return;
             }
             
-            // Создаем таблицу с фиксированными размерами
-            let tableHtml = '<table class="table table-bordered table-sm" style="font-size: 10px; table-layout: fixed; width: 100%;">';
+            const MAX_REVIEWS_PER_TABLE = 100; // Лимит отзывов на одну таблицу
+            const totalReviews = tableData.reviews.length;
+            const numberOfTables = Math.ceil(totalReviews / MAX_REVIEWS_PER_TABLE);
             
-            // Заголовок таблицы
-            tableHtml += '<thead><tr><th style="width: 120px; font-size: 20px;">Методы</th>';
-            tableData.reviews.forEach((review, index) => {
-                tableHtml += `<th style="width: 3px; text-align: center; font-size: 4px; padding: 1px;">${index + 1}</th>`;
-            });
-            tableHtml += '</tr></thead>';
+            console.log(`Создание многоуровневой таблицы: ${totalReviews} отзывов, ${numberOfTables} таблиц`);
             
-            // Тело таблицы
-            tableHtml += '<tbody>';
-            tableData.methods.forEach(method => {
-                tableHtml += `<tr><td style="width: 120px; font-size: 20px;"><strong>${method}</strong></td>`;
-                tableData.sentiments.forEach((reviewSentiments, reviewIndex) => {
-                    const sentiment = reviewSentiments[tableData.methods.indexOf(method)];
-                    let cellClass = '';
-                    let cellStyle = '';
+            if (numberOfTables > 1) {
+                console.log(`Разбивка: ${numberOfTables} таблиц по ${MAX_REVIEWS_PER_TABLE} отзывов в каждой`);
+            }
+            
+            let allTablesHtml = '';
+            
+            for (let tableIndex = 0; tableIndex < numberOfTables; tableIndex++) {
+                const startIndex = tableIndex * MAX_REVIEWS_PER_TABLE;
+                const endIndex = Math.min(startIndex + MAX_REVIEWS_PER_TABLE, totalReviews);
+                const reviewsInThisTable = tableData.reviews.slice(startIndex, endIndex);
+                const sentimentsInThisTable = tableData.sentiments.slice(startIndex, endIndex);
+                
+                // Заголовок для таблицы
+                const tableTitle = numberOfTables > 1 
+                    ? `<h6 class="text-center mb-2">Отзывы ${startIndex + 1}-${endIndex} (всего ${totalReviews})</h6>`
+                    : '';
+                
+                // Создаем таблицу с фиксированной шириной ячеек
+                let tableHtml = `${tableTitle}<table class="table table-bordered table-sm" style="font-size: 10px; table-layout: fixed; width: 100%;">`;
+                
+                // Заголовок таблицы
+                tableHtml += '<thead><tr><th style="width: 120px; font-size: 20px;">Методы</th>';
+                reviewsInThisTable.forEach((review, index) => {
+                    const globalIndex = startIndex + index;
+                    tableHtml += `<th style="width: 3px; text-align: center; font-size: 4px; padding: 1px;">${globalIndex + 1}</th>`;
+                });
+                
+                // Добавляем пустые ячейки для последней таблицы, чтобы сохранить ширину
+                if (tableIndex === numberOfTables - 1 && numberOfTables > 1) {
+                    const remainingCells = MAX_REVIEWS_PER_TABLE - reviewsInThisTable.length;
+                    for (let i = 0; i < remainingCells; i++) {
+                        tableHtml += `<th style="width: 3px; text-align: center; font-size: 4px; padding: 1px; visibility: hidden;">&nbsp;</th>`;
+                    }
+                }
+                
+                tableHtml += '</tr></thead>';
+                
+                // Тело таблицы
+                tableHtml += '<tbody>';
+                tableData.methods.forEach(method => {
+                    tableHtml += `<tr><td style="width: 120px; font-size: 20px;"><strong>${method}</strong></td>`;
+                    sentimentsInThisTable.forEach((reviewSentiments, reviewIndex) => {
+                        const sentiment = reviewSentiments[tableData.methods.indexOf(method)];
+                        let cellClass = '';
+                        let cellStyle = '';
+                        
+                        switch(sentiment) {
+                            case 'positive':
+                                cellClass = 'table-success';
+                                cellStyle = 'background-color: #28a745; width: 3px; height: 20px; padding: 0;';
+                                break;
+                            case 'negative':
+                                cellClass = 'table-danger';
+                                cellStyle = 'background-color: #dc3545; width: 3px; height: 20px; padding: 0;';
+                                break;
+                            case 'neutral':
+                                cellClass = 'table-warning';
+                                cellStyle = 'background-color: #ffc107; width: 3px; height: 20px; padding: 0;';
+                                break;
+                            default:
+                                cellClass = 'table-secondary';
+                                cellStyle = 'background-color: #6c757d; width: 3px; height: 20px; padding: 0;';
+                        }
+                        
+                        tableHtml += `<td class="${cellClass}" style="${cellStyle}">&nbsp;</td>`;
+                    });
                     
-                    switch(sentiment) {
-                        case 'positive':
-                            cellClass = 'table-success';
-                            cellStyle = 'background-color: #28a745; width: 3px; height: 20px; padding: 0;';
-                            break;
-                        case 'negative':
-                            cellClass = 'table-danger';
-                            cellStyle = 'background-color: #dc3545; width: 3px; height: 20px; padding: 0;';
-                            break;
-                        case 'neutral':
-                            cellClass = 'table-warning';
-                            cellStyle = 'background-color: #ffc107; width: 3px; height: 20px; padding: 0;';
-                            break;
-                        default:
-                            cellClass = 'table-secondary';
-                            cellStyle = 'background-color: #6c757d; width: 3px; height: 20px; padding: 0;';
+                    // Добавляем пустые ячейки для последней таблицы
+                    if (tableIndex === numberOfTables - 1 && numberOfTables > 1) {
+                        const remainingCells = MAX_REVIEWS_PER_TABLE - sentimentsInThisTable.length;
+                        for (let i = 0; i < remainingCells; i++) {
+                            tableHtml += `<td style="width: 3px; height: 20px; padding: 0; visibility: hidden;">&nbsp;</td>`;
+                        }
                     }
                     
-                    tableHtml += `<td class="${cellClass}" style="${cellStyle}">&nbsp;</td>`;
+                    tableHtml += '</tr>';
                 });
-                tableHtml += '</tr>';
-            });
-            tableHtml += '</tbody></table>';
+                tableHtml += '</tbody></table>';
+                
+                // Добавляем отступ между таблицами (кроме последней)
+                if (tableIndex < numberOfTables - 1) {
+                    tableHtml += '<div class="mb-4"></div>';
+                }
+                
+                allTablesHtml += tableHtml;
+            }
             
-            // Добавляем легенду
-            tableHtml += '<div class="mt-2">';
-            tableHtml += '<small><strong>Легенда:</strong></small><br>';
-            tableHtml += '<small>';
-            tableHtml += '<span style="display: inline-block; width: 12px; height: 12px; background-color: #28a745; margin-right: 3px;"></span> Положительный ';
-            tableHtml += '<span style="display: inline-block; width: 12px; height: 12px; background-color: #ffc107; margin-right: 3px; margin-left: 8px;"></span> Нейтральный ';
-            tableHtml += '<span style="display: inline-block; width: 12px; height: 12px; background-color: #dc3545; margin-right: 3px; margin-left: 8px;"></span> Отрицательный ';
-            tableHtml += '<span style="display: inline-block; width: 12px; height: 12px; background-color: #6c757d; margin-right: 3px; margin-left: 8px;"></span> Нет данных';
-            tableHtml += '</small>';
-            tableHtml += '</div>';
+            // Добавляем легенду только к последней таблице
+            allTablesHtml += '<div class="mt-2">';
+            allTablesHtml += '<div class="d-flex justify-content-center flex-wrap">';
+            allTablesHtml += '<div class="d-flex align-items-center me-3"><div style="width: 12px; height: 12px; background-color: #28a745; margin-right: 5px;"></div><small>Положительный</small></div>';
+            allTablesHtml += '<div class="d-flex align-items-center me-3"><div style="width: 12px; height: 12px; background-color: #ffc107; margin-right: 5px;"></div><small>Нейтральный</small></div>';
+            allTablesHtml += '<div class="d-flex align-items-center me-3"><div style="width: 12px; height: 12px; background-color: #dc3545; margin-right: 5px;"></div><small>Отрицательный</small></div>';
+            allTablesHtml += '<div class="d-flex align-items-center"><div style="width: 12px; height: 12px; background-color: #6c757d; margin-right: 5px;"></div><small>Нет данных</small></div>';
+            allTablesHtml += '</div></div>';
             
-            container.innerHTML = tableHtml;
+            container.innerHTML = allTablesHtml;
         }
         
         // Функция для загрузки данных диаграммы

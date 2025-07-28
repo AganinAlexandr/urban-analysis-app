@@ -1801,11 +1801,12 @@ def get_database_data():
             LEFT JOIN reviews r ON o.id = r.object_id
             LEFT JOIN analysis_results ar ON r.id = ar.review_id
             ORDER BY o.name, r.id
-            LIMIT 100
         """
         
         cursor.execute(data_query)
         results = cursor.fetchall()
+        
+        logger.info(f"Найдено записей в БД: {len(results)}")
         
         # Группируем данные по объектам
         data = []
@@ -1821,6 +1822,8 @@ def get_database_data():
                 'rating': rating or '',
                 'sentiment': sentiment or ''
             })
+        
+        logger.info(f"Подготовлено записей для отображения: {len(data)}")
         
         conn.close()
         

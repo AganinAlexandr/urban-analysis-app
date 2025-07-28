@@ -259,7 +259,7 @@ class DatabaseManager:
                             'classical': 'nlp_vader',  # classical -> nlp_vader
                             'openai_gpt': 'openai',    # openai_gpt -> openai  
                             'google_gemini': 'gemini', # google_gemini -> gemini
-                            'yandex_gpt': 'llm_yandex' # yandex_gpt -> llm_yandex
+                            'yandex_gpt': 'yandex_gpt' # yandex_gpt -> yandex_gpt (исправлено)
                         }
                         
                         for llm_method, db_method in method_mapping.items():

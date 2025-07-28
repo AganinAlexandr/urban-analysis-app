@@ -31,6 +31,12 @@ class LLMAnalyzer:
         Returns:
             Список доступных методов
         """
+        import os
+        from dotenv import load_dotenv
+        
+        # Загружаем переменные окружения
+        load_dotenv('env_data.env')
+        
         available = ['classical']  # Классический метод всегда доступен
         
         # Проверяем наличие API ключей для различных LLM
@@ -38,8 +44,16 @@ class LLMAnalyzer:
             available.append('openai_gpt')
         if self.api_keys.get('gemini'):
             available.append('google_gemini')
-        if self.api_keys.get('yandex'):
+        
+        # Проверяем Yandex GPT через переменные окружения
+        yandex_folder_id = os.getenv('YANDEX_GPT_FOLDER_ID')
+        yandex_oauth_token = os.getenv('YANDEX_GPT_OAUTH_TOKEN')
+        if yandex_folder_id and yandex_oauth_token:
             available.append('yandex_gpt')
+            logger.info("Yandex GPT доступен")
+        else:
+            logger.warning("Yandex GPT недоступен: отсутствуют переменные окружения")
+        
         if self.api_keys.get('gigachat'):
             available.append('gigachat')
         if self.api_keys.get('qwen'):
@@ -165,18 +179,37 @@ class LLMAnalyzer:
         Returns:
             Результаты анализа
         """
-        # Заглушка для YandexGPT анализа
-        
-        logger.info(f"YandexGPT анализ для текста: {text[:50]}...")
-        
-        return {
-            'method': 'yandex_gpt',
-            'sentiment': 'neutral',
-            'sentiment_score': 0.0,
-            'confidence': 0.8,
-            'review_type': 'информационный',
-            'note': 'YandexGPT API не настроен'
-        }
+        try:
+            from app.core.yandex_gpt_analyzer import YandexGPTAnalyzer
+            
+            # Создаем анализатор Yandex GPT
+            analyzer = YandexGPTAnalyzer()
+            
+            # Выполняем анализ
+            result = analyzer.analyze_sentiment(text)
+            
+            logger.info(f"YandexGPT анализ завершен для текста: {text[:50]}...")
+            
+            return {
+                'method': 'yandex_gpt',
+                'sentiment': result.get('sentiment', 'нейтральный'),
+                'sentiment_score': result.get('sentiment_score', 0.0),
+                'confidence': result.get('confidence', 0.5),
+                'review_type': result.get('review_type', 'информационный'),
+                'raw_response': result.get('raw_response', '')
+            }
+            
+        except Exception as e:
+            logger.error(f"Ошибка при анализе YandexGPT: {e}")
+            
+            return {
+                'method': 'yandex_gpt',
+                'sentiment': 'нейтральный',
+                'sentiment_score': 0.0,
+                'confidence': 0.5,
+                'review_type': 'информационный',
+                'note': f'Ошибка API: {str(e)}'
+            }
     
     def analyze_dataframe(self, df: pd.DataFrame, methods: List[str] = None) -> pd.DataFrame:
         """
@@ -189,6 +222,9 @@ class LLMAnalyzer:
         Returns:
             DataFrame с результатами анализа
         """
+        logger.info(f"analyze_dataframe: получены методы: {methods}")
+        logger.info(f"analyze_dataframe: доступные методы: {self.available_methods}")
+        
         if 'review_text' not in df.columns:
             logger.error("Колонка 'review_text' не найдена")
             return df
@@ -198,6 +234,8 @@ class LLMAnalyzer:
         
         # Проверяем доступность методов
         available_methods = [m for m in methods if m in self.available_methods]
+        logger.info(f"analyze_dataframe: доступные из запрошенных: {available_methods}")
+        
         if not available_methods:
             logger.warning("Ни один из запрошенных методов не доступен, используем классический")
             available_methods = ['classical']
@@ -211,6 +249,7 @@ class LLMAnalyzer:
             analysis_results = {}
             
             for method in available_methods:
+                logger.info(f"Анализируем методом: {method}")
                 if method == 'classical':
                     result = self.analyze_sentiment_classical(text)
                 elif method == 'openai_gpt':
@@ -220,9 +259,11 @@ class LLMAnalyzer:
                 elif method == 'yandex_gpt':
                     result = self.analyze_sentiment_yandex(text)
                 else:
+                    logger.warning(f"Неизвестный метод: {method}")
                     continue
                 
                 analysis_results[method] = result
+                logger.info(f"Результат {method}: {result}")
             
             # Создаем строку результата
             row_dict = row.to_dict()

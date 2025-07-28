@@ -75,8 +75,8 @@ text_analyzer = TextAnalyzer()
 # Инициализация LLM анализатора с API ключами
 api_keys = {
     'openai': os.getenv('OPENAI_API_KEY'),
-    'gemini': os.getenv('GOOGLE_GEMINI_API_KEY'),
-    'yandex': os.getenv('YANDEXGPT_API_KEY'),
+    'gemini': os.getenv('GEMINI_API_KEY'),
+    'yandex': os.getenv('YANDEX_GPT_OAUTH_TOKEN'),  # Добавляем Yandex GPT
     'gigachat': os.getenv('GIGACHAT_API_KEY'),
     'qwen': os.getenv('QWEN_API_KEY'),
     'deepseek': os.getenv('DEEPSEEK_API_KEY')
@@ -154,12 +154,26 @@ def upload_file():
         
         # Получаем выбранные методы анализа
         analysis_methods = request.form.get('analysis_methods', 'classical')
+        logger.info(f"Получены методы анализа из формы: {analysis_methods} (тип: {type(analysis_methods)})")
+        
+        # Отладочная информация - выводим все данные формы
+        logger.info(f"Все данные формы: {dict(request.form)}")
+        
         if isinstance(analysis_methods, str):
-            analysis_methods = [analysis_methods]
+            try:
+                # Пытаемся распарсить JSON
+                import json
+                analysis_methods = json.loads(analysis_methods)
+                logger.info(f"Распарсенные методы из JSON: {analysis_methods}")
+            except:
+                # Если не JSON, то это просто строка
+                analysis_methods = [analysis_methods]
+                logger.info(f"Методы как список строк: {analysis_methods}")
         elif not analysis_methods:
             analysis_methods = ['classical']
+            logger.info(f"Используем классический метод по умолчанию: {analysis_methods}")
         
-        logger.info(f"Методы анализа: {analysis_methods}")
+        logger.info(f"Финальные методы анализа: {analysis_methods}")
         logger.info(f"Указанная группа: {group}")
         
         # Обрабатываем данные

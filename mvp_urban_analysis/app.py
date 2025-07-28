@@ -1737,5 +1737,73 @@ def get_correlation_data():
             'error': str(e)
         })
 
+@app.route('/database/data')
+def get_database_data():
+    """Получение данных из БД с учетом фильтров"""
+    try:
+        # Получаем параметры фильтрации
+        active_filters = request.args.get('filters', '').split(',') if request.args.get('filters') else []
+        active_filters = [f.strip() for f in active_filters if f.strip()]
+        group_type = request.args.get('group_type', 'supplier')
+        color_scheme = request.args.get('color_scheme', 'group')
+        sentiment_method = request.args.get('sentiment_method', 'rating')
+        
+        logger.info(f"Запрос данных БД с параметрами: filters={active_filters}, group_type={group_type}, color_scheme={color_scheme}, sentiment_method={sentiment_method}")
+        
+        # Подключаемся к БД
+        conn = sqlite3.connect('urban_analysis_fixed.db')
+        cursor = conn.cursor()
+        
+        # Простой запрос для получения всех записей
+        data_query = """
+            SELECT 
+                o.name,
+                o.address,
+                og.group_name as group_type,
+                dg.group_name as determined_group,
+                r.review_text,
+                r.rating,
+                COALESCE(ar.sentiment, 'neutral') as sentiment
+            FROM objects o
+            LEFT JOIN object_groups og ON o.group_id = og.id
+            LEFT JOIN detected_groups dg ON o.detected_group_id = dg.id
+            LEFT JOIN reviews r ON o.id = r.object_id
+            LEFT JOIN analysis_results ar ON r.id = ar.review_id
+            ORDER BY o.name, r.id
+            LIMIT 100
+        """
+        
+        cursor.execute(data_query)
+        results = cursor.fetchall()
+        
+        # Группируем данные по объектам
+        data = []
+        for row in results:
+            name, address, group_type, determined_group, review_text, rating, sentiment = row
+            
+            data.append({
+                'name': name or '',
+                'address': address or '',
+                'group': group_type or '',
+                'determined_group': determined_group or '',
+                'review_text': review_text or '',
+                'rating': rating or '',
+                'sentiment': sentiment or ''
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'data': data
+        })
+        
+    except Exception as e:
+        logger.error(f"Ошибка получения данных БД: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000) 

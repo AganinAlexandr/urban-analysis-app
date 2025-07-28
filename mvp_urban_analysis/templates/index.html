@@ -659,6 +659,10 @@
                                 <label class="btn btn-outline-primary btn-sm" for="correlationHeatmapView">
                                     <i class="fas fa-fire"></i> Тепловая карта
                                 </label>
+                                <input type="radio" class="btn-check" name="viewMode" id="dbTableView" value="dbTable">
+                                <label class="btn btn-outline-primary btn-sm" for="dbTableView">
+                                    <i class="fas fa-database"></i> Таблица БД
+                                </label>
                             </div>
                         </div>
                         
@@ -2323,9 +2327,12 @@
 
         // Функция для переключения между таблицей и диаграммой
         function setupViewModeToggle() {
+            const tableView = document.getElementById('tableView');
             const chartView = document.getElementById('chartView');
             const sentimentTableView = document.getElementById('sentimentTableView');
             const correlationHeatmapView = document.getElementById('correlationHeatmapView');
+            const dbTableView = document.getElementById('dbTableView');
+            const resultsTable = document.getElementById('resultsTable');
             const chartContainer = document.getElementById('chartContainer');
             const sentimentTable = document.getElementById('sentimentTable');
             const correlationHeatmap = document.getElementById('correlationHeatmap');
@@ -2350,10 +2357,21 @@
             
             if (correlationHeatmapView) {
                 correlationHeatmapView.addEventListener('change', function() {
+                    if (resultsTable) resultsTable.style.display = 'none';
                     if (chartContainer) chartContainer.style.display = 'none';
                     if (sentimentTable) sentimentTable.style.display = 'none';
                     if (correlationHeatmap) correlationHeatmap.style.display = 'block';
                     loadCorrelationHeatmapData();
+                });
+            }
+            
+            if (dbTableView) {
+                dbTableView.addEventListener('change', function() {
+                    if (resultsTable) resultsTable.style.display = 'block';
+                    if (chartContainer) chartContainer.style.display = 'none';
+                    if (sentimentTable) sentimentTable.style.display = 'none';
+                    if (correlationHeatmap) correlationHeatmap.style.display = 'none';
+                    loadDbTableData();
                 });
             }
         }
@@ -2565,6 +2583,102 @@
                     loading.style.display = 'none';
                 }
             }
+        }
+        
+        // Функция для загрузки данных таблицы БД
+        async function loadDbTableData() {
+            try {
+                console.log('=== ЗАГРУЗКА ДАННЫХ ТАБЛИЦЫ БД ===');
+                
+                // Получаем все параметры фильтрации
+                const filterParams = getAllFilterParams();
+                const filtersParam = filterParams.group_filters.join(',');
+                const groupTypeParam = filterParams.group_type;
+                const colorSchemeParam = filterParams.color_scheme;
+                const sentimentMethodParam = filterParams.sentiment_method;
+                
+                console.log('Параметры запроса:', { filtersParam, groupTypeParam, colorSchemeParam, sentimentMethodParam });
+                
+                // Загружаем данные из БД
+                const response = await fetch(`/database/data?filters=${filtersParam}&group_type=${groupTypeParam}&color_scheme=${colorSchemeParam}&sentiment_method=${sentimentMethodParam}`);
+                console.log('Ответ от сервера:', response.status);
+                
+                const data = await response.json();
+                console.log('Данные получены:', data);
+                
+                if (data.success) {
+                    console.log('Отображаем данные таблицы БД');
+                    displayTableData(data.data, 'db');
+                } else {
+                    console.error('Ошибка загрузки данных БД:', data.error);
+                    document.getElementById('resultsTableBody').innerHTML = '<tr><td colspan="6" class="text-center text-muted">Нет данных для отображения</td></tr>';
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки данных БД:', error);
+                document.getElementById('resultsTableBody').innerHTML = '<tr><td colspan="6" class="text-center text-danger">Ошибка загрузки данных</td></tr>';
+            }
+        }
+        
+        // Функция для отображения данных в таблице
+        function displayTableData(data, source) {
+            console.log(`Отображаем данные таблицы (источник: ${source}):`, data);
+            const tableBody = document.getElementById('resultsTableBody');
+            const tableHeader = document.getElementById('resultsTableHeader');
+            
+            if (!tableBody || !tableHeader) {
+                console.error('Элементы таблицы не найдены');
+                return;
+            }
+            
+            if (!data || data.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Нет данных для отображения</td></tr>';
+                return;
+            }
+            
+            // Определяем заголовки на основе данных
+            const headers = Object.keys(data[0]);
+            const displayHeaders = {
+                'name': 'Название',
+                'address': 'Адрес',
+                'group': 'Группа',
+                'determined_group': 'Определенная группа',
+                'review_text': 'Текст отзыва',
+                'rating': 'Рейтинг',
+                'sentiment': 'Сентимент'
+            };
+            
+            // Создаем заголовок таблицы
+            let headerHtml = '';
+            headers.forEach(header => {
+                const displayName = displayHeaders[header] || header;
+                let width = '';
+                if (header === 'name') width = 'width: 20%;';
+                else if (header === 'address') width = 'width: 25%;';
+                else if (header === 'group') width = 'width: 12%;';
+                else if (header === 'determined_group') width = 'width: 12%;';
+                else if (header === 'review_text') width = 'width: 25%;';
+                else if (header === 'rating') width = 'width: 3%;';
+                else if (header === 'sentiment') width = 'width: 3%;';
+                
+                headerHtml += `<th style="${width}">${displayName}</th>`;
+            });
+            tableHeader.innerHTML = headerHtml;
+            
+            // Создаем строки таблицы
+            let tableHtml = '';
+            data.forEach(row => {
+                tableHtml += '<tr>';
+                headers.forEach(header => {
+                    let value = row[header];
+                    if (value === null || value === undefined) {
+                        value = '-';
+                    }
+                    tableHtml += `<td>${value}</td>`;
+                });
+                tableHtml += '</tr>';
+            });
+            
+            tableBody.innerHTML = tableHtml;
         }
         
         // Функция для создания диаграммы

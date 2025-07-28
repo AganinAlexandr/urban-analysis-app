@@ -1403,8 +1403,9 @@ def get_chart_table():
         group_type = request.args.get('group_type', 'supplier')
         color_scheme = request.args.get('color_scheme', 'group')
         sentiment_method = request.args.get('sentiment_method', 'rating')
+        completeness_filter = request.args.get('completeness_filter', 'all_results')  # Новый параметр
         
-        logger.info(f"Запрос данных таблицы с параметрами: filters={active_filters}, group_type={group_type}, color_scheme={color_scheme}, sentiment_method={sentiment_method}")
+        logger.info(f"Запрос данных таблицы с параметрами: filters={active_filters}, group_type={group_type}, color_scheme={color_scheme}, sentiment_method={sentiment_method}, completeness_filter={completeness_filter}")
         
         # Подключаемся к БД
         conn = sqlite3.connect('urban_analysis_fixed.db')
@@ -1542,15 +1543,10 @@ def get_chart_table():
         
         # Заполняем данные таблицы
         for review_id, review_data in reviews_data.items():
-            review_info = {
-                'id': review_id,
-                'object_name': review_data['object_name'],
-                'rating': review_data['rating']
-            }
-            table_data['reviews'].append(review_info)
-            
-            # Создаем строку сентиментов для этого отзыва
+            # Проверяем полноту данных для этого отзыва
+            has_missing_values = False
             review_sentiments = []
+            
             for method in methods_list:
                 if method in review_data['methods']:
                     method_data = review_data['methods'][method]
@@ -1562,7 +1558,18 @@ def get_chart_table():
                         review_sentiments.append('neutral')
                 else:
                     review_sentiments.append('none')
+                    has_missing_values = True
             
+            # Применяем фильтр полноты данных
+            if completeness_filter == 'no_empty_values' and has_missing_values:
+                continue  # Пропускаем отзывы с пустыми значениями
+            
+            review_info = {
+                'id': review_id,
+                'object_name': review_data['object_name'],
+                'rating': review_data['rating']
+            }
+            table_data['reviews'].append(review_info)
             table_data['sentiments'].append(review_sentiments)
         
         conn.close()
@@ -1589,8 +1596,9 @@ def get_correlation_data():
         group_type = request.args.get('group_type', 'supplier')
         color_scheme = request.args.get('color_scheme', 'group')
         sentiment_method = request.args.get('sentiment_method', 'rating')
+        completeness_filter = request.args.get('completeness_filter', 'all_results')  # Новый параметр
         
-        logger.info(f"Запрос данных корреляции с параметрами: filters={active_filters}, group_type={group_type}, color_scheme={color_scheme}, sentiment_method={sentiment_method}")
+        logger.info(f"Запрос данных корреляции с параметрами: filters={active_filters}, group_type={group_type}, color_scheme={color_scheme}, sentiment_method={sentiment_method}, completeness_filter={completeness_filter}")
         
         # Подключение к базе данных
         conn = sqlite3.connect('urban_analysis_fixed.db')
@@ -1695,6 +1703,8 @@ def get_correlation_data():
         correlation_data = []
         for review_id, review_data in reviews_data.items():
             row = []
+            has_missing_values = False
+            
             for method in all_methods:
                 if method == 'user_rating':
                     # Для user_rating используем рейтинг
@@ -1711,6 +1721,7 @@ def get_correlation_data():
                             row.append(0)
                     else:
                         row.append(0)
+                        has_missing_values = True
                 else:
                     # Для других методов используем sentiment из БД
                     method_data = review_data['methods'].get(method)
@@ -1725,7 +1736,13 @@ def get_correlation_data():
                             row.append(0)
                     else:
                         row.append(0)
-            correlation_data.append(row)
+                        has_missing_values = True
+            
+            # Применяем фильтр полноты данных
+            if completeness_filter == 'no_empty_values' and has_missing_values:
+                continue  # Пропускаем отзывы с пустыми значениями
+            else:
+                correlation_data.append(row)
         
         # Рассчитываем корреляционную матрицу
         if correlation_data:

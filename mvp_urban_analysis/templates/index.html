@@ -666,6 +666,25 @@
                             </div>
                         </div>
                         
+                        <!-- Фильтр полноты данных (для тепловой карты и таблицы сентиментов) -->
+                        <div id="completenessFilterSection" class="mb-3" style="display: none;">
+                            <label class="form-label"><strong>Фильтр полноты данных:</strong></label>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="btn-group w-100" role="group">
+                                        <input type="radio" class="btn-check" name="completenessFilter" id="allResults" value="all_results" checked>
+                                        <label class="btn btn-outline-info btn-sm" for="allResults" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
+                                            <i class="fas fa-list"></i> Все результаты
+                                        </label>
+                                        <input type="radio" class="btn-check" name="completenessFilter" id="noEmptyValues" value="no_empty_values">
+                                        <label class="btn btn-outline-info btn-sm" for="noEmptyValues" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
+                                            <i class="fas fa-filter"></i> Без пустых
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <!-- Таблица результатов -->
                         <div id="resultsTable" class="table-responsive">
                             <table class="table table-striped table-hover">
@@ -2338,12 +2357,14 @@
             const chartContainer = document.getElementById('chartContainer');
             const sentimentTable = document.getElementById('sentimentTable');
             const correlationHeatmap = document.getElementById('correlationHeatmap');
+            const completenessFilterSection = document.getElementById('completenessFilterSection');
             
             if (chartView) {
                 chartView.addEventListener('change', function() {
                     if (chartContainer) chartContainer.style.display = 'block';
                     if (sentimentTable) sentimentTable.style.display = 'none';
                     if (correlationHeatmap) correlationHeatmap.style.display = 'none';
+                    if (completenessFilterSection) completenessFilterSection.style.display = 'none';
                     loadChartData();
                 });
             }
@@ -2353,6 +2374,7 @@
                     if (chartContainer) chartContainer.style.display = 'none';
                     if (sentimentTable) sentimentTable.style.display = 'block';
                     if (correlationHeatmap) correlationHeatmap.style.display = 'none';
+                    if (completenessFilterSection) completenessFilterSection.style.display = 'block';
                     loadSentimentTableData();
                 });
             }
@@ -2363,6 +2385,7 @@
                     if (chartContainer) chartContainer.style.display = 'none';
                     if (sentimentTable) sentimentTable.style.display = 'none';
                     if (correlationHeatmap) correlationHeatmap.style.display = 'block';
+                    if (completenessFilterSection) completenessFilterSection.style.display = 'block';
                     loadCorrelationHeatmapData();
                 });
             }
@@ -2373,7 +2396,34 @@
                     if (chartContainer) chartContainer.style.display = 'none';
                     if (sentimentTable) sentimentTable.style.display = 'none';
                     if (correlationHeatmap) correlationHeatmap.style.display = 'none';
+                    if (completenessFilterSection) completenessFilterSection.style.display = 'none';
                     loadDbTableData();
+                });
+            }
+            
+            // Обработчики для фильтра полноты данных
+            const allResultsFilter = document.getElementById('allResults');
+            const noEmptyValuesFilter = document.getElementById('noEmptyValues');
+            
+            if (allResultsFilter) {
+                allResultsFilter.addEventListener('change', function() {
+                    if (correlationHeatmap && correlationHeatmap.style.display !== 'none') {
+                        loadCorrelationHeatmapData();
+                    }
+                    if (sentimentTable && sentimentTable.style.display !== 'none') {
+                        loadSentimentTableData();
+                    }
+                });
+            }
+            
+            if (noEmptyValuesFilter) {
+                noEmptyValuesFilter.addEventListener('change', function() {
+                    if (correlationHeatmap && correlationHeatmap.style.display !== 'none') {
+                        loadCorrelationHeatmapData();
+                    }
+                    if (sentimentTable && sentimentTable.style.display !== 'none') {
+                        loadSentimentTableData();
+                    }
                 });
             }
         }
@@ -2399,8 +2449,11 @@
                 const colorSchemeParam = filterParams.color_scheme;
                 const sentimentMethodParam = filterParams.sentiment_method;
                 
+                // Получаем значение фильтра полноты данных
+                const completenessFilter = document.querySelector('input[name="completenessFilter"]:checked')?.value || 'all_results';
+                
                 // Загружаем данные таблицы сентиментов с полными параметрами
-                const response = await fetch(`/chart/table?filters=${filtersParam}&group_type=${groupTypeParam}&color_scheme=${colorSchemeParam}&sentiment_method=${sentimentMethodParam}`);
+                const response = await fetch(`/chart/table?filters=${filtersParam}&group_type=${groupTypeParam}&color_scheme=${colorSchemeParam}&sentiment_method=${sentimentMethodParam}&completeness_filter=${completenessFilter}`);
                 const data = await response.json();
                 
                 if (data.success) {
@@ -2808,7 +2861,10 @@
                 const colorSchemeParam = filterParams.color_scheme;
                 const sentimentMethodParam = filterParams.sentiment_method;
                 
-                const response = await fetch(`/chart/correlation?filters=${filtersParam}&group_type=${groupTypeParam}&color_scheme=${colorSchemeParam}&sentiment_method=${sentimentMethodParam}`);
+                // Получаем значение фильтра полноты данных
+                const completenessFilter = document.querySelector('input[name="completenessFilter"]:checked')?.value || 'all_results';
+                
+                const response = await fetch(`/chart/correlation?filters=${filtersParam}&group_type=${groupTypeParam}&color_scheme=${colorSchemeParam}&sentiment_method=${sentimentMethodParam}&completeness_filter=${completenessFilter}`);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);

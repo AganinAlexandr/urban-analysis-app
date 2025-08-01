@@ -1475,12 +1475,14 @@ def get_chart_table():
                 pm.method_name,
                 ar.sentiment,
                 ar.confidence,
-                ar.review_type
+                ar.review_type,
+                COALESCE(mr.sentiment, '') as master_sentiment
             FROM reviews r
             JOIN objects o ON r.object_id = o.id
             LEFT JOIN object_groups og ON o.group_id = og.id
             LEFT JOIN analysis_results ar ON r.id = ar.review_id
             LEFT JOIN processing_methods pm ON ar.method_id = pm.id
+            LEFT JOIN master_ratings mr ON r.id = mr.review_id
             WHERE r.object_id IN ({})
             ORDER BY r.id, pm.method_name
         """.format(object_ids_str)
@@ -1502,6 +1504,7 @@ def get_chart_table():
             sentiment = row[6]
             confidence = row[7]
             review_type = row[8]
+            master_sentiment = row[9]
             
             if review_id not in reviews_data:
                 reviews_data[review_id] = {
@@ -1510,6 +1513,7 @@ def get_chart_table():
                     'rating': rating,
                     'object_name': object_name,
                     'object_group': object_group,
+                    'master_sentiment': master_sentiment,
                     'methods': {}
                 }
             
@@ -1529,6 +1533,24 @@ def get_chart_table():
                     reviews_data[review_id]['methods'][method_name]['negative'] = 1
                 else:  # neutral или null
                     reviews_data[review_id]['methods'][method_name]['neutral'] = 1
+            
+            # Добавляем master_rating если есть
+            if master_sentiment:
+                methods_set.add('master_rating')
+                if 'master_rating' not in reviews_data[review_id]['methods']:
+                    reviews_data[review_id]['methods']['master_rating'] = {
+                        'positive': 0,
+                        'negative': 0,
+                        'neutral': 0
+                    }
+                
+                # Устанавливаем master_rating
+                if master_sentiment == 'positive':
+                    reviews_data[review_id]['methods']['master_rating']['positive'] = 1
+                elif master_sentiment == 'negative':
+                    reviews_data[review_id]['methods']['master_rating']['negative'] = 1
+                else:  # neutral
+                    reviews_data[review_id]['methods']['master_rating']['neutral'] = 1
         
         # Создаем таблицу данных
         methods_list = sorted(list(methods_set))
@@ -1655,10 +1677,12 @@ def get_correlation_data():
         # Получаем все отзывы и результаты анализа для отфильтрованных объектов
         query = f"""
             SELECT r.id as review_id, r.object_id, r.review_text, r.rating,
-                   pm.method_name, ar.sentiment, ar.confidence
+                   pm.method_name, ar.sentiment, ar.confidence,
+                   COALESCE(mr.sentiment, '') as master_sentiment
             FROM reviews r
             JOIN analysis_results ar ON r.id = ar.review_id
             JOIN processing_methods pm ON ar.method_id = pm.id
+            LEFT JOIN master_ratings mr ON r.id = mr.review_id
             WHERE r.object_id IN ({placeholders})
             ORDER BY r.id, pm.method_name
         """
@@ -1669,13 +1693,14 @@ def get_correlation_data():
         # Группируем данные по отзывам
         reviews_data = {}
         for row in results:
-            review_id, object_id, review_text, rating, method_name, sentiment, confidence = row
+            review_id, object_id, review_text, rating, method_name, sentiment, confidence, master_sentiment = row
             
             if review_id not in reviews_data:
                 reviews_data[review_id] = {
                     'object_id': object_id,
                     'review_text': review_text,
                     'rating': rating,
+                    'master_sentiment': master_sentiment,
                     'methods': {}
                 }
             
@@ -1698,6 +1723,10 @@ def get_correlation_data():
         if 'user_rating' not in all_methods:
             all_methods.insert(0, 'user_rating')
         
+        # Добавляем master_rating если есть данные
+        if any(review_data.get('master_sentiment') for review_data in reviews_data.values()):
+            all_methods.append('master_rating')
+        
         # Создаем матрицу данных для корреляции
         # Каждая строка - отзыв, каждый столбец - метод
         correlation_data = []
@@ -1718,6 +1747,20 @@ def get_correlation_data():
                         elif sentiment == 'отрицательный':
                             row.append(-1)
                         else:
+                            row.append(0)
+                    else:
+                        row.append(0)
+                        has_missing_values = True
+                elif method == 'master_rating':
+                    # Для master_rating используем данные из master_ratings
+                    master_sentiment = review_data.get('master_sentiment')
+                    if master_sentiment:
+                        # Преобразуем в числовое значение
+                        if master_sentiment == 'positive':
+                            row.append(1)
+                        elif master_sentiment == 'negative':
+                            row.append(-1)
+                        else:  # neutral
                             row.append(0)
                     else:
                         row.append(0)
@@ -1834,6 +1877,134 @@ def get_database_data():
         
     except Exception as e:
         logger.error(f"Ошибка получения данных БД: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
+@app.route('/master-rating/data')
+def get_master_rating_data():
+    """Получение данных для интерфейса мастер-рейтинга"""
+    try:
+        # Получаем параметры фильтрации
+        active_filters = request.args.get('filters', '').split(',') if request.args.get('filters') else []
+        active_filters = [f.strip() for f in active_filters if f.strip()]
+        
+        logger.info(f"Запрос данных мастер-рейтинга с параметрами: filters={active_filters}")
+        
+        # Подключаемся к БД
+        conn = sqlite3.connect('urban_analysis_fixed.db')
+        cursor = conn.cursor()
+        
+        # Запрос для получения отзывов с мастер-рейтингами
+        data_query = """
+            SELECT 
+                r.id as review_id,
+                o.name,
+                o.address,
+                og.group_name as group_type,
+                dg.group_name as determined_group,
+                r.review_text,
+                COALESCE(mr.sentiment, '') as master_sentiment
+            FROM reviews r
+            JOIN objects o ON r.object_id = o.id
+            LEFT JOIN object_groups og ON o.group_id = og.id
+            LEFT JOIN detected_groups dg ON o.detected_group_id = dg.id
+            LEFT JOIN master_ratings mr ON r.id = mr.review_id
+            ORDER BY o.name, r.id
+        """
+        
+        cursor.execute(data_query)
+        results = cursor.fetchall()
+        
+        logger.info(f"Найдено отзывов для мастер-рейтинга: {len(results)}")
+        
+        # Группируем данные
+        data = []
+        for row in results:
+            review_id, name, address, group_type, determined_group, review_text, master_sentiment = row
+            
+            data.append({
+                'review_id': review_id,
+                'name': name or '',
+                'address': address or '',
+                'group': group_type or '',
+                'determined_group': determined_group or '',
+                'review_text': review_text or '',
+                'master_sentiment': master_sentiment or ''
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'data': data
+        })
+        
+    except Exception as e:
+        logger.error(f"Ошибка получения данных мастер-рейтинга: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
+@app.route('/master-rating/save', methods=['POST'])
+def save_master_rating():
+    """Сохранение мастер-рейтинга"""
+    try:
+        data = request.get_json()
+        review_id = data.get('review_id')
+        sentiment = data.get('sentiment')
+        
+        if not review_id or not sentiment:
+            return jsonify({
+                'success': False,
+                'error': 'Не указаны review_id или sentiment'
+            })
+        
+        # Сохраняем мастер-рейтинг
+        db_manager_fixed.insert_master_rating(review_id, sentiment)
+        
+        logger.info(f"Сохранен мастер-рейтинг: review_id={review_id}, sentiment={sentiment}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Мастер-рейтинг сохранен'
+        })
+        
+    except Exception as e:
+        logger.error(f"Ошибка сохранения мастер-рейтинга: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
+@app.route('/master-rating/stats')
+def get_master_rating_stats():
+    """Получение статистики мастер-рейтингов"""
+    try:
+        # Получаем все мастер-рейтинги
+        master_ratings = db_manager_fixed.get_all_master_ratings()
+        
+        # Подсчитываем статистику
+        stats = {
+            'total_rated': len(master_ratings),
+            'positive': 0,
+            'negative': 0,
+            'neutral': 0
+        }
+        
+        for sentiment in master_ratings.values():
+            if sentiment in stats:
+                stats[sentiment] += 1
+        
+        return jsonify({
+            'success': True,
+            'stats': stats
+        })
+        
+    except Exception as e:
+        logger.error(f"Ошибка получения статистики мастер-рейтингов: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)

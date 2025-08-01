@@ -77,6 +77,17 @@ CREATE TABLE IF NOT EXISTS analysis_results (
     UNIQUE(review_id, method_id)
 );
 
+-- Таблица мастер-рейтингов (ручные оценки пользователя)
+CREATE TABLE IF NOT EXISTS master_ratings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    review_id INTEGER NOT NULL,
+    sentiment TEXT NOT NULL CHECK (sentiment IN ('positive', 'negative', 'neutral')),
+    rated_by TEXT DEFAULT 'user', -- кто поставил оценку
+    rated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (review_id) REFERENCES reviews(id),
+    UNIQUE(review_id)
+);
+
 -- Индексы для производительности
 CREATE INDEX IF NOT EXISTS idx_objects_object_key ON objects(object_key);
 CREATE INDEX IF NOT EXISTS idx_objects_group_id ON objects(group_id);
@@ -86,6 +97,7 @@ CREATE INDEX IF NOT EXISTS idx_reviews_source ON reviews(source);
 CREATE INDEX IF NOT EXISTS idx_analysis_results_review_id ON analysis_results(review_id);
 CREATE INDEX IF NOT EXISTS idx_analysis_results_method_id ON analysis_results(method_id);
 CREATE INDEX IF NOT EXISTS idx_analysis_results_sentiment ON analysis_results(sentiment);
+CREATE INDEX IF NOT EXISTS idx_master_ratings_review_id ON master_ratings(review_id);
 
 -- Вставка базовых методов обработки
 INSERT OR IGNORE INTO processing_methods (method_name, description) VALUES

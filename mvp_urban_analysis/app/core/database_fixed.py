@@ -447,13 +447,40 @@ class DatabaseManager:
         with self.get_connection() as conn:
             return pd.read_sql_query(query, conn, params=params)
     
+    def insert_master_rating(self, review_id: int, sentiment: str, rated_by: str = 'user') -> int:
+        """Добавление или обновление мастер-рейтинга для отзыва"""
+        with self.get_connection() as conn:
+            cursor = conn.execute("""
+                INSERT OR REPLACE INTO master_ratings (review_id, sentiment, rated_by)
+                VALUES (?, ?, ?)
+            """, (review_id, sentiment, rated_by))
+            return cursor.lastrowid
+    
+    def get_master_rating(self, review_id: int) -> Optional[str]:
+        """Получение мастер-рейтинга для отзыва"""
+        with self.get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT sentiment FROM master_ratings WHERE review_id = ?
+            """, (review_id,))
+            result = cursor.fetchone()
+            return result['sentiment'] if result else None
+    
+    def get_all_master_ratings(self) -> Dict[int, str]:
+        """Получение всех мастер-рейтингов"""
+        with self.get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT review_id, sentiment FROM master_ratings
+            """)
+            return {row['review_id']: row['sentiment'] for row in cursor.fetchall()}
+    
     def clear_all_data(self):
-        """Полная очистка всех данных из базы данных"""
+        """Полная очистка всех данных из базы данных (master_ratings сохраняются)"""
         with self.get_connection() as conn:
             # Отключаем проверку внешних ключей для очистки
             conn.execute("PRAGMA foreign_keys = OFF")
             
             # Очищаем таблицы в правильном порядке (от зависимых к независимым)
+            # НЕ включаем master_ratings - они должны сохраняться
             tables_to_clear = [
                 'analysis_results',
                 'reviews', 
@@ -480,7 +507,7 @@ class DatabaseManager:
                     print(f"Ошибка при сбросе счетчика для {table}: {e}")
             
             conn.commit()
-            print("✅ Все данные очищены из базы данных")
+            print("✅ Все данные очищены из базы данных (master_ratings сохранены)")
 
 
 # Синглтон для глобального доступа к БД

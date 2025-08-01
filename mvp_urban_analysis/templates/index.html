@@ -109,7 +109,7 @@
         /* Стили для таблицы с фиксированными заголовками */
         .table-with-fixed-header {
             position: relative;
-            max-height: 700px;
+            max-height: 1120px;
             height: 100%;
             overflow-y: auto;
         }
@@ -117,7 +117,7 @@
         /* Стили для контейнера таблицы результатов */
         #resultsTable {
             height: calc(100vh - 200px);
-            min-height: 600px;
+            min-height: 960px;
         }
         
         .table-with-fixed-header table {
@@ -1887,6 +1887,9 @@
         document.addEventListener('DOMContentLoaded', function() {
             console.log('=== DOM ЗАГРУЖЕН ===');
             
+            // Инициализируем правильное состояние контейнеров при загрузке
+            initializeContainersState();
+            
             // Проверяем состояние фильтров при загрузке
             const filterCheckboxes = document.querySelectorAll('input[type="checkbox"][id^="filter_"]');
             console.log(`Найдено фильтров при загрузке: ${filterCheckboxes.length}`);
@@ -2407,6 +2410,27 @@
             updateSentimentMethodsUI([]);
         }
 
+        // Функция для инициализации правильного состояния контейнеров при загрузке
+        function initializeContainersState() {
+            console.log('Инициализация состояния контейнеров...');
+            
+            // Получаем все контейнеры
+            const resultsTable = document.getElementById('resultsTable');
+            const chartContainer = document.getElementById('chartContainer');
+            const sentimentTable = document.getElementById('sentimentTable');
+            const correlationHeatmap = document.getElementById('correlationHeatmap');
+            const completenessFilterSection = document.getElementById('completenessFilterSection');
+            
+            // Скрываем все контейнеры по умолчанию
+            if (resultsTable) resultsTable.style.display = 'none';
+            if (chartContainer) chartContainer.style.display = 'none';
+            if (sentimentTable) sentimentTable.style.display = 'none';
+            if (correlationHeatmap) correlationHeatmap.style.display = 'none';
+            if (completenessFilterSection) completenessFilterSection.style.display = 'none';
+            
+            console.log('Все контейнеры скрыты при инициализации');
+        }
+        
         // Функция для переключения между таблицей и диаграммой
         function setupViewModeToggle() {
             const tableView = document.getElementById('tableView');
@@ -2432,6 +2456,7 @@
             
             if (sentimentTableView) {
                 sentimentTableView.addEventListener('change', function() {
+                    if (resultsTable) resultsTable.style.display = 'none';
                     if (chartContainer) chartContainer.style.display = 'none';
                     if (sentimentTable) sentimentTable.style.display = 'block';
                     if (correlationHeatmap) correlationHeatmap.style.display = 'none';

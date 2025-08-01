@@ -1818,17 +1818,19 @@ def get_database_data():
         # Получаем параметры фильтрации
         active_filters = request.args.get('filters', '').split(',') if request.args.get('filters') else []
         active_filters = [f.strip() for f in active_filters if f.strip()]
+        group_filters = request.args.get('group_filters', '').split(',') if request.args.get('group_filters') else []
+        group_filters = [f.strip() for f in group_filters if f.strip()]
         group_type = request.args.get('group_type', 'supplier')
         color_scheme = request.args.get('color_scheme', 'group')
         sentiment_method = request.args.get('sentiment_method', 'rating')
         
-        logger.info(f"Запрос данных БД с параметрами: filters={active_filters}, group_type={group_type}, color_scheme={color_scheme}, sentiment_method={sentiment_method}")
+        logger.info(f"Запрос данных БД с параметрами: filters={active_filters}, group_filters={group_filters}, group_type={group_type}, color_scheme={color_scheme}, sentiment_method={sentiment_method}")
         
         # Подключаемся к БД
         conn = sqlite3.connect('urban_analysis_fixed.db')
         cursor = conn.cursor()
         
-        # Простой запрос для получения всех записей
+        # Строим запрос с учетом фильтров групп
         data_query = """
             SELECT 
                 o.name,
@@ -1843,10 +1845,17 @@ def get_database_data():
             LEFT JOIN detected_groups dg ON o.detected_group_id = dg.id
             LEFT JOIN reviews r ON o.id = r.object_id
             LEFT JOIN analysis_results ar ON r.id = ar.review_id
-            ORDER BY o.name, r.id
         """
         
-        cursor.execute(data_query)
+        # Добавляем фильтрацию по группам, если указаны фильтры
+        if group_filters:
+            placeholders = ','.join(['?' for _ in group_filters])
+            data_query += f" WHERE og.group_name IN ({placeholders})"
+            data_query += " ORDER BY o.name, r.id"
+            cursor.execute(data_query, group_filters)
+        else:
+            data_query += " ORDER BY o.name, r.id"
+            cursor.execute(data_query)
         results = cursor.fetchall()
         
         logger.info(f"Найдено записей в БД: {len(results)}")

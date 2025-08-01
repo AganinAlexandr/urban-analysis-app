@@ -558,41 +558,41 @@
                                 <div class="row">
                                     <div class="col-md-3">
                                         <div class="form-check filter-checkbox">
-                                            <input class="form-check-input" type="checkbox" id="filter_school" value="school" checked>
+                                            <input class="form-check-input" type="checkbox" id="filter_school" name="group_filter" value="school" checked>
                                             <label class="form-check-label" for="filter_school">Школы</label>
                                         </div>
                                         <div class="form-check filter-checkbox">
-                                            <input class="form-check-input" type="checkbox" id="filter_hospital" value="hospital" checked>
+                                            <input class="form-check-input" type="checkbox" id="filter_hospital" name="group_filter" value="hospital" checked>
                                             <label class="form-check-label" for="filter_hospital">Больницы</label>
                                         </div>
                                     </div>
                                     <div class="col-md-3">
                                         <div class="form-check filter-checkbox">
-                                            <input class="form-check-input" type="checkbox" id="filter_pharmacy" value="pharmacy" checked>
+                                            <input class="form-check-input" type="checkbox" id="filter_pharmacy" name="group_filter" value="pharmacy" checked>
                                             <label class="form-check-label" for="filter_pharmacy">Аптеки</label>
                                         </div>
                                         <div class="form-check filter-checkbox">
-                                            <input class="form-check-input" type="checkbox" id="filter_kindergarden" value="kindergarden" checked>
+                                            <input class="form-check-input" type="checkbox" id="filter_kindergarden" name="group_filter" value="kindergarden" checked>
                                             <label class="form-check-label" for="filter_kindergarden">Детские сады</label>
                                         </div>
                                     </div>
                                     <div class="col-md-3">
                                         <div class="form-check filter-checkbox">
-                                            <input class="form-check-input" type="checkbox" id="filter_polyclinic" value="polyclinic" checked>
+                                            <input class="form-check-input" type="checkbox" id="filter_polyclinic" name="group_filter" value="polyclinic" checked>
                                             <label class="form-check-label" for="filter_polyclinic">Поликлиники</label>
                                         </div>
                                         <div class="form-check filter-checkbox">
-                                            <input class="form-check-input" type="checkbox" id="filter_university" value="university" checked>
+                                            <input class="form-check-input" type="checkbox" id="filter_university" name="group_filter" value="university" checked>
                                             <label class="form-check-label" for="filter_university">Университеты</label>
                                         </div>
                                     </div>
                                     <div class="col-md-3">
                                         <div class="form-check filter-checkbox">
-                                            <input class="form-check-input" type="checkbox" id="filter_shopmall" value="shopmall" checked>
+                                            <input class="form-check-input" type="checkbox" id="filter_shopmall" name="group_filter" value="shopmall" checked>
                                             <label class="form-check-label" for="filter_shopmall">Торговые центры</label>
                                         </div>
                                         <div class="form-check filter-checkbox">
-                                            <input class="form-check-input" type="checkbox" id="filter_resident_complexes" value="resident_complexes" checked>
+                                            <input class="form-check-input" type="checkbox" id="filter_resident_complexes" name="group_filter" value="resident_complexes" checked>
                                             <label class="form-check-label" for="filter_resident_complexes">Жилые комплексы</label>
                                         </div>
                                     </div>
@@ -2541,6 +2541,16 @@
                     }
                 });
             }
+            
+            // Обработчики для фильтров групп (для таблицы БД)
+            const groupFilterCheckboxes = document.querySelectorAll('input[name="group_filter"]');
+            groupFilterCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    if (resultsTable && resultsTable.style.display !== 'none') {
+                        loadDbTableData();
+                    }
+                });
+            });
         }
         
         // Функция для загрузки данных таблицы сентиментов
@@ -2920,6 +2930,16 @@
             }
         }
         
+        // Функция для получения активных фильтров групп
+        function getActiveGroupFilters() {
+            const activeFilters = [];
+            const filterCheckboxes = document.querySelectorAll('input[name="group_filter"]:checked');
+            filterCheckboxes.forEach(checkbox => {
+                activeFilters.push(checkbox.value);
+            });
+            return activeFilters;
+        }
+        
         // Функция для загрузки данных таблицы БД
         async function loadDbTableData() {
             try {
@@ -2927,15 +2947,17 @@
                 
                 // Получаем все параметры фильтрации
                 const filterParams = getAllFilterParams();
+                const activeGroupFilters = getActiveGroupFilters();
                 const filtersParam = filterParams.group_filters.join(',');
                 const groupTypeParam = filterParams.group_type;
                 const colorSchemeParam = filterParams.color_scheme;
                 const sentimentMethodParam = filterParams.sentiment_method;
                 
-                console.log('Параметры запроса:', { filtersParam, groupTypeParam, colorSchemeParam, sentimentMethodParam });
+                console.log('Параметры запроса:', { filtersParam, groupTypeParam, colorSchemeParam, sentimentMethodParam, activeGroupFilters });
                 
-                // Загружаем данные из БД
-                const response = await fetch(`/database/data?filters=${filtersParam}&group_type=${groupTypeParam}&color_scheme=${colorSchemeParam}&sentiment_method=${sentimentMethodParam}`);
+                // Загружаем данные из БД с фильтрами групп
+                const groupFiltersParam = activeGroupFilters.join(',');
+                const response = await fetch(`/database/data?filters=${filtersParam}&group_type=${groupTypeParam}&color_scheme=${colorSchemeParam}&sentiment_method=${sentimentMethodParam}&group_filters=${groupFiltersParam}`);
                 console.log('Ответ от сервера:', response.status);
                 
                 const data = await response.json();

@@ -746,6 +746,18 @@
                             </div>
                         </div>
                         
+                        <!-- Фильтр методов (для таблицы сентиментов) -->
+                        <div id="methodFilterSection" class="mb-3" style="display: none;">
+                            <label class="form-label"><strong>Фильтр методов анализа:</strong></label>
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div id="methodFilterContainer" class="d-flex flex-wrap gap-2">
+                                        <!-- Чекбоксы методов будут добавлены динамически -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <!-- Таблица результатов -->
                         <div id="resultsTable" class="table-responsive table-with-fixed-header">
                             <table class="table table-striped table-hover">
@@ -2456,6 +2468,7 @@
             const correlationHeatmap = document.getElementById('correlationHeatmap');
             const masterRatingTable = document.getElementById('masterRatingTable');
             const completenessFilterSection = document.getElementById('completenessFilterSection');
+            const methodFilterSection = document.getElementById('methodFilterSection');
             
             if (chartView) {
                 chartView.addEventListener('change', function() {
@@ -2476,6 +2489,7 @@
                     if (sentimentTable) sentimentTable.style.display = 'block';
                     if (correlationHeatmap) correlationHeatmap.style.display = 'none';
                     if (completenessFilterSection) completenessFilterSection.style.display = 'block';
+                    if (methodFilterSection) methodFilterSection.style.display = 'block';
                     loadSentimentTableData();
                 });
             }
@@ -2562,7 +2576,8 @@
                         sentimentTableContainer.innerHTML = '<p class="text-muted text-center">Нет данных для отображения</p>';
                         return;
                     }
-                    
+                    window.lastSentimentTableData = data.data;
+                    renderMethodFilter(data.data.methods);
                     createSentimentTable(data.data);
                 } else {
                     sentimentTableContainer.innerHTML = `<p class="text-danger text-center">Ошибка: ${data.error}</p>`;
@@ -2677,11 +2692,12 @@
         // Функция для создания многоуровневой таблицы сентиментов
         function createSentimentTable(tableData) {
             const container = document.getElementById('sentimentTableContainer');
-            
             if (!container) {
                 console.error('Элемент sentimentTableContainer не найден');
                 return;
             }
+            const selectedMethods = window.selectedSentimentMethods || tableData.methods;
+            const filteredMethods = tableData.methods.filter(m => selectedMethods.includes(m));
             
             const MAX_REVIEWS_PER_TABLE = 100; // Лимит отзывов на одну таблицу
             const totalReviews = tableData.reviews.length;
@@ -2728,10 +2744,11 @@
                 
                 // Тело таблицы
                 tableHtml += '<tbody>';
-                tableData.methods.forEach(method => {
+                filteredMethods.forEach(method => {
                     tableHtml += `<tr><td style="width: 120px; font-size: 20px;"><strong>${method}</strong></td>`;
                     sentimentsInThisTable.forEach((reviewSentiments, reviewIndex) => {
-                        const sentiment = reviewSentiments[tableData.methods.indexOf(method)];
+                        const originalMethodIndex = tableData.methods.indexOf(method);
+                        const sentiment = reviewSentiments[originalMethodIndex];
                         let cellClass = '';
                         let cellStyle = '';
                         
@@ -3224,6 +3241,36 @@
             heatmapHtml += '</div></div>';
             
             container.innerHTML = heatmapHtml;
+        }
+
+        // Функция для рендера фильтра методов
+        function renderMethodFilter(methods) {
+            const container = document.getElementById('methodFilterContainer');
+            if (!container) return;
+            container.innerHTML = '';
+            if (!window.selectedSentimentMethods) {
+                window.selectedSentimentMethods = [...methods];
+            }
+            methods.forEach(method => {
+                const id = `method-filter-${method}`;
+                const checked = window.selectedSentimentMethods.includes(method) ? 'checked' : '';
+                const label = `<label for="${id}" class="form-check-label me-2" style="min-width:120px;">
+                    <input type="checkbox" class="form-check-input me-1" id="${id}" value="${method}" ${checked}>
+                    ${method}
+                </label>`;
+                container.insertAdjacentHTML('beforeend', label);
+            });
+            // Обработчик изменения
+            container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                cb.addEventListener('change', function() {
+                    const checkedMethods = Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(x => x.value);
+                    window.selectedSentimentMethods = checkedMethods;
+                    // Перерисовать таблицу
+                    if (window.lastSentimentTableData) {
+                        createSentimentTable(window.lastSentimentTableData);
+                    }
+                });
+            });
         }
     </script>
 </body>

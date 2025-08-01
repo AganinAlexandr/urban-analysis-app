@@ -1988,6 +1988,38 @@ def save_master_rating():
             'error': str(e)
         })
 
+@app.route('/api/detect-group', methods=['POST'])
+def detect_group():
+    """Определение группы объекта на основе отзывов"""
+    try:
+        data = request.get_json()
+        reviews = data.get('reviews', '')
+        object_name = data.get('object_name', '')
+        address = data.get('address', '')
+        
+        logger.info(f"Определение группы для объекта: {object_name}")
+        
+        # Используем существующую логику определения группы
+        from app.core.district_detector import detect_group_from_text
+        
+        # Объединяем всю информацию для лучшего определения
+        combined_text = f"{object_name} {address} {reviews}"
+        detected_group = detect_group_from_text(combined_text)
+        
+        logger.info(f"Определена группа: {detected_group}")
+        
+        return jsonify({
+            'success': True,
+            'detected_group': detected_group
+        })
+        
+    except Exception as e:
+        logger.error(f"Ошибка определения группы: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
 @app.route('/master-rating/stats')
 def get_master_rating_stats():
     """Получение статистики мастер-рейтингов"""

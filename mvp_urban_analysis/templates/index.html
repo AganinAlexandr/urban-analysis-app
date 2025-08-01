@@ -816,6 +816,72 @@
             </div>
         </div>
     </div>
+    
+    <!-- Модальное окно для ввода группы -->
+    <div class="modal fade" id="groupInputModal" tabindex="-1" aria-labelledby="groupInputModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="groupInputModalLabel">Определение группы объекта</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="detectedGroup" class="form-label"><strong>Определенная группа:</strong></label>
+                            <input type="text" class="form-control" id="detectedGroup" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="userGroup" class="form-label"><strong>Введите группу:</strong></label>
+                            <input type="text" class="form-control" id="userGroup" placeholder="Введите группу объекта">
+                        </div>
+                    </div>
+                    <div class="alert alert-info" id="groupComparisonAlert" style="display: none;">
+                        <i class="fas fa-info-circle"></i>
+                        <span id="groupComparisonText"></span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Объект</th>
+                                    <th>Адрес</th>
+                                    <th>Определяемая группа</th>
+                                    <th>Отзыв</th>
+                                </tr>
+                            </thead>
+                            <tbody id="groupDetectionTableBody">
+                                <!-- Данные будут добавлены динамически -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" id="confirmGroupBtn">Подтвердить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Модальное окно для подтверждения несовпадения групп -->
+    <div class="modal fade" id="groupMismatchModal" tabindex="-1" aria-labelledby="groupMismatchModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="groupMismatchModalLabel">Несовпадение групп</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="groupMismatchText"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="noBtn">Нет</button>
+                    <button type="button" class="btn btn-primary" id="yesBtn">Да</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -2470,6 +2536,18 @@
             const completenessFilterSection = document.getElementById('completenessFilterSection');
             const methodFilterSection = document.getElementById('methodFilterSection');
             
+            if (tableView) {
+                tableView.addEventListener('change', function() {
+                    if (resultsTable) resultsTable.style.display = 'block';
+                    if (chartContainer) chartContainer.style.display = 'none';
+                    if (sentimentTable) sentimentTable.style.display = 'none';
+                    if (correlationHeatmap) correlationHeatmap.style.display = 'none';
+                    if (masterRatingTable) masterRatingTable.style.display = 'none';
+                    if (completenessFilterSection) completenessFilterSection.style.display = 'none';
+                    loadTableData();
+                });
+            }
+            
             if (chartView) {
                 chartView.addEventListener('change', function() {
                     if (resultsTable) resultsTable.style.display = 'none';
@@ -3036,6 +3114,160 @@
             });
             
             tableBody.innerHTML = tableHtml;
+        }
+        
+        // Функция для определения группы объекта
+        async function detectObjectGroup(data) {
+            try {
+                console.log('Определяем группу объекта...');
+                
+                // Объединяем все отзывы для лучшего определения группы
+                const allReviews = data.map(item => item.review_text || '').join(' ');
+                
+                const response = await fetch('/api/detect-group', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        reviews: allReviews,
+                        object_name: data[0]?.name || '',
+                        address: data[0]?.address || ''
+                    })
+                });
+                
+                const result = await response.json();
+                return result.detected_group || 'unknown';
+            } catch (error) {
+                console.error('Ошибка определения группы:', error);
+                return 'unknown';
+            }
+        }
+        
+        // Функция для отображения модального окна определения группы
+        function showGroupDetectionModal(data, detectedGroup) {
+            const modal = new bootstrap.Modal(document.getElementById('groupInputModal'));
+            const detectedGroupInput = document.getElementById('detectedGroup');
+            const userGroupInput = document.getElementById('userGroup');
+            const tableBody = document.getElementById('groupDetectionTableBody');
+            
+            // Заполняем данные
+            detectedGroupInput.value = detectedGroup;
+            userGroupInput.value = detectedGroup; // По умолчанию используем определенную группу
+            
+            // Заполняем таблицу
+            let tableHtml = '';
+            data.forEach((item, index) => {
+                tableHtml += `
+                    <tr>
+                        <td>${item.name || '-'}</td>
+                        <td>${item.address || '-'}</td>
+                        <td>${detectedGroup}</td>
+                        <td style="max-width: 300px; word-wrap: break-word;">${item.review_text || '-'}</td>
+                    </tr>
+                `;
+            });
+            tableBody.innerHTML = tableHtml;
+            
+            // Обработчик изменения введенной группы
+            userGroupInput.addEventListener('input', function() {
+                const userGroup = this.value.trim();
+                const detectedGroup = detectedGroupInput.value;
+                const alert = document.getElementById('groupComparisonAlert');
+                const alertText = document.getElementById('groupComparisonText');
+                
+                if (userGroup && userGroup !== detectedGroup) {
+                    alert.style.display = 'block';
+                    alertText.textContent = `Введенная группа "${userGroup}" отличается от определенной "${detectedGroup}"`;
+                } else {
+                    alert.style.display = 'none';
+                }
+            });
+            
+            // Обработчик подтверждения
+            document.getElementById('confirmGroupBtn').onclick = function() {
+                const userGroup = userGroupInput.value.trim();
+                const detectedGroup = detectedGroupInput.value;
+                
+                if (userGroup !== detectedGroup) {
+                    // Показываем модальное окно подтверждения
+                    showGroupMismatchModal(userGroup, detectedGroup, data);
+                } else {
+                    // Группы совпадают, продолжаем обработку
+                    processDataWithGroup(data, userGroup);
+                    modal.hide();
+                }
+            };
+            
+            modal.show();
+        }
+        
+        // Функция для показа модального окна несовпадения групп
+        function showGroupMismatchModal(userGroup, detectedGroup, data) {
+            const modal = new bootstrap.Modal(document.getElementById('groupMismatchModal'));
+            const text = document.getElementById('groupMismatchText');
+            
+            text.textContent = `Введенная группа "${userGroup}" не совпадает с определенной "${detectedGroup}". Все еще хотите ввести "${userGroup}"?`;
+            
+            // Обработчики кнопок
+            document.getElementById('yesBtn').onclick = function() {
+                processDataWithGroup(data, userGroup);
+                modal.hide();
+                bootstrap.Modal.getInstance(document.getElementById('groupInputModal')).hide();
+            };
+            
+            document.getElementById('noBtn').onclick = function() {
+                modal.hide();
+                // Возвращаемся к модальному окну ввода группы
+                document.getElementById('userGroup').focus();
+            };
+            
+            modal.show();
+        }
+        
+        // Функция для обработки данных с выбранной группой
+        function processDataWithGroup(data, group) {
+            console.log('Обрабатываем данные с группой:', group);
+            
+            // Добавляем группу к данным
+            const processedData = data.map(item => ({
+                ...item,
+                group: group
+            }));
+            
+            // Отображаем данные в таблице
+            displayTableData(processedData, 'group-detection');
+            
+            // Показываем таблицу
+            const resultsTable = document.getElementById('resultsTable');
+            if (resultsTable) {
+                resultsTable.style.display = 'block';
+            }
+        }
+        
+        // Функция для загрузки данных таблицы (с определением группы)
+        async function loadTableData() {
+            try {
+                console.log('Загружаем данные для таблицы с определением группы...');
+                
+                // Получаем последние загруженные данные
+                const response = await fetch('/upload/latest-data');
+                const data = await response.json();
+                
+                if (data.success && data.data && data.data.length > 0) {
+                    // Определяем группу автоматически
+                    const detectedGroup = await detectObjectGroup(data.data);
+                    
+                    // Показываем модальное окно с определенной группой
+                    showGroupDetectionModal(data.data, detectedGroup);
+                } else {
+                    console.log('Нет данных для отображения');
+                    document.getElementById('resultsTableBody').innerHTML = '<tr><td colspan="6" class="text-center text-muted">Нет данных для отображения</td></tr>';
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки данных таблицы:', error);
+                document.getElementById('resultsTableBody').innerHTML = '<tr><td colspan="6" class="text-center text-danger">Ошибка загрузки данных</td></tr>';
+            }
         }
         
         // Функция для создания диаграммы

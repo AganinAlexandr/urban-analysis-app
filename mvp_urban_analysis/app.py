@@ -93,6 +93,79 @@ def index():
     """Главная страница"""
     return render_template('index.html')
 
+@app.route('/upload/detect-group', methods=['POST'])
+def detect_group_from_upload():
+    """Определение группы из загруженного файла"""
+    try:
+        logger.info("=== ОПРЕДЕЛЕНИЕ ГРУППЫ ИЗ ФАЙЛА ===")
+        
+        if 'file' not in request.files:
+            logger.error("Файл не выбран")
+            return jsonify({'error': 'Файл не выбран'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            logger.error("Файл не выбран")
+            return jsonify({'error': 'Файл не выбран'}), 400
+        
+        logger.info(f"Загружен файл для определения группы: {file.filename}")
+        
+        # Проверяем формат файла
+        file_ext = os.path.splitext(file.filename)[1].lower()
+        if file_ext != '.json':
+            return jsonify({'error': 'Для определения группы поддерживаются только JSON файлы'}), 400
+        
+        # Сохраняем файл временно
+        temp_filename = f'detect_group_{datetime.now().strftime("%Y%m%d_%H%M%S")}{file_ext}'
+        temp_path = os.path.join('data', 'temp', temp_filename)
+        os.makedirs(os.path.dirname(temp_path), exist_ok=True)
+        file.save(temp_path)
+        
+        # Читаем JSON файл
+        with open(temp_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        # Извлекаем данные для определения группы
+        if isinstance(data, list) and len(data) > 0:
+            # Берем первый объект и его отзывы
+            first_object = data[0]
+            object_name = first_object.get('name', '')
+            address = first_object.get('address', '')
+            
+            # Объединяем все отзывы
+            reviews = []
+            if 'reviews' in first_object and isinstance(first_object['reviews'], list):
+                reviews = [review.get('text', '') for review in first_object['reviews']]
+            
+            combined_text = f"{object_name} {address} {' '.join(reviews)}"
+            
+            # Определяем группу
+            from app.core.district_detector import detect_group_from_text
+            detected_group = detect_group_from_text(combined_text)
+            
+            logger.info(f"Определена группа: {detected_group} для объекта: {object_name}")
+            
+            # Удаляем временный файл
+            os.remove(temp_path)
+            
+            return jsonify({
+                'success': True,
+                'detected_group': detected_group,
+                'data': data
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Неверная структура JSON файла'
+            })
+            
+    except Exception as e:
+        logger.error(f"Ошибка определения группы из файла: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     """Загрузка файла для обработки"""
@@ -218,13 +291,55 @@ def upload_file():
             logger.info(f"needs_group_input = {needs_group_input}")
             
             if needs_group_input:
-                logger.warning("Возвращаем ошибку group_required")
-                # Возвращаем ошибку, требующую ввода группы
+                logger.info("Пытаемся определить группу автоматически...")
+                
+                # Пытаемся определить группу автоматически
+                detected_group = "unknown"
+                try:
+                    # Объединяем все тексты для определения группы
+                    combined_text = ""
+                    if 'name' in df.columns:
+                        combined_text += " ".join(df['name'].dropna().astype(str)) + " "
+                    if 'address' in df.columns:
+                        combined_text += " ".join(df['address'].dropna().astype(str)) + " "
+                    if 'review_text' in df.columns:
+                        combined_text += " ".join(df['review_text'].dropna().astype(str))
+                    
+                    if combined_text.strip():
+                        from initial_keywords_system import detect_group_by_initial_keywords
+                        # Извлекаем название объекта из данных
+                        object_names = df['name'].dropna().astype(str).tolist()
+                        object_name = " ".join(object_names[:3]) if object_names else ""  # Берем первые 3 названия
+                        review_texts = df['review_text'].dropna().astype(str).tolist()
+                        review_text = " ".join(review_texts[:5]) if review_texts else ""  # Берем первые 5 отзывов
+                        
+                        detected_group, confidence = detect_group_by_initial_keywords(object_name, review_text)
+                        logger.info(f"Автоматически определена группа: {detected_group} (уверенность: {confidence})")
+                    else:
+                        logger.warning("Не удалось определить группу - нет текста для анализа")
+                        detected_group = 'undetected'
+                        
+                except Exception as e:
+                    logger.error(f"Ошибка автоматического определения группы: {e}")
+                
+                # Всегда возвращаем данные для показа модального окна
+                logger.info("Возвращаем данные для ручного ввода группы")
+                
+                # Подготавливаем данные для отображения
+                display_columns = ['name', 'address', 'review_text']
+                available_columns = [col for col in display_columns if col in df.columns]
+                
+                # Берем первые 10 записей для отображения
+                display_df = convert_dataframe_for_json(df[available_columns].head(10))
+                display_data = display_df.to_dict('records')
+                
                 return jsonify({
                     'error': 'group_required',
-                    'message': f'Поле группы отсутствует или пустое. Пожалуйста, выберите группу для {len(df)} записей.',
+                    'message': f'Пожалуйста, подтвердите или измените группу для {len(df)} записей.',
                     'total_records': len(df),
-                    'empty_group_records': len(df)
+                    'empty_group_records': len(df),
+                    'detected_group': detected_group,
+                    'data': display_data
                 }), 400
             else:
                 logger.info("Группа определена автоматически, продолжаем обработку")
@@ -280,7 +395,11 @@ def upload_file():
                 success = db_manager_fixed.migrate_csv_to_database(analyzed_df, source="upload")
                 logger.info(f"Сохранение в БД: {'успешно' if success else 'ошибка'}")
                 
-                # Архив больше не используется - все данные только в БД
+                # Сохраняем данные в app.archive_data для возможности миграции
+                app.archive_data = analyzed_df
+                logger.info(f"Данные сохранены в app.archive_data: {len(analyzed_df)} записей")
+                logger.info(f"Тип app.archive_data: {type(app.archive_data)}")
+                logger.info(f"Колонки в app.archive_data: {list(app.archive_data.columns)}")
                 
             except Exception as e:
                 logger.error(f"Ошибка сохранения в БД: {e}")
@@ -604,19 +723,29 @@ def migrate_to_database():
                     'stats': stats
                 })
             else:
-                return jsonify({'error': 'Нет данных для миграции'}), 400
+                return jsonify({
+                    'error': 'Нет текущих данных для миграции. Загрузите файл для обработки.',
+                    'suggestion': 'Используйте загрузку файла для создания новых данных'
+                }), 400
                 
         elif data_type == 'archive':
             # Мигрируем архивные данные
+            logger.info(f"Проверка app.archive_data: hasattr={hasattr(app, 'archive_data')}, value={getattr(app, 'archive_data', None)}")
             if hasattr(app, 'archive_data') and app.archive_data is not None:
+                logger.info(f"Начинаем миграцию архивных данных: {len(app.archive_data)} записей")
                 stats = db_manager_fixed.migrate_csv_to_database(app.archive_data, 'archive_data')
+                logger.info(f"Миграция завершена, статистика: {stats}")
                 return jsonify({
                     'success': True,
                     'message': 'Архивные данные успешно мигрированы в базу данных',
                     'stats': stats
                 })
             else:
-                return jsonify({'error': 'Нет архивных данных для миграции'}), 400
+                logger.warning("app.archive_data не найден или пуст")
+                return jsonify({
+                    'error': 'Нет архивных данных для миграции. Загрузите файл для обработки.',
+                    'suggestion': 'Используйте загрузку файла для создания новых данных'
+                }), 400
         
         else:
             return jsonify({'error': 'Неизвестный тип данных'}), 400
@@ -695,6 +824,18 @@ def get_map_data():
         # Парсим фильтры
         active_filters = [f for f in filters.split(',') if f] if filters else []
 
+        # Маппинг английских фильтров на русские названия для режима 'determined'
+        filter_mapping = {
+            'school': 'Школа',
+            'hospital': 'Больница',
+            'university': 'Университет',
+            'pharmacy': 'Аптека',
+            'kindergarden': 'Детский сад',
+            'polyclinic': 'Поликлиника',
+            'shopmall': 'Торговый центр',
+            'resident_complex': 'Жилой комплекс'
+        }
+
         # Определяем источник данных
         if data_source == 'sample':
             df = sample_manager.download_sample()
@@ -712,35 +853,35 @@ def get_map_data():
         df_converted = convert_dataframe_for_json(df)
 
         # Диагностика: выводим уникальные значения групп
+        print("=== ДИАГНОСТИКА ДАННЫХ ИЗ БД ===")
         print("Уникальные group_type:", df_converted['group_type'].unique() if 'group_type' in df_converted.columns else 'нет поля')
         print("Уникальные detected_group_type:", df_converted['detected_group_type'].unique() if 'detected_group_type' in df_converted.columns else 'нет поля')
+        print("Уникальные group_name:", df_converted['group_name'].unique() if 'group_name' in df_converted.columns else 'нет поля')
+        print("Всего строк в данных:", len(df_converted))
+        print("Колонки в данных:", list(df_converted.columns))
         
-        # Диагностика: выводим доступные поля для сентимента
-        sentiment_fields = [col for col in df_converted.columns if 'sentiment' in col.lower()]
-        print("Поля сентимента в данных:", sentiment_fields)
-        print("Пример данных для первого объекта:", df_converted.iloc[0].to_dict() if not df_converted.empty else "Нет данных")
-        
-        # Диагностика: выводим распределение сентиментов для nlp_vader
-        if 'nlp_vader_sentiment' in df_converted.columns:
-            vader_sentiments = df_converted['nlp_vader_sentiment'].value_counts()
-            print("Распределение сентиментов nlp_vader:", vader_sentiments.to_dict())
-        
-        # Диагностика: выводим распределение сентиментов для user_rating
-        if 'user_rating_sentiment' in df_converted.columns:
-            rating_sentiments = df_converted['user_rating_sentiment'].value_counts()
-            print("Распределение сентиментов user_rating:", rating_sentiments.to_dict())
+        # Дополнительная диагностика: проверяем первые несколько строк
+        if not df_converted.empty:
+            print("\n=== ПЕРВЫЕ 3 СТРОКИ ДАННЫХ ===")
+            for i in range(min(3, len(df_converted))):
+                row = df_converted.iloc[i]
+                print(f"Строка {i}: object_id={row.get('object_id')}, name={row.get('name')}, group_name={row.get('group_name')}, group={row.get('group')}")
 
         # Выбираем поле группировки
         if group_type == 'supplier':
-            group_field = 'group_type'
+            group_field = 'group_name'  # Используем group_name для английских названий
         else:
-            group_field = 'detected_group_type'
+            group_field = 'detected_group_type'  # Используем detected_group_type для русских названий
+            
         if group_field not in df_converted.columns:
             # fallback: берем первое поле, содержащее 'group' в названии
             group_fields = [col for col in df_converted.columns if 'group' in col.lower()]
             group_field = group_fields[0] if group_fields else None
             if not group_field:
                 return jsonify({'archive': [], 'new': []})
+        
+        print(f"🎯 Поле группировки: {group_field}")
+        print(f"🎯 Значения в поле {group_field}: {df_converted[group_field].unique() if group_field in df_converted.columns else 'нет поля'}")
 
         # Фильтруем только объекты с валидными координатами
         coords_df = df_converted[
@@ -751,11 +892,11 @@ def get_map_data():
         
         # Удаляем дубликаты по координатам, оставляя первую запись
         coords_df = coords_df.drop_duplicates(subset=['latitude', 'longitude'], keep='first')
+        
+        print(f"Объектов после удаления дубликатов координат: {len(coords_df)}")
+        print(f"Уникальные координаты: {coords_df[['latitude', 'longitude']].drop_duplicates().shape[0]}")
 
         # Разделяем на объекты с группой и без группы
-        # Убираем дубликаты по координатам для корректного отображения
-        coords_df = coords_df.drop_duplicates(subset=['latitude', 'longitude'], keep='first')
-        
         has_group = coords_df[group_field].notna() & (coords_df[group_field] != '') & (coords_df[group_field] != 'None')
         with_group = coords_df[has_group]
         without_group = coords_df[~has_group]
@@ -765,8 +906,69 @@ def get_map_data():
         # Проверяем, есть ли активные фильтры
         if active_filters and len(active_filters) > 0:
             # Если фильтры заданы — показываем только объекты этих групп
-            filtered = with_group[with_group[group_field].isin(active_filters)]
-            for group, group_data in filtered.groupby(group_field):
+            # Но сначала проверяем, какие из активных фильтров реально есть в данных
+            
+            if group_type == 'determined':
+                # Для режима 'determined' преобразуем английские фильтры в русские названия
+                mapped_filters = [filter_mapping.get(f, f) for f in active_filters]
+                print(f"🔍 Фильтрация (determined): английские фильтры {active_filters} -> русские {mapped_filters}")
+                available_groups = with_group[group_field].unique()
+                valid_filters = [f for f in mapped_filters if f in available_groups]
+            else:
+                # Для режима 'supplier' используем фильтры как есть
+                available_groups = with_group[group_field].unique()
+                valid_filters = [f for f in active_filters if f in available_groups]
+            
+            print(f"🔍 Фильтрация: доступные группы {available_groups}, валидные фильтры {valid_filters}")
+            
+            if valid_filters:
+                # Показываем только объекты из валидных фильтров
+                filtered = with_group[with_group[group_field].isin(valid_filters)]
+                print(f"✅ Применяем фильтры: {valid_filters}, получаем {len(filtered)} объектов")
+                
+                for group, group_data in filtered.groupby(group_field):
+                    points = []
+                    for _, row in group_data.iterrows():
+                        point_color = get_point_color(row, color_scheme, sentiment_method, group_type)
+                        points.append({
+                            'name': row.get('object_name', row.get('name', '')),
+                            'address': row.get('object_address', row.get('address', '')),
+                            'latitude': float(row.get('latitude', 0)),
+                            'longitude': float(row.get('longitude', 0)),
+                            'district': row.get('district', 'Неизвестный район'),
+                            'group': row.get('group_name', row.get('group', '')),  # Используем group_name для английских названий
+                            'determined_group': row.get('detected_group_type', row.get('determined_group', '')),
+                            'color': point_color,
+                            'sentiment': get_sentiment_value(row, sentiment_method)
+                        })
+                    if points:
+                        archive_data.append({'group': group, 'points': points})
+                        print(f"📍 Добавлена группа '{group}' с {len(points)} точками")
+            else:
+                # Если ни один из активных фильтров не найден в данных, показываем все объекты
+                print("⚠️ Ни один из активных фильтров не найден в данных, показываем все объекты")
+                for group, group_data in with_group.groupby(group_field):
+                    points = []
+                    for _, row in group_data.iterrows():
+                        point_color = get_point_color(row, color_scheme, sentiment_method, group_type)
+                        points.append({
+                            'name': row.get('object_name', row.get('name', '')),
+                            'address': row.get('object_address', row.get('address', '')),
+                            'latitude': float(row.get('latitude', 0)),
+                            'longitude': float(row.get('longitude', 0)),
+                            'district': row.get('district', 'Неизвестный район'),
+                            'group': row.get('group_name', row.get('group', '')),  # Используем group_name для английских названий
+                            'determined_group': row.get('detected_group_type', row.get('determined_group', '')),
+                            'color': point_color,
+                            'sentiment': get_sentiment_value(row, sentiment_method)
+                        })
+                    if points:
+                        archive_data.append({'group': group, 'points': points})
+                        print(f"📍 Добавлена группа '{group}' с {len(points)} точками")
+        else:
+            # Если фильтры не заданы — показываем ВСЕ объекты с группами
+            print("🔓 Фильтры не заданы, показываем все группы")
+            for group, group_data in with_group.groupby(group_field):
                 points = []
                 for _, row in group_data.iterrows():
                     point_color = get_point_color(row, color_scheme, sentiment_method, group_type)
@@ -776,18 +978,62 @@ def get_map_data():
                         'latitude': float(row.get('latitude', 0)),
                         'longitude': float(row.get('longitude', 0)),
                         'district': row.get('district', 'Неизвестный район'),
-                        'group': row.get('group_type', row.get('group', '')),
+                        'group': row.get('group_name', row.get('group', '')),  # Используем group_name для английских названий
                         'determined_group': row.get('detected_group_type', row.get('determined_group', '')),
                         'color': point_color,
                         'sentiment': get_sentiment_value(row, sentiment_method)
                     })
                 if points:
                     archive_data.append({'group': group, 'points': points})
-        else:
-            # Если фильтры не заданы — НЕ показываем объекты (скрываем все)
-            # archive_data остается пустым списком
-            pass
+                    print(f"📍 Добавлена группа '{group}' с {len(points)} точками")
 
+        # Диагностика: выводим количество объектов
+        total_points = sum(len(group['points']) for group in archive_data)
+        print(f"API карты: возвращаем {len(archive_data)} групп, всего {total_points} точек")
+        
+        # Дополнительная диагностика
+        print(f"=== ДИАГНОСТИКА API КАРТЫ ===")
+        print(f"Всего объектов в БД: {len(df_converted)}")
+        print(f"Объектов с координатами: {len(coords_df)}")
+        print(f"Объектов с группами: {len(with_group)}")
+        print(f"Активные фильтры: {active_filters}")
+        print(f"Поле группировки: {group_field}")
+        print(f"Уникальные группы в данных: {with_group[group_field].unique() if not with_group.empty else 'нет данных'}")
+        
+        if active_filters:
+            print(f"Фильтрованные группы: {[f for f in active_filters if f in with_group[group_field].values]}")
+            print(f"Отсутствующие в фильтрах: {[f for f in with_group[group_field].unique() if f not in active_filters]}")
+        
+        # Показываем детали по каждой группе
+        for group_name in with_group[group_field].unique():
+            group_count = len(with_group[with_group[group_field] == group_name])
+            print(f"Группа '{group_name}': {group_count} объектов")
+            if group_name in active_filters:
+                print(f"  ✓ В активных фильтрах")
+            else:
+                print(f"  ✗ НЕ в активных фильтрах")
+        
+        # Дополнительная диагностика фильтрации
+        print(f"\n=== ДИАГНОСТИКА ФИЛЬТРАЦИИ ===")
+        if active_filters:
+            print(f"Применяем фильтры: {active_filters}")
+            available_groups = with_group[group_field].unique()
+            valid_filters = [f for f in active_filters if f in available_groups]
+            print(f"Доступные группы в данных: {available_groups}")
+            print(f"Валидные фильтры: {valid_filters}")
+            print(f"Невалидные фильтры: {[f for f in active_filters if f not in available_groups]}")
+            
+            if valid_filters:
+                filtered_groups = with_group[with_group[group_field].isin(valid_filters)]
+                print(f"Групп после фильтрации: {filtered_groups[group_field].unique()}")
+                for group in valid_filters:
+                    count = len(with_group[with_group[group_field] == group])
+                    print(f"  {group}: {count} объектов ✓")
+            else:
+                print("⚠️ Ни один из активных фильтров не найден в данных!")
+        else:
+            print("Фильтры не заданы, показываем все группы")
+        
         return jsonify({
             'archive': archive_data,
             'new': [],
@@ -807,6 +1053,8 @@ def get_point_color(row, color_scheme, sentiment_method, group_type='supplier'):
     if color_scheme == 'sentiment':
         # Цвет по сентименту
         sentiment = get_sentiment_value(row, sentiment_method)
+        if sentiment == 'нет данных':
+            return '#6c757d'  # Серый цвет для объектов без отзывов
         return SENTIMENT_CONFIG['colors'].get(sentiment, '#6c757d')
     else:
         # Цвет по группе
@@ -814,14 +1062,19 @@ def get_point_color(row, color_scheme, sentiment_method, group_type='supplier'):
             # В режиме "Определенные" используем detected_group_type для цвета
             group = row.get('detected_group_type', row.get('determined_group', ''))
         else:
-            # В режиме "От поставщика" используем group_type для цвета
-            group = row.get('group_type', row.get('group', ''))
+            # В режиме "От поставщика" используем group_name для цвета (английские названия)
+            group = row.get('group_name', row.get('group', ''))
         return GROUP_CONFIG['colors'].get(group, '#6c757d')
 
 def get_sentiment_value(row, sentiment_method):
     """Получает значение сентимента для строки"""
     import logging
     logger = logging.getLogger(__name__)
+    
+    # Проверяем, есть ли у объекта отзывы
+    review_id = row.get('review_id')
+    if not review_id or pd.isna(review_id):
+        return 'нет данных'  # Объект без отзывов
     
     if sentiment_method == 'user_rating':
         # Используем преобразованный рейтинг
@@ -1223,7 +1476,7 @@ def get_chart_data():
         params = []
         if active_filters and len(active_filters) > 0:
             placeholders = ','.join(['?' for _ in active_filters])
-            base_query += f" AND og.group_name IN ({placeholders})"
+            base_query += f" AND og.group_type IN ({placeholders})"
             params.extend(active_filters)
         
         cursor.execute(base_query, params)
@@ -1346,33 +1599,33 @@ def get_chart_data():
         
         # Заполняем данные для каждого отзыва
         for review_id, review_data in reviews_data.items():
-            positive_data = [];
-            neutral_data = [];
-            negative_data = [];
+            # Определяем итоговый сентимент для отзыва
+            final_sentiment = 'neutral'  # по умолчанию
             
+            # Ищем любой метод с результатом для этого отзыва
             for method in methods_list:
                 if method in review_data['methods']:
                     method_data = review_data['methods'][method]
                     if method_data['positive'] == 1:
-                        positive_data.push(1);
-                        neutral_data.push(0);
-                        negative_data.push(0);
+                        final_sentiment = 'positive'
+                        break  # берем первый положительный
                     elif method_data['negative'] == 1:
-                        positive_data.push(0);
-                        neutral_data.push(0);
-                        negative_data.push(1);
-                    else:
-                        positive_data.push(0);
-                        neutral_data.push(1);
-                        negative_data.push(0);
-                else:
-                    positive_data.push(0);
-                    neutral_data.push(0);
-                    negative_data.push(0);
+                        final_sentiment = 'negative'
+                        break  # берем первый отрицательный
             
-            positive_series['data'].push(positive_data);
-            neutral_series['data'].push(neutral_data);
-            negative_series['data'].push(negative_data);
+            # Добавляем одно значение для каждого отзыва
+            if final_sentiment == 'positive':
+                positive_series['data'].append(1)
+                neutral_series['data'].append(0)
+                negative_series['data'].append(0)
+            elif final_sentiment == 'negative':
+                positive_series['data'].append(0)
+                neutral_series['data'].append(0)
+                negative_series['data'].append(1)
+            else:  # neutral
+                positive_series['data'].append(0)
+                neutral_series['data'].append(1)
+                negative_series['data'].append(0)
         
         chart_series = [positive_series, neutral_series, negative_series];
         
@@ -1406,47 +1659,51 @@ def get_chart_table():
         completeness_filter = request.args.get('completeness_filter', 'all_results')  # Новый параметр
         
         logger.info(f"Запрос данных таблицы с параметрами: filters={active_filters}, group_type={group_type}, color_scheme={color_scheme}, sentiment_method={sentiment_method}, completeness_filter={completeness_filter}")
+        logger.info(f"Тип active_filters: {type(active_filters)}, содержимое: {active_filters}")
         
         # Подключаемся к БД
         conn = sqlite3.connect('urban_analysis_fixed.db')
         cursor = conn.cursor()
         
         # Базовый запрос для получения объектов с учетом фильтров
-        if group_type == 'supplier':
-            # Используем группы от поставщика
-            base_query = """
-                SELECT DISTINCT o.id, o.name, o.address, o.latitude, o.longitude, 
-                       og.group_name as group_type, dg.group_name as determined_group
-                FROM objects o
-                LEFT JOIN object_groups og ON o.group_id = og.id
-                LEFT JOIN detected_groups dg ON o.detected_group_id = dg.id
-                WHERE o.latitude IS NOT NULL AND o.longitude IS NOT NULL
-            """
-        else:
-            # Используем определенные группы
-            base_query = """
-                SELECT DISTINCT o.id, o.name, o.address, o.latitude, o.longitude, 
-                       og.group_name as group_type, dg.group_name as determined_group
-                FROM objects o
-                LEFT JOIN object_groups og ON o.group_id = og.id
-                LEFT JOIN detected_groups dg ON o.detected_group_id = dg.id
-                WHERE o.latitude IS NOT NULL AND o.longitude IS NOT NULL
-            """
+        base_query = """
+            SELECT DISTINCT o.id, o.name, o.address, o.latitude, o.longitude, 
+                   og.group_name as group_type, dg.group_name as determined_group
+            FROM objects o
+            LEFT JOIN object_groups og ON o.group_id = og.id
+            LEFT JOIN detected_groups dg ON o.detected_group_id = dg.id
+            WHERE o.latitude IS NOT NULL AND o.longitude IS NOT NULL
+        """
         
         params = []
         if active_filters and len(active_filters) > 0:
+            # Определяем, какой тип фильтрации использовать
             if group_type == 'supplier':
+                # Фильтруем по группам от поставщика (object_groups)
                 placeholders = ','.join(['?' for _ in active_filters])
                 base_query += f" AND og.group_name IN ({placeholders})"
-            else:
+                logger.info(f"Применяем фильтр по группам от поставщика: {active_filters}")
+            elif group_type == 'determined':
+                # Фильтруем по определенным группам (detected_groups)
                 placeholders = ','.join(['?' for _ in active_filters])
                 base_query += f" AND dg.group_name IN ({placeholders})"
+                logger.info(f"Применяем фильтр по определенным группам: {active_filters}")
+            else:
+                # Если group_type - это конкретное название группы, 
+                # то фильтруем по группам от поставщика (object_groups)
+                placeholders = ','.join(['?' for _ in active_filters])
+                base_query += f" AND og.group_name IN ({placeholders})"
+                logger.info(f"group_type='{group_type}' - применяем фильтр по группам от поставщика: {active_filters}")
             params.extend(active_filters)
         
         cursor.execute(base_query, params)
         filtered_objects = cursor.fetchall()
         
         logger.info(f"Найдено объектов после фильтрации: {len(filtered_objects)}")
+        logger.info(f"SQL запрос: {base_query}")
+        logger.info(f"Параметры: {params}")
+        if filtered_objects:
+            logger.info(f"Пример объекта: {filtered_objects[0]}")
         
         if not filtered_objects:
             return jsonify({
@@ -1489,6 +1746,9 @@ def get_chart_table():
         
         cursor.execute(chart_query, object_ids)
         chart_data = cursor.fetchall()
+        
+        logger.info(f"Найдено отзывов: {len(chart_data)}")
+        logger.info(f"ID объектов для поиска: {object_ids}")
         
         # Группируем данные по отзывам и методам
         reviews_data = {}
@@ -1627,7 +1887,9 @@ def get_correlation_data():
         cursor = conn.cursor()
         
         # Фильтрация объектов
+        # group_type может быть 'supplier', 'determined' или конкретной группой
         if group_type == 'supplier':
+            # Используем группы от поставщика
             base_query = """
                 SELECT DISTINCT o.id, o.name, o.address, o.latitude, o.longitude,
                        og.group_name as group_type, dg.group_name as determined_group
@@ -1639,7 +1901,11 @@ def get_correlation_data():
             if active_filters and len(active_filters) > 0:
                 placeholders = ','.join(['?' for _ in active_filters])
                 base_query += f" AND og.group_name IN ({placeholders})"
-        else:  # group_type == 'determined'
+                cursor.execute(base_query, active_filters)
+            else:
+                cursor.execute(base_query)
+        elif group_type == 'determined':
+            # Используем определенные группы
             base_query = """
                 SELECT DISTINCT o.id, o.name, o.address, o.latitude, o.longitude,
                        og.group_name as group_type, dg.group_name as determined_group
@@ -1651,12 +1917,21 @@ def get_correlation_data():
             if active_filters and len(active_filters) > 0:
                 placeholders = ','.join(['?' for _ in active_filters])
                 base_query += f" AND dg.group_name IN ({placeholders})"
-        
-        # Выполняем запрос с параметрами
-        if active_filters and len(active_filters) > 0:
-            cursor.execute(base_query, active_filters)
+                cursor.execute(base_query, active_filters)
+            else:
+                cursor.execute(base_query)
         else:
-            cursor.execute(base_query)
+            # group_type содержит конкретное название группы (например, 'university')
+            base_query = """
+                SELECT DISTINCT o.id, o.name, o.address, o.latitude, o.longitude,
+                       og.group_name as group_type, dg.group_name as determined_group
+                FROM objects o
+                LEFT JOIN object_groups og ON o.group_id = og.id
+                LEFT JOIN detected_groups dg ON o.detected_group_id = dg.id
+                WHERE o.latitude IS NOT NULL AND o.longitude IS NOT NULL
+                       AND og.group_name = ?
+            """
+            cursor.execute(base_query, [group_type])
         
         filtered_objects = cursor.fetchall()
         logger.info(f"Найдено объектов после фильтрации: {len(filtered_objects)}")
@@ -1920,10 +2195,18 @@ def get_master_rating_data():
             LEFT JOIN object_groups og ON o.group_id = og.id
             LEFT JOIN detected_groups dg ON o.detected_group_id = dg.id
             LEFT JOIN master_ratings mr ON r.id = mr.review_id
-            ORDER BY o.name, r.id
         """
         
-        cursor.execute(data_query)
+        # Добавляем фильтрацию по группам если указаны фильтры
+        params = []
+        if active_filters and len(active_filters) > 0:
+            placeholders = ','.join(['?' for _ in active_filters])
+            data_query += f" WHERE og.group_name IN ({placeholders})"
+            params.extend(active_filters)
+        
+        data_query += " ORDER BY o.name, r.id"
+        
+        cursor.execute(data_query, params)
         results = cursor.fetchall()
         
         logger.info(f"Найдено отзывов для мастер-рейтинга: {len(results)}")
@@ -2046,6 +2329,45 @@ def get_master_rating_stats():
         
     except Exception as e:
         logger.error(f"Ошибка получения статистики мастер-рейтингов: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
+@app.route('/api/object-groups')
+def get_object_groups():
+    """Получение списка групп объектов"""
+    try:
+        conn = sqlite3.connect('urban_analysis_fixed.db')
+        cursor = conn.cursor()
+        
+        # Получаем все группы объектов
+        cursor.execute("""
+            SELECT group_name, group_type 
+            FROM object_groups 
+            ORDER BY group_type
+        """)
+        groups = cursor.fetchall()
+        
+        conn.close()
+        
+        # Формируем ответ
+        groups_data = []
+        for group_name, group_type in groups:
+            groups_data.append({
+                'name': group_name,
+                'type': group_type
+            })
+        
+        logger.info(f"Загружено {len(groups_data)} групп объектов")
+        
+        return jsonify({
+            'success': True,
+            'groups': groups_data
+        })
+        
+    except Exception as e:
+        logger.error(f"Ошибка загрузки групп объектов: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)

@@ -824,17 +824,8 @@ def get_map_data():
         # Парсим фильтры
         active_filters = [f for f in filters.split(',') if f] if filters else []
 
-        # Маппинг английских фильтров на русские названия для режима 'determined'
-        filter_mapping = {
-            'school': 'Школа',
-            'hospital': 'Больница',
-            'university': 'Университет',
-            'pharmacy': 'Аптека',
-            'kindergarden': 'Детский сад',
-            'polyclinic': 'Поликлиника',
-            'shopmall': 'Торговый центр',
-            'resident_complex': 'Жилой комплекс'
-        }
+        # Импортируем утилиты для работы с группами
+        from app.core.group_utils import get_russian_group_name
 
         # Определяем источник данных
         if data_source == 'sample':
@@ -910,7 +901,7 @@ def get_map_data():
             
             if group_type == 'determined':
                 # Для режима 'determined' преобразуем английские фильтры в русские названия
-                mapped_filters = [filter_mapping.get(f, f) for f in active_filters]
+                mapped_filters = [get_russian_group_name(f) for f in active_filters]
                 print(f"🔍 Фильтрация (determined): английские фильтры {active_filters} -> русские {mapped_filters}")
                 available_groups = with_group[group_field].unique()
                 valid_filters = [f for f in mapped_filters if f in available_groups]
@@ -1049,7 +1040,16 @@ def get_map_data():
 def get_point_color(row, color_scheme, sentiment_method, group_type='supplier'):
     """Определяет цвет точки на карте"""
     from app.core.config import SENTIMENT_CONFIG, GROUP_CONFIG
+    from app.core.group_utils import get_english_group_name
     
+    # В режиме "Определенные" всегда используем цвет по группе
+    if group_type == 'determined':
+        group = row.get('detected_group_type', row.get('determined_group', ''))
+        # Маппим русские названия на английские для получения цвета
+        group_key = get_english_group_name(group) or group
+        return GROUP_CONFIG['colors'].get(group_key, '#6c757d')
+    
+    # В режиме "От поставщика" используем выбранную схему цветов
     if color_scheme == 'sentiment':
         # Цвет по сентименту
         sentiment = get_sentiment_value(row, sentiment_method)
@@ -1058,13 +1058,8 @@ def get_point_color(row, color_scheme, sentiment_method, group_type='supplier'):
         return SENTIMENT_CONFIG['colors'].get(sentiment, '#6c757d')
     else:
         # Цвет по группе
-        if group_type == 'determined':
-            # В режиме "Определенные" используем detected_group_type для цвета
-            group = row.get('detected_group_type', row.get('determined_group', ''))
-        else:
-            # В режиме "От поставщика" используем group_name для цвета (английские названия)
-            group = row.get('group_name', row.get('group', ''))
-        return GROUP_CONFIG['colors'].get(group, '#6c757d')
+        group_key = row.get('group_name', row.get('group', ''))
+        return GROUP_CONFIG['colors'].get(group_key, '#6c757d')
 
 def get_sentiment_value(row, sentiment_method):
     """Получает значение сентимента для строки"""

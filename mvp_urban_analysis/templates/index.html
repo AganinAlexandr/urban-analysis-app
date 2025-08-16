@@ -592,8 +592,8 @@
                                             <label class="form-check-label" for="filter_shopmall">Торговые центры</label>
                                         </div>
                                         <div class="form-check filter-checkbox">
-                                            <input class="form-check-input" type="checkbox" id="filter_resident_complexes" name="group_filter" value="resident_complexes" checked>
-                                            <label class="form-check-label" for="filter_resident_complexes">Жилые комплексы</label>
+                                                                <input class="form-check-input" type="checkbox" id="filter_resident_complex" name="group_filter" value="resident_complex" checked>
+                    <label class="form-check-label" for="filter_resident_complex">Жилой комплекс</label>
                                         </div>
                                     </div>
                                 </div>
@@ -645,7 +645,7 @@
                                         <div class="btn-group btn-group-sm w-100" role="group">
                                             <input type="radio" class="btn-check" name="groupType" id="supplierGroups" value="supplier" checked>
                                             <label class="btn btn-outline-success" for="supplierGroups" style="padding: 0.125rem 0.25rem !important; font-size: 0.75rem !important; line-height: 1.2 !important; min-height: 24px !important; max-height: 28px !important; height: 28px !important;">
-                                                <i class="fas fa-tag"></i> От поставщика
+                                                <i class="fas fa-tag"></i> Группы от поставщика
                                             </label>
                                         </div>
                                     </div>
@@ -819,46 +819,89 @@
     
     <!-- Модальное окно для ввода группы -->
     <div class="modal fade" id="groupInputModal" tabindex="-1" aria-labelledby="groupInputModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
+        <div class="modal-dialog modal-xl" style="max-height: 70vh;">
+            <div class="modal-content" style="max-height: 70vh;">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="groupInputModalLabel">Определение группы объекта</h5>
+                    <h5 class="modal-title" id="groupInputModalLabel">Определение групп объектов</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body" style="overflow-y: auto; max-height: calc(70vh - 120px);">
+                    <!-- Информация о загруженных данных -->
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <label for="detectedGroup" class="form-label"><strong>Определенная группа:</strong></label>
-                            <input type="text" class="form-control" id="detectedGroup" readonly>
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Статистика загрузки</h6>
+                                </div>
+                                <div class="card-body">
+                                    <p><strong>Всего записей:</strong> <span id="totalRecords">0</span></p>
+                                    <p><strong>Требуют группу:</strong> <span id="emptyGroupRecords">0</span></p>
+                                    <p><strong>Автоматически определены:</strong> <span id="autoDetectedRecords">0</span></p>
+                                </div>
+                            </div>
                         </div>
                         <div class="col-md-6">
-                            <label for="userGroup" class="form-label"><strong>Введите группу:</strong></label>
-                            <input type="text" class="form-control" id="userGroup" placeholder="Введите группу объекта">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Определенные группы</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div id="detectedGroupsStats">
+                                        <!-- Статистика будет добавлена динамически -->
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class="alert alert-info" id="groupComparisonAlert" style="display: none;">
-                        <i class="fas fa-info-circle"></i>
-                        <span id="groupComparisonText"></span>
+                    
+                    <!-- Выбор группы -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="userGroup" class="form-label"><strong>Выберите группу для всех объектов:</strong></label>
+                            <select class="form-select border-3 border-primary bg-light" id="userGroup" required style="box-shadow: 0 0 10px rgba(0,123,255,0.3);">
+                                <option value="">Выберите группу...</option>
+                                <option value="school">Школа</option>
+                                <option value="hospital">Больница</option>
+                                <option value="university">Университет</option>
+                                <option value="pharmacy">Аптека</option>
+                                <option value="kindergarden">Детский сад</option>
+                                <option value="polyclinic">Поликлиника</option>
+                                <option value="shopmall">Торговый центр</option>
+                                <option value="resident_complex">Жилой комплекс</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="detectedGroup" class="form-label"><strong>Автоматически определенная группа:</strong></label>
+                            <input type="text" class="form-control" id="detectedGroup" readonly>
+                        </div>
                     </div>
-                    <div class="table-responsive">
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Объект</th>
-                                    <th>Адрес</th>
-                                    <th>Определяемая группа</th>
-                                    <th>Отзыв</th>
-                                </tr>
-                            </thead>
-                            <tbody id="groupDetectionTableBody">
-                                <!-- Данные будут добавлены динамически -->
-                            </tbody>
-                        </table>
+                    
+                    <!-- Предварительный просмотр данных -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">Предварительный просмотр данных (первые 10 записей)</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>№</th>
+                                            <th>Название объекта</th>
+                                            <th>Отзыв</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="groupDetectionTableBody">
+                                        <!-- Данные будут добавлены динамически -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                    <button type="button" class="btn btn-primary" id="confirmGroupBtn">Подтвердить</button>
+                    <button type="button" class="btn btn-primary" id="confirmGroupBtn" disabled>Подтвердить и загрузить</button>
                 </div>
             </div>
         </div>
@@ -886,6 +929,36 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
+        // Функция для получения русского названия группы по английскому
+        function getRussianGroupName(englishName) {
+            const groupMapping = {
+                'school': 'Школа',
+                'hospital': 'Больница',
+                'university': 'Университет',
+                'pharmacy': 'Аптека',
+                'kindergarden': 'Детский сад',
+                'polyclinic': 'Поликлиника',
+                'shopmall': 'Торговый центр',
+                'resident_complex': 'Жилой комплекс'
+            };
+            return groupMapping[englishName] || englishName;
+        }
+
+        // Функция для получения английского названия группы по русскому
+        function getEnglishGroupName(russianName) {
+            const reverseMapping = {
+                'Школа': 'school',
+                'Больница': 'hospital',
+                'Университет': 'university',
+                'Аптека': 'pharmacy',
+                'Детский сад': 'kindergarden',
+                'Поликлиника': 'polyclinic',
+                'Торговый центр': 'shopmall',
+                'Жилой комплекс': 'resident_complex'
+            };
+            return reverseMapping[russianName] || russianName;
+        }
+
         // Drag and drop функциональность
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
@@ -992,7 +1065,13 @@
                 if (data.success) {
                     showStatus(data.message, 'success');
                     getArchiveInfo();
-                    updateMap(); // Обновляем карту после успешной загрузки
+                    
+                    // Принудительно обновляем карту после успешной загрузки
+                    console.log('Файл загружен успешно, обновляем карту...');
+                    setTimeout(() => {
+                        updateMap();
+                        console.log('Карта обновлена после загрузки файла');
+                    }, 500);
                     
                     // Отображаем результаты анализа
                     if (data.analysis_results) {
@@ -1000,7 +1079,15 @@
                     }
                 } else if (data.error === 'group_required') {
                     // Показываем модальное окно для выбора группы
-                    showGroupSelectionModal(data.message, data.total_records, data.empty_group_records, file, fileInfo);
+                    showGroupSelectionModal(
+                        data.message, 
+                        data.total_records, 
+                        data.empty_group_records, 
+                        file, 
+                        fileInfo,
+                        data.detected_groups_stats,
+                        data.data
+                    );
                 } else {
                     showStatus(data.error, 'danger');
                 }
@@ -1011,77 +1098,111 @@
             });
         }
 
-        function showGroupSelectionModal(message, totalRecords, emptyGroupRecords, file, fileInfo) {
+        function showGroupSelectionModal(message, totalRecords, emptyGroupRecords, file, fileInfo, detectedGroupsStats, data) {
             // Сохраняем информацию о файле в глобальной переменной
             window.currentFile = file;
             window.currentFileInfo = fileInfo;
+            window.currentUploadData = data;
             
-            // Создаем модальное окно для выбора группы
-            const modalHtml = `
-                <div class="modal fade" id="groupSelectionModal" tabindex="-1">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title">
-                                    <i class="fas fa-exclamation-triangle text-warning"></i> 
-                                    Требуется выбор группы
-                                </h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                            </div>
-                            <div class="modal-body">
-                                <div class="alert alert-warning">
-                                    <strong>${message}</strong>
-                                </div>
-                                <p><strong>Всего записей:</strong> ${totalRecords}</p>
-                                <p><strong>Записей без группы:</strong> ${emptyGroupRecords}</p>
-                                
-                                <div class="mb-3">
-                                    <label for="groupSelect" class="form-label">
-                                        <strong>Выберите группу для данных:</strong>
-                                    </label>
-                                    <select class="form-select" id="groupSelect" required>
-                                        <option value="">Выберите группу...</option>
-                                        <option value="university">Университеты</option>
-                                        <option value="school">Школы</option>
-                                        <option value="hospital">Больницы</option>
-                                        <option value="pharmacy">Аптеки</option>
-                                        <option value="kindergarden">Детские сады</option>
-                                        <option value="polyclinic">Поликлиники</option>
-                                        <option value="shopmall">Торговые центры</option>
-                                        <option value="resident_complexes">Жилые комплексы</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="alert alert-info">
-                                    <small>
-                                        <i class="fas fa-info-circle"></i>
-                                        <strong>Примечание:</strong> Группа будет применена ко всем записям в файле. 
-                                        Система также автоматически определит группу из содержимого данных и сохранит её в отдельном поле.
-                                    </small>
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                                <button type="button" class="btn btn-primary" onclick="uploadWithGroup()">
-                                    <i class="fas fa-upload"></i> Загрузить с выбранной группой
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
+            // Заполняем статистику
+            document.getElementById('totalRecords').textContent = totalRecords;
+            document.getElementById('emptyGroupRecords').textContent = emptyGroupRecords;
+            document.getElementById('autoDetectedRecords').textContent = totalRecords - emptyGroupRecords;
             
-            // Удаляем предыдущее модальное окно, если оно есть
-            const existingModal = document.getElementById('groupSelectionModal');
-            if (existingModal) {
-                existingModal.remove();
+            // Заполняем статистику определенных групп
+            const statsContainer = document.getElementById('detectedGroupsStats');
+            if (detectedGroupsStats && Object.keys(detectedGroupsStats).length > 0) {
+                let statsHtml = '';
+                for (const [group, count] of Object.entries(detectedGroupsStats)) {
+                    if (group !== 'unknown' && group !== '') {
+                        statsHtml += `<p><strong>${group}:</strong> ${count} записей</p>`;
+                    }
+                }
+                statsContainer.innerHTML = statsHtml;
+            } else {
+                statsContainer.innerHTML = '<p class="text-muted">Нет определенных групп</p>';
             }
             
-            // Добавляем новое модальное окно
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            // Заполняем таблицу предварительного просмотра
+            const tableBody = document.getElementById('groupDetectionTableBody');
+            let tableHtml = '';
+            
+            if (data && data.length > 0) {
+                data.forEach((item, index) => {
+                    tableHtml += `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${item.name || '-'}</td>
+                            <td style="max-width: 300px; word-wrap: break-word;">${item.review_text || '-'}</td>
+                        </tr>
+                    `;
+                });
+            } else {
+                tableHtml = '<tr><td colspan="3" class="text-center text-muted">Нет данных для отображения</td></tr>';
+            }
+            
+            tableBody.innerHTML = tableHtml;
+            
+            // Определяем основную группу для показа в detectedGroup
+            let mainDetectedGroup = 'unknown';
+            if (detectedGroupsStats) {
+                const sortedGroups = Object.entries(detectedGroupsStats)
+                    .filter(([group, count]) => group !== 'unknown' && group !== '')
+                    .sort(([,a], [,b]) => b - a);
+                
+                if (sortedGroups.length > 0) {
+                    mainDetectedGroup = sortedGroups[0][0];
+                }
+            }
+            
+            document.getElementById('detectedGroup').value = mainDetectedGroup;
+            
+            // Устанавливаем определяемую группу по умолчанию в выпадающий список
+            if (mainDetectedGroup !== 'unknown' && mainDetectedGroup !== '') {
+                // Преобразуем английское название в русское для отображения
+                const russianGroupName = getRussianGroupName(mainDetectedGroup);
+                if (russianGroupName) {
+                    // Ищем опцию с русским названием и устанавливаем её как выбранную
+                    const userGroupSelect = document.getElementById('userGroup');
+                    for (let option of userGroupSelect.options) {
+                        if (option.text === russianGroupName) {
+                            option.selected = true;
+                            break;
+                        }
+                    }
+                    
+                    // Активируем кнопку, так как группа уже выбрана
+                    document.getElementById('confirmGroupBtn').disabled = false;
+                }
+            }
+            
+            // Обработчик изменения выбранной группы
+            document.getElementById('userGroup').addEventListener('change', function() {
+                const confirmBtn = document.getElementById('confirmGroupBtn');
+                confirmBtn.disabled = !this.value;
+            });
+            
+            // Добавляем анимацию при фокусе
+            document.getElementById('userGroup').addEventListener('focus', function() {
+                this.style.transform = 'scale(1.02)';
+                this.style.transition = 'all 0.2s ease';
+            });
+            
+            document.getElementById('userGroup').addEventListener('blur', function() {
+                this.style.transform = 'scale(1)';
+            });
+            
+            // Обработчик подтверждения
+            document.getElementById('confirmGroupBtn').onclick = function() {
+                const selectedGroup = document.getElementById('userGroup').value;
+                if (selectedGroup) {
+                    processDataWithGroup(data, selectedGroup, mainDetectedGroup);
+                    bootstrap.Modal.getInstance(document.getElementById('groupInputModal')).hide();
+                }
+            };
             
             // Показываем модальное окно
-            const modal = new bootstrap.Modal(document.getElementById('groupSelectionModal'));
+            const modal = new bootstrap.Modal(document.getElementById('groupInputModal'));
             modal.show();
         }
 
@@ -1144,7 +1265,13 @@
                 if (data.success) {
                     showStatus(data.message, 'success');
                     getArchiveInfo();
-                    updateMap(); // Обновляем карту после успешной загрузки
+                    
+                    // Принудительно обновляем карту после успешной загрузки
+                    console.log('Файл загружен с группой, обновляем карту...');
+                    setTimeout(() => {
+                        updateMap();
+                        console.log('Карта обновлена после загрузки файла с группой');
+                    }, 500);
                     
                     // Отображаем результаты анализа
                     if (data.analysis_results) {
@@ -1447,7 +1574,7 @@
                 'classical': 'Классический анализ',
                 'openai_gpt': 'OpenAI GPT',
                 'google_gemini': 'Google Gemini',
-                'yandex_gpt': 'YandexGPT',
+                'llm_yandex': 'YandexGPT',
                 'gigachat': 'GigaChat',
                 'qwen_turbo': 'Qwen Turbo',
                 'deepseek_chat': 'DeepSeek Chat'
@@ -1668,6 +1795,7 @@
         }
 
         function updateMap() {
+            console.log('=== updateMap вызвана ===');
             // Получаем параметры с проверками
             const groupTypeElement = document.querySelector('input[name="groupType"]:checked');
             const colorSchemeElement = document.querySelector('input[name="colorScheme"]:checked');
@@ -1709,6 +1837,10 @@
             console.log('Активные фильтры:', activeFilters);
             console.log('Источник данных:', currentDataSource);
             
+            // Дополнительная диагностика
+            console.log('Текущее время:', new Date().toISOString());
+            console.log('Состояние карты:', myMap ? 'инициализирована' : 'не инициализирована');
+            
             // Формируем URL с параметрами
             const params = new URLSearchParams({
                 group_type: groupType,
@@ -1730,6 +1862,22 @@
                             console.log('Получены данные карты:', data);
                             console.log('Тип групп:', groupType);
                             console.log('Архивные данные:', data.archive);
+                            
+                            // Дополнительная диагностика ответа API
+                            console.log('=== ДИАГНОСТИКА ОТВЕТА API ===');
+                            console.log('Статус ответа: успешно');
+                            console.log('Количество групп в archive:', data.archive ? data.archive.length : 0);
+                            if (data.archive && data.archive.length > 0) {
+                                data.archive.forEach((group, index) => {
+                                    console.log(`Группа ${index}: ${group.group} - ${group.points ? group.points.length : 0} точек`);
+                                });
+                            }
+                            console.log('Поле new:', data.new ? data.new.length : 0);
+                            console.log('Параметры ответа:', {
+                                group_type: data.group_type,
+                                color_scheme: data.color_scheme,
+                                sentiment_method: data.sentiment_method
+                            });
                             
                             // Проверяем сообщение о пустой выборке
                             if (data.message && data.message.includes('Выборка пуста')) {
@@ -1839,6 +1987,8 @@
                 .finally(() => {
                     // Обновляем диаграмму если она активна
                     updateChartOnFilterChange();
+                    // Обновляем таблицу Master Rating если она активна
+                    updateMasterRatingTable();
                 });
         }
 
@@ -1863,7 +2013,7 @@
                 'polyclinic': '#ff00ff',    // Пурпурный
                 'university': '#00ffff',    // Голубой
                 'shopmall': '#ff8800',      // Оранжевый
-                'resident_complexes': '#8800ff' // Фиолетовый
+                'resident_complex': '#8800ff' // Фиолетовый
             };
             return colors[group] || '#999999'; // Серый по умолчанию
         }
@@ -1886,13 +2036,23 @@
         
         // Функция для получения всех параметров фильтрации
         function getAllFilterParams() {
+            const activeFilters = getActiveFilters();
+            // group_type определяет поле для группировки, а не конкретную группу
+            const groupType = document.querySelector('input[name="groupType"]:checked')?.value || 'supplier';
+            const colorScheme = document.querySelector('input[name="colorScheme"]:checked')?.value || 'group';
+            const sentimentMethod = window.selectedSentimentMethod || 'user_rating';
+            
             const params = {
-                group_filters: getActiveFilters(),
-                group_type: document.querySelector('input[name="groupType"]:checked')?.value || 'supplier',
-                color_scheme: document.querySelector('input[name="colorScheme"]:checked')?.value || 'group',
-                sentiment_method: window.selectedSentimentMethod || 'user_rating'
+                group_filters: activeFilters,
+                group_type: groupType,
+                color_scheme: colorScheme,
+                sentiment_method: sentimentMethod
             };
             
+            console.log('getAllFilterParams: activeFilters =', activeFilters);
+            console.log('getAllFilterParams: groupType =', groupType);
+            console.log('getAllFilterParams: colorScheme =', colorScheme);
+            console.log('getAllFilterParams: sentimentMethod =', sentimentMethod);
             console.log('Все параметры фильтрации:', params);
             return params;
         }
@@ -1908,6 +2068,8 @@
             updateMap();
             // Обновляем таблицу сентиментов
             updateSentimentTableOnFilterChange();
+            // Обновляем таблицу Master Rating
+            updateMasterRatingTable();
         }
 
         function deselectAllFilters() {
@@ -1921,6 +2083,8 @@
             updateMap();
             // Обновляем таблицу сентиментов
             updateSentimentTableOnFilterChange();
+            // Обновляем таблицу Master Rating
+            updateMasterRatingTable();
         }
 
         function updateSentimentMethodVisibility() {
@@ -2008,6 +2172,9 @@
                     updateMap();
                     // Обновляем таблицу сентиментов при изменении фильтров
                     updateSentimentTableOnFilterChange();
+                    // Обновляем таблицу Master Rating при изменении фильтров
+                    console.log('Вызываем updateMasterRatingTable из обработчика фильтра');
+                    updateMasterRatingTable();
                 });
                 
                 // Защита от случайного снятия состояния при инициализации
@@ -2464,8 +2631,8 @@
             const icons = {
                 'user_rating': '<i class="fas fa-star"></i>',
                 'nlp_vader': '<i class="fas fa-brain"></i>',
-                'yandex_gpt': '<i class="fas fa-search"></i>',  // Добавляем иконку для yandex_gpt
-                'llm_yandex': '<i class="fas fa-search"></i>',
+                'yandex_gpt': '<i class="fab fa-yandex"></i>',  // Иконка Яндекса для yandex_gpt
+                'llm_yandex': '<i class="fab fa-yandex"></i>',
                 'openai': '<i class="fas fa-robot"></i>',
                 'google_gemini': '<i class="fas fa-gem"></i>',
                 'gigachat': '<i class="fas fa-comments"></i>',
@@ -2479,7 +2646,6 @@
             const names = {
                 'user_rating': 'Рейтинг',
                 'nlp_vader': 'VADER',
-                'yandex_gpt': 'YandexGPT',  // Добавляем yandex_gpt
                 'llm_yandex': 'YandexGPT',
                 'openai': 'OpenAI',
                 'google_gemini': 'Gemini',
@@ -2684,11 +2850,51 @@
             }
         }
         
+        // Функция для обновления таблицы Master Rating при изменении фильтров
+        function updateMasterRatingTable() {
+            console.log('=== updateMasterRatingTable вызвана ===');
+            
+            // Проверяем, активен ли вид "Master Rating" через радио-кнопку
+            const chartView = document.getElementById('chartView');
+            const masterRatingTable = document.getElementById('masterRatingTable');
+            
+            console.log('chartView найден:', chartView);
+            console.log('masterRatingTable найден:', masterRatingTable);
+            
+            if (chartView) {
+                console.log('chartView checked:', chartView.checked);
+                console.log('chartView value:', chartView.value);
+            }
+            
+            if (masterRatingTable) {
+                console.log('masterRatingTable display:', masterRatingTable.style.display);
+                console.log('masterRatingTable visible:', masterRatingTable.style.display !== 'none');
+            }
+            
+            // Проверяем, активен ли вид Master Rating
+            const isMasterRatingActive = chartView && chartView.checked && 
+                                       masterRatingTable && masterRatingTable.style.display !== 'none';
+            
+            console.log('Master Rating активен:', isMasterRatingActive);
+            
+            // Если вид Master Rating активен, обновляем таблицу
+            if (isMasterRatingActive) {
+                console.log('Вид Master Rating активен, обновляем таблицу');
+                loadMasterRatingData();
+            } else {
+                console.log('Вид Master Rating не активен, обновление не требуется');
+            }
+        }
+        
         // Функция для загрузки данных мастер-рейтинга
         async function loadMasterRatingData() {
+            console.log('loadMasterRatingData вызвана');
             try {
                 const masterRatingLoading = document.getElementById('masterRatingLoading');
                 const masterRatingContainer = document.getElementById('masterRatingContainer');
+                
+                console.log('masterRatingLoading найден:', !!masterRatingLoading);
+                console.log('masterRatingContainer найден:', !!masterRatingContainer);
                 
                 if (!masterRatingLoading || !masterRatingContainer) {
                     console.error('Элементы masterRatingLoading или masterRatingContainer не найдены');
@@ -2701,19 +2907,25 @@
                 // Получаем все параметры фильтрации
                 const filterParams = getAllFilterParams();
                 const filtersParam = filterParams.group_filters.join(',');
+                console.log('Параметры фильтрации:', filterParams);
+                console.log('Строка фильтров:', filtersParam);
                 
                 // Загружаем данные мастер-рейтинга
+                console.log('Отправляем запрос к /master-rating/data с фильтрами:', filtersParam);
                 const response = await fetch(`/master-rating/data?filters=${filtersParam}`);
                 const data = await response.json();
                 
                 if (data.success) {
+                    console.log('Данные успешно получены, количество записей:', data.data.length);
                     if (data.data.length === 0) {
                         masterRatingContainer.innerHTML = '<p class="text-muted text-center">Нет данных для отображения</p>';
                         return;
                     }
                     
+                    console.log('Вызываем createMasterRatingTable с данными');
                     createMasterRatingTable(data.data);
                 } else {
+                    console.error('Ошибка в ответе API:', data.error);
                     masterRatingContainer.innerHTML = `<p class="text-danger text-center">Ошибка: ${data.error}</p>`;
                 }
             } catch (error) {
@@ -2779,6 +2991,12 @@
         
         // Функция для создания многоуровневой таблицы сентиментов
         function createSentimentTable(tableData) {
+            console.log('=== createSentimentTable вызвана ===');
+            console.log('tableData:', tableData);
+            console.log('tableData.methods:', tableData.methods);
+            console.log('tableData.reviews.length:', tableData.reviews.length);
+            console.log('tableData.sentiments.length:', tableData.sentiments.length);
+            
             const container = document.getElementById('sentimentTableContainer');
             if (!container) {
                 console.error('Элемент sentimentTableContainer не найден');
@@ -2786,6 +3004,7 @@
             }
             const selectedMethods = window.selectedSentimentMethods || tableData.methods;
             const filteredMethods = tableData.methods.filter(m => selectedMethods.includes(m));
+            console.log('filteredMethods:', filteredMethods);
             
             const MAX_REVIEWS_PER_TABLE = 100; // Лимит отзывов на одну таблицу
             const totalReviews = tableData.reviews.length;
@@ -2833,10 +3052,16 @@
                 // Тело таблицы
                 tableHtml += '<tbody>';
                 filteredMethods.forEach(method => {
-                    tableHtml += `<tr><td style="width: 120px; font-size: 20px;"><strong>${method}</strong></td>`;
+                    tableHtml += `<tr><td style="width: 120px; font-size: 20px;"><strong>${getSentimentMethodDisplayName(method)}</strong></td>`;
                     sentimentsInThisTable.forEach((reviewSentiments, reviewIndex) => {
                         const originalMethodIndex = tableData.methods.indexOf(method);
                         const sentiment = reviewSentiments[originalMethodIndex];
+                        
+                        // Отладочная информация
+                        if (reviewIndex === 0) {
+                            console.log(`Метод: ${method}, Индекс: ${originalMethodIndex}, Сентимент: ${sentiment}`);
+                        }
+                        
                         let cellClass = '';
                         let cellStyle = '';
                         
@@ -2895,12 +3120,15 @@
         
         // Функция для создания таблицы мастер-рейтинга
         function createMasterRatingTable(data) {
+            console.log('createMasterRatingTable вызвана с данными:', data);
             const container = document.getElementById('masterRatingContainer');
             
             if (!container) {
                 console.error('Элемент masterRatingContainer не найден');
                 return;
             }
+            
+            console.log('Создаем таблицу с', data.length, 'записями');
             
             let tableHtml = `
                 <div class="table-responsive table-with-fixed-header">
@@ -2960,6 +3188,7 @@
             `;
             
             container.innerHTML = tableHtml;
+            console.log('Таблица Master Rating создана и отображена');
         }
         
         // Функция для загрузки данных диаграммы
@@ -3194,7 +3423,7 @@
                     showGroupMismatchModal(userGroup, detectedGroup, data);
                 } else {
                     // Группы совпадают, продолжаем обработку
-                    processDataWithGroup(data, userGroup);
+                    processDataWithGroup(data, userGroup, detectedGroup);
                     modal.hide();
                 }
             };
@@ -3211,7 +3440,7 @@
             
             // Обработчики кнопок
             document.getElementById('yesBtn').onclick = function() {
-                processDataWithGroup(data, userGroup);
+                processDataWithGroup(data, userGroup, detectedGroup);
                 modal.hide();
                 bootstrap.Modal.getInstance(document.getElementById('groupInputModal')).hide();
             };
@@ -3226,23 +3455,95 @@
         }
         
         // Функция для обработки данных с выбранной группой
-        function processDataWithGroup(data, group) {
-            console.log('Обрабатываем данные с группой:', group);
+        function processDataWithGroup(data, selectedGroup, detectedGroup) {
+            console.log('🔍 Обрабатываем данные с выбранной группой:', selectedGroup, 'и определенной группой:', detectedGroup);
             
-            // Добавляем группу к данным
-            const processedData = data.map(item => ({
-                ...item,
-                group: group
-            }));
+            // Получаем сохраненные данные о файле
+            const file = window.currentFile;
+            const fileInfo = window.currentFileInfo;
             
-            // Отображаем данные в таблице
-            displayTableData(processedData, 'group-detection');
-            
-            // Показываем таблицу
-            const resultsTable = document.getElementById('resultsTable');
-            if (resultsTable) {
-                resultsTable.style.display = 'block';
+            if (!file) {
+                showStatus('Файл не найден. Пожалуйста, выберите файл снова.', 'danger');
+                return;
             }
+            
+            // Преобразуем русское название группы обратно в английское для БД
+            const englishGroupName = getEnglishGroupName(selectedGroup);
+            console.log('🔍 Русское название группы:', selectedGroup);
+            console.log('🔍 Английское название группы:', englishGroupName);
+            
+            if (!englishGroupName) {
+                showStatus('Ошибка: не удалось определить английское название группы', 'danger');
+                return;
+            }
+            
+            // Создаем FormData для загрузки
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('group', englishGroupName);  // Отправляем английское название
+            formData.append('detected_group', detectedGroup);
+            
+            console.log('🔍 Отправляем в FormData:');
+            console.log('   - file:', file.name);
+            console.log('   - group:', englishGroupName);
+            console.log('   - detected_group:', detectedGroup);
+
+            // Добавляем настройки Excel если это Excel файл
+            if (fileInfo && fileInfo.file_type === 'excel') {
+                const sheetSelect = document.getElementById('sheetSelect');
+                const filterSelect = document.getElementById('filterSelect');
+                
+                if (sheetSelect && sheetSelect.value) {
+                    formData.append('sheet_name', sheetSelect.value);
+                }
+                if (filterSelect && filterSelect.value) {
+                    formData.append('filters', filterSelect.value);
+                }
+            }
+
+            // Добавляем выбранные методы анализа
+            const selectedMethods = [];
+            document.querySelectorAll('#analysisMethodsContainer input[type="checkbox"]:checked').forEach(checkbox => {
+                selectedMethods.push(checkbox.value);
+            });
+            formData.append('analysis_methods', JSON.stringify(selectedMethods));
+
+            showLoading(true);
+            showStatus('', '');
+
+            // Загружаем файл с выбранными группами
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('🔍 Ответ сервера:', data);
+                showLoading(false);
+                if (data.success) {
+                    showStatus(data.message, 'success');
+                    getArchiveInfo();
+                    
+                    // Принудительно обновляем карту после успешной загрузки
+                    console.log('Файл загружен с группами, обновляем карту...');
+                    setTimeout(() => {
+                        updateMap();
+                        console.log('Карта обновлена после загрузки файла с группами');
+                    }, 500);
+                    
+                    // Отображаем результаты анализа
+                    if (data.analysis_results) {
+                        displayAnalysisResults(data.analysis_results);
+                    }
+                } else {
+                    console.error('❌ Ошибка сервера:', data.error);
+                    showStatus(data.error, 'danger');
+                }
+            })
+            .catch(error => {
+                showLoading(false);
+                showStatus('Ошибка загрузки файла: ' + error.message, 'danger');
+            });
         }
         
         // Функция для загрузки данных таблицы (с определением группы)
@@ -3363,16 +3664,22 @@
         
         // Функция для обновления таблицы сентиментов при изменении фильтров
         function updateSentimentTableOnFilterChange() {
+            console.log('updateSentimentTableOnFilterChange вызвана');
             const sentimentTableView = document.getElementById('sentimentTableView');
             const correlationHeatmapView = document.getElementById('correlationHeatmapView');
             
             if (sentimentTableView && sentimentTableView.checked) {
+                console.log('Обновляем таблицу сентиментов');
                 loadSentimentTableData();
             }
             
             if (correlationHeatmapView && correlationHeatmapView.checked) {
+                console.log('Обновляем тепловую карту корреляции');
                 loadCorrelationHeatmapData();
             }
+            
+            // Обновляем таблицу Master Rating если она активна
+            updateMasterRatingTable();
         }
 
         // Функция для загрузки данных тепловой карты корреляции
@@ -3510,7 +3817,7 @@
                 const checked = window.selectedSentimentMethods.includes(method) ? 'checked' : '';
                 const label = `<label for="${id}" class="form-check-label me-2" style="min-width:120px;">
                     <input type="checkbox" class="form-check-input me-1" id="${id}" value="${method}" ${checked}>
-                    ${method}
+                    ${getSentimentMethodDisplayName(method)}
                 </label>`;
                 container.insertAdjacentHTML('beforeend', label);
             });

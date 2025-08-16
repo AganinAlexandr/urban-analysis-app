@@ -10,40 +10,45 @@ from datetime import datetime
 
 # Начальные ключевые слова для каждой группы
 INITIAL_KEYWORDS = {
-    'hospitals': {
+    'hospital': {
         'name_keywords': ['больница', 'госпиталь', 'медицинский центр', 'клиника', 'медцентр', 'поликлиника'],
         'text_keywords': ['врач', 'лечение', 'пациент', 'медицина', 'здоровье', 'болезнь', 'симптом', 'диагноз', 'операция', 'терапия'],
         'negative_keywords': ['очередь', 'запись', 'прием', 'анализ', 'результат', 'направление']
     },
-    'schools': {
+    'school': {
         'name_keywords': ['школа', 'лицей', 'гимназия', 'образовательный центр', 'учебное заведение'],
         'text_keywords': ['учитель', 'ученик', 'урок', 'класс', 'образование', 'обучение', 'директор', 'завуч', 'предмет', 'экзамен'],
         'negative_keywords': ['домашка', 'контрольная', 'оценка', 'двойка', 'тройка', 'четверка', 'пятерка']
     },
-    'kindergartens': {
-        'name_keywords': ['детский сад', 'сад', 'дошкольное учреждение', 'ясли', 'детсад'],
+    'kindergarden': {
+        'name_keywords': ['детский сад', 'сад', 'дошкольное учреждение', 'дошкольное образование', 'ясли', 'детсад'],
         'text_keywords': ['воспитатель', 'ребенок', 'группа', 'игра', 'развитие', 'занятие', 'прогулка', 'сон', 'еда', 'адаптация'],
         'negative_keywords': ['плач', 'каприз', 'не хочу', 'не буду', 'страшно', 'боюсь']
     },
-    'polyclinics': {
+    'polyclinic': {
         'name_keywords': ['поликлиника', 'амбулатория', 'медицинская консультация', 'диспансер'],
         'text_keywords': ['терапевт', 'специалист', 'консультация', 'осмотр', 'направление', 'справка', 'больничный', 'рецепт'],
         'negative_keywords': ['очередь', 'запись', 'прием', 'анализ', 'результат', 'направление']
     },
-    'pharmacies': {
+    'pharmacy': {
         'name_keywords': ['аптека', 'фармация', 'лекарство', 'медикамент'],
         'text_keywords': ['лекарство', 'таблетка', 'сироп', 'мазь', 'рецепт', 'фармацевт', 'провизор', 'цена', 'стоимость', 'аналог'],
         'negative_keywords': ['дорого', 'нет в наличии', 'заменитель', 'побочный эффект']
     },
-    'shopping_malls': {
+    'shopmall': {
         'name_keywords': ['торговый центр', 'молл', 'галерея', 'пассаж', 'торговый комплекс', 'шоппинг', 'тц'],
         'text_keywords': ['магазин', 'покупка', 'товар', 'цена', 'скидка', 'акция', 'касса', 'продавец', 'консультант', 'размер'],
         'negative_keywords': ['дорого', 'очередь', 'нет размера', 'не подходит', 'не нравится']
     },
-    'universities': {
-        'name_keywords': ['университет', 'институт', 'академия', 'вуз', 'высшее образование'],
+    'university': {
+        'name_keywords': ['университет', 'институт', 'академия', 'вуз', 'высшее образование', 'высшая школа'],
         'text_keywords': ['студент', 'преподаватель', 'лекция', 'семинар', 'экзамен', 'сессия', 'диплом', 'кафедра', 'факультет', 'ректор', 'лектор'],
         'negative_keywords': ['сложно', 'трудно', 'не понимаю', 'завалил', 'не сдал']
+    },
+    'resident_complex': {
+        'name_keywords': ['жилой комплекс', 'жилой дом', 'многоквартирный дом', 'жилье', 'квартира', 'дом'],
+        'text_keywords': ['квартира', 'дом', 'жилье', 'ремонт', 'соседи', 'управляющая компания', 'жкх', 'коммунальные услуги', 'лифт', 'парковка'],
+        'negative_keywords': ['шум', 'грязь', 'ремонт', 'соседи', 'дорого', 'плохо']
     }
 }
 
@@ -51,32 +56,40 @@ class InitialKeywordProcessor:
     """Процессор начальных ключевых слов с возможностью улучшения"""
     
     def __init__(self):
-        # Словарь для нормализации
+        # Словарь для нормализации (только для синонимов, не для групп)
         self.normalization_dict = {
             'больница': 'больница',
-            'госпиталь': 'больница',
-            'медцентр': 'больница',
-            'клиника': 'больница',
-            'медицинский': 'больница',
+            'госпиталь': 'госпиталь',      # Оставляем как есть
+            'медцентр': 'медцентр',        # Оставляем как есть
+            'клиника': 'клиника',          # Оставляем как есть
+            'медицинский': 'медицинский',  # Оставляем как есть
             'поликлиника': 'поликлиника',
-            'амбулатория': 'поликлиника',
+            'амбулатория': 'амбулатория',  # Оставляем как есть
             'школа': 'школа',
-            'лицей': 'школа',
-            'гимназия': 'школа',
+            'лицей': 'лицей',              # Оставляем как есть
+            'гимназия': 'гимназия',        # Оставляем как есть
             'университет': 'университет',
-            'институт': 'университет',
-            'академия': 'университет',
-            'вуз': 'университет',
+            'институт': 'институт',        # Оставляем как есть
+            'академия': 'академия',        # Оставляем как есть
+            'вуз': 'вуз',                  # Оставляем как есть
+            'высшая школа': 'высшая школа', # Оставляем как есть
             'аптека': 'аптека',
-            'фармация': 'аптека',
+            'фармация': 'фармация',        # Оставляем как есть
             'детский сад': 'детский сад',
-            'сад': 'детский сад',
-            'детсад': 'детский сад',
+            'сад': 'сад',                  # Оставляем как есть
+            'детсад': 'детсад',            # Оставляем как есть
+            'дошкольное образование': 'дошкольное образование', # Оставляем как есть
             'торговый центр': 'торговый центр',
-            'молл': 'торговый центр',
-            'галерея': 'торговый центр',
-            'магазин': 'торговый центр',
-            'тц': 'торговый центр'
+            'молл': 'молл',                # Оставляем как есть
+            'галерея': 'галерея',          # Оставляем как есть
+            'магазин': 'магазин',          # Оставляем как есть
+            'тц': 'тц',                    # Оставляем как есть
+            'жилой комплекс': 'жилой комплекс',
+            'жилой дом': 'жилой дом',       # Оставляем как есть
+            'многоквартирный дом': 'многоквартирный дом', # Оставляем как есть
+            'жилье': 'жилье',              # Оставляем как есть
+            'квартира': 'квартира',        # Оставляем как есть
+            'дом': 'дом'                   # Оставляем как есть
         }
         
         # Стоп-слова для исключения
@@ -99,20 +112,59 @@ class InitialKeywordProcessor:
         if word in self.normalization_dict:
             return self.normalization_dict[word]
         
-        # Простая нормализация окончаний
-        if word.endswith('ая'):
-            word = word[:-2] + 'ая'
-        elif word.endswith('ый'):
-            word = word[:-2] + 'ый'
+        # Нормализация окончаний для приведения к базовой форме
+        # Убираем окончания прилагательных и существительных
+        
+        # Прилагательные - убираем окончания полностью
+        if word.endswith('ого'):
+            word = word[:-3]
+        elif word.endswith('его'):
+            word = word[:-3]
+        elif word.endswith('ому'):
+            word = word[:-3]
+        elif word.endswith('ему'):
+            word = word[:-3]
+        elif word.endswith('ым'):
+            word = word[:-2]
+        elif word.endswith('им'):
+            word = word[:-2]
         elif word.endswith('ой'):
-            word = word[:-2] + 'ой'
-        elif word.endswith('ий'):
-            word = word[:-2] + 'ий'
+            word = word[:-2]
+        elif word.endswith('ый'):
+            word = word[:-2]
+        elif word.endswith('ая'):
+            word = word[:-2]
+        elif word.endswith('ое'):
+            word = word[:-2]
+        
+        # Существительные - убираем падежные окончания
+        elif word.endswith('ания'):  # образования → образован
+            word = word[:-4]
+        elif word.endswith('ения'):  # учреждения → учрежден
+            word = word[:-4]
+        elif word.endswith('ости'):  # активности → активност
+            word = word[:-3]
+        elif word.endswith('сти'):   # части → част
+            word = word[:-3]
+        elif word.endswith('ия'):    # здания → здан
+            word = word[:-2]
+        elif word.endswith('ая'):    # улица → улиц
+            word = word[:-2]
+        elif word.endswith('ое'):    # здание → здан
+            word = word[:-2]
+        elif word.endswith('ой'):    # домой → дом
+            word = word[:-2]
+        elif word.endswith('ом'):    # домом → дом
+            word = word[:-2]
+        elif word.endswith('ой'):    # школой → школ
+            word = word[:-2]
+        elif word.endswith('ом'):    # школом → школ
+            word = word[:-2]
         
         return word
     
     def clean_text(self, text):
-        """Очищает текст от лишних символов"""
+        """Очищает текст от лишних символов и приводит к базовой форме"""
         if not text:
             return ""
         
@@ -126,7 +178,18 @@ class InitialKeywordProcessor:
         # Удаляем лишние пробелы
         text = re.sub(r'\s+', ' ', text).strip()
         
-        return text
+        # Приводим слова к базовой форме (убираем окончания)
+        words = text.split()
+        normalized_words = []
+        
+        for word in words:
+            if len(word) >= 3:
+                # Убираем окончания для приведения к базовой форме
+                normalized_word = self.normalize_word(word)
+                if normalized_word:
+                    normalized_words.append(normalized_word)
+        
+        return ' '.join(normalized_words)
     
     def extract_normalized_words(self, text):
         """Извлекает и нормализует слова из текста"""
@@ -230,74 +293,98 @@ def detect_group_by_initial_keywords(object_name, review_text):
         normalized_object_name = processor.clean_text(object_name or "")
         normalized_review_text = processor.clean_text(review_text or "")
         
-        print(f"🔍 Анализ объекта: '{object_name}'")
-        print(f"📝 Отзыв: '{review_text}'")
-        print(f"🔧 Нормализованное название: '{normalized_object_name}'")
-        print(f"🔧 Нормализованный отзыв: '{normalized_review_text}'")
+        # print(f"🔍 Анализ объекта: '{object_name}'")
+        # print(f"📝 Отзыв: '{review_text}'")
+        # print(f"🔧 Нормализованное название: '{normalized_object_name}'")
+        # print(f"🔧 Нормализованный отзыв: '{normalized_review_text}'")
         
         # Подсчитываем баллы для каждой группы
         group_scores = defaultdict(lambda: {'name_score': 0, 'text_score': 0, 'negative_score': 0})
         
         for group_type, keyword_type, keyword, weight in keywords:
+            # Нормализуем ключевое слово так же, как и входящий текст
             normalized_keyword = processor.clean_text(keyword)
             
-            # Проверяем совпадения в названии объекта
-            if keyword_type == 'name' and normalized_object_name:
-                if normalized_keyword in normalized_object_name:
-                    group_scores[group_type]['name_score'] += weight
-                    print(f"   ✅ Найдено в названии: '{normalized_keyword}' в '{normalized_object_name}'")
+            # Отладочная информация для первых нескольких ключевых слов
+            if len([k for k in keywords if k[1] == 'name' and k[0] == 'universities']) <= 5:
+                # print(f"   🔍 Обрабатываем: {group_type}.{keyword_type} = '{keyword}' -> '{normalized_keyword}'")
+                pass
             
-            # Проверяем совпадения в тексте отзыва
-            if keyword_type == 'text' and normalized_review_text:
+            # Проверяем совпадения в названии объекта (для name_keywords и text_keywords)
+            if keyword_type in ['name_keywords', 'text_keywords'] and normalized_object_name:
+                if normalized_keyword in normalized_object_name:
+                    if keyword_type == 'name_keywords':
+                        group_scores[group_type]['name_score'] += weight
+                        # print(f"   ✅ Найдено в названии (name_keywords): '{normalized_keyword}' в '{normalized_object_name}'")
+                    else:  # text_keywords
+                        group_scores[group_type]['text_score'] += weight
+                        # print(f"   ✅ Найдено в названии (text_keywords): '{normalized_keyword}' в '{normalized_object_name}'")
+            
+            # Проверяем совпадения в тексте отзыва (для ВСЕХ ключевых слов)
+            if normalized_review_text:
                 if normalized_keyword in normalized_review_text:
-                    group_scores[group_type]['text_score'] += weight
-                    print(f"   ✅ Найдено в отзыве: '{normalized_keyword}' в '{normalized_review_text}'")
+                    if keyword_type == 'name_keywords':
+                        group_scores[group_type]['name_score'] += weight * 0.5  # Сниженный вес для отзыва
+                        # print(f"   ✅ Найдено в отзыве (name_keywords): '{normalized_keyword}' в '{normalized_review_text}'")
+                    elif keyword_type == 'text_keywords':
+                        group_scores[group_type]['text_score'] += weight * 0.5  # Сниженный вес для отзыва
+                        # print(f"   ✅ Найдено в отзыве (text_keywords): '{normalized_keyword}' в '{normalized_review_text}'")
             
             # Проверяем отрицательные ключевые слова
-            if keyword_type == 'negative':
+            if keyword_type == 'negative_keywords':
                 if normalized_object_name and normalized_keyword in normalized_object_name:
                     group_scores[group_type]['negative_score'] += weight
-                    print(f"   ❌ Отрицательное в названии: '{normalized_keyword}' в '{normalized_object_name}'")
+                    # print(f"   ❌ Отрицательное в названии: '{normalized_keyword}' в '{normalized_object_name}'")
                 if normalized_review_text and normalized_keyword in normalized_review_text:
                     group_scores[group_type]['negative_score'] += weight
-                    print(f"   ❌ Отрицательное в отзыве: '{normalized_keyword}' в '{normalized_review_text}'")
+                    # print(f"   ❌ Отрицательное в отзыве: '{normalized_keyword}' в '{normalized_review_text}'")
             
             # Дополнительная проверка для извлеченных ключевых слов
             if keyword_type == 'text' and not keyword.startswith('text_'):
                 # Проверяем извлеченные ключевые слова
                 if normalized_object_name and normalized_keyword in normalized_object_name:
                     group_scores[group_type]['name_score'] += weight * 0.5
-                    print(f"   ✅ Извлеченное в названии: '{normalized_keyword}' в '{normalized_object_name}'")
+                    # print(f"   ✅ Извлеченное в названии: '{normalized_keyword}' в '{normalized_object_name}'")
                 if normalized_review_text and normalized_keyword in normalized_review_text:
                     group_scores[group_type]['text_score'] += weight
-                    print(f"   ✅ Извлеченное в отзыве: '{normalized_keyword}' в '{normalized_review_text}'")
+                    # print(f"   ✅ Извлеченное в отзыве: '{normalized_keyword}' в '{normalized_review_text}'")
         
-        # Отладочная информация
-        print(f"\n🔍 Отладочная информация:")
-        print(f"   Нормализованное название: '{normalized_object_name}'")
-        print(f"   Нормализованный отзыв: '{normalized_review_text}'")
-        print(f"   Количество ключевых слов: {len(keywords)}")
+        # Отладочная информация (отключена для стабильности)
+        # print(f"\n🔍 Отладочная информация:")
+        # print(f"   Нормализованное название: '{normalized_object_name}'")
+        # print(f"   Нормализованный отзыв: '{normalized_review_text}'")
+        # print(f"   Количество ключевых слов: {len(keywords)}")
         
         # Показываем несколько примеров ключевых слов
-        print(f"   Примеры ключевых слов:")
-        for i, (group_type, keyword_type, keyword, weight) in enumerate(keywords[:5]):
-            normalized_keyword = processor.clean_text(keyword)
-            print(f"      {i+1}. {group_type}.{keyword_type}: '{keyword}' -> '{normalized_keyword}'")
+        # print(f"   Примеры ключевых слов:")
+        # for i, (group_type, keyword_type, keyword, weight) in enumerate(keywords[:5]):
+        #     normalized_keyword = processor.clean_text(keyword)
+        #     print(f"      {i+1}. {group_type}.{keyword_type}: '{keyword}' -> '{normalized_keyword}'")
         
         # Вычисляем итоговый балл для каждой группы
         best_group = 'undetected'
         best_score = 0.0
+        tied_groups = []  # Группы с одинаковыми максимальными баллами
         
-        print(f"\n📊 Результаты подсчета баллов:")
+        # print(f"\n📊 Результаты подсчета баллов:")
         for group_type, scores in group_scores.items():
-            # Формула: (name_score * 2) + text_score - negative_score
-            total_score = (scores['name_score'] * 2) + scores['text_score'] - scores['negative_score']
+            # Формула: name_score + text_score - negative_score (без умножения)
+            total_score = scores['name_score'] + scores['text_score'] - scores['negative_score']
             
-            print(f"   {group_type}: name={scores['name_score']}, text={scores['text_score']}, negative={scores['negative_score']}, total={total_score}")
+            # print(f"   {group_type}: name={scores['name_score']}, text={scores['text_score']}, negative={scores['negative_score']}, total={total_score}")
             
+            # Выбираем группу с максимальным баллом (без приоритетов)
             if total_score > best_score:
                 best_score = total_score
                 best_group = group_type
+                tied_groups = [group_type]  # Сбрасываем список связанных групп
+            elif total_score == best_score and best_score > 0:
+                tied_groups.append(group_type)  # Добавляем группу с одинаковым баллом
+        
+        # Если несколько групп набрали одинаковые баллы, возвращаем 'undetected'
+        if len(tied_groups) > 1:
+            best_group = 'undetected'
+            # print(f"⚠️ Несколько групп с одинаковыми баллами: {', '.join(tied_groups)}")
         
         # Нормализуем уверенность (0.0 - 1.0)
         confidence = min(best_score / 5.0, 1.0) if best_score > 0 else 0.0

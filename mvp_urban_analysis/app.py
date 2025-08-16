@@ -39,27 +39,75 @@ def convert_dataframe_for_json(df):
     Returns:
         DataFrame с конвертированными типами данных
     """
+    if df is None or df.empty:
+        return df
+    
     df_converted = df.copy()
+    
+    # Обрабатываем все колонки
     for col in df_converted.columns:
-        if df_converted[col].dtype in ['int64', 'float64']:
-            df_converted[col] = df_converted[col].astype(float)
-        elif df_converted[col].dtype == 'object':
-            df_converted[col] = df_converted[col].astype(str)
+        try:
+            # Проверяем тип колонки
+            if df_converted[col].dtype in ['int64', 'int32', 'int16', 'int8']:
+                # Целочисленные типы -> int
+                df_converted[col] = df_converted[col].astype('Int64')  # pandas nullable integer
+            elif df_converted[col].dtype in ['float64', 'float32', 'float16']:
+                # Числа с плавающей точкой -> float
+                df_converted[col] = df_converted[col].astype('float64')
+            elif df_converted[col].dtype == 'bool':
+                # Булевы значения -> bool
+                df_converted[col] = df_converted[col].astype('bool')
+            elif df_converted[col].dtype == 'object':
+                # Объекты -> строки, но с обработкой None/NaN
+                df_converted[col] = df_converted[col].astype('string')
+            elif df_converted[col].dtype == 'datetime64[ns]':
+                # Даты -> строки ISO формата
+                df_converted[col] = df_converted[col].dt.strftime('%Y-%m-%d %H:%M:%S')
+            else:
+                # Для остальных типов -> строки
+                df_converted[col] = df_converted[col].astype('string')
+        except Exception as e:
+            # Если не удалось конвертировать, оставляем как есть
+            logger.warning(f"Не удалось конвертировать колонку {col}: {e}")
+            continue
+    
     return df_converted
 
 def make_json_safe(obj):
-    if isinstance(obj, dict):
-        return {make_json_safe(k): make_json_safe(v) for k, v in obj.items()}
+    """
+    Рекурсивно делает объект безопасным для JSON сериализации
+    """
+    import numpy as np
+    import pandas as pd
+    
+    if obj is None:
+        return None
+    elif isinstance(obj, dict):
+        return {str(k): make_json_safe(v) for k, v in obj.items()}
     elif isinstance(obj, list):
         return [make_json_safe(x) for x in obj]
-    elif isinstance(obj, np.integer):
+    elif isinstance(obj, tuple):
+        return [make_json_safe(x) for x in obj]
+    elif isinstance(obj, (np.integer, np.int64, np.int32, np.int16, np.int8)):
         return int(obj)
-    elif isinstance(obj, np.floating):
+    elif isinstance(obj, (np.floating, np.float64, np.float32, np.float16)):
         return float(obj)
     elif isinstance(obj, np.ndarray):
         return obj.tolist()
-    else:
+    elif isinstance(obj, pd.Series):
+        return obj.tolist()
+    elif isinstance(obj, pd.DataFrame):
+        return obj.to_dict('records')
+    elif isinstance(obj, pd.Timestamp):
+        return obj.isoformat()
+    elif isinstance(obj, (str, int, float, bool)):
         return obj
+    else:
+        # Для неизвестных типов пытаемся преобразовать в строку
+        try:
+            return str(obj)
+        except:
+            return None
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
@@ -170,27 +218,44 @@ def detect_group_from_upload():
 def upload_file():
     """Загрузка файла для обработки"""
     try:
+        print("=== ЗАГРУЗКА ФАЙЛА ===")
+        print(f"Получен запрос: {request.method}")
+        print(f"Форма содержит поля: {list(request.form.keys())}")
+        print(f"Файлы: {list(request.files.keys())}")
+        
         logger.info("=== НАЧАЛО ОБРАБОТКИ ФАЙЛА ===")
         
         if 'file' not in request.files:
+            print("❌ Файл не найден в запросе")
             logger.error("Файл не выбран")
             return jsonify({'error': 'Файл не выбран'}), 400
         
         file = request.files['file']
+        print(f"📁 Файл найден: {file.filename}")
+        
         if file.filename == '':
+            print("❌ Имя файла пустое")
             logger.error("Файл не выбран")
             return jsonify({'error': 'Файл не выбран'}), 400
         
+        print(f"✅ Файл валиден: {file.filename}")
         logger.info(f"Загружен файл: {file.filename}")
         
         # Проверяем поддерживаемые форматы
         allowed_extensions = ['.csv', '.json', '.xlsx', '.xls']
         file_ext = os.path.splitext(file.filename)[1].lower()
         
+        print(f"🔍 Проверяем расширение файла: {file_ext}")
+        print(f"🔍 Разрешенные расширения: {allowed_extensions}")
+        
         if file_ext not in allowed_extensions:
+            print(f"❌ Неподдерживаемый формат файла: {file_ext}")
             logger.error(f"Неподдерживаемый формат файла: {file_ext}")
             return jsonify({'error': f'Неподдерживаемый формат файла. Поддерживаются: {", ".join(allowed_extensions)}'}), 400
         
+        print(f"✅ Формат файла поддерживается: {file_ext}")
+        print(f"🔍 Размер файла: {len(file.read())} байт")
+        file.seek(0)  # Возвращаем указатель в начало
         logger.info(f"Формат файла: {file_ext}")
         
         # Сохраняем файл временно
@@ -199,6 +264,7 @@ def upload_file():
         os.makedirs(os.path.dirname(temp_path), exist_ok=True)
         file.save(temp_path)
         
+        print(f"💾 Файл сохранен: {temp_path}")
         logger.info(f"Файл сохранен: {temp_path}")
         
         # Определяем тип файла
@@ -210,26 +276,38 @@ def upload_file():
         elif file_ext in ['.xlsx', '.xls']:
             file_type = 'excel'
         
+        print(f"🔍 Тип файла определен: {file_type}")
+        print(f"🔍 Расширение файла: {file_ext}")
         logger.info(f"Тип файла определен: {file_type}")
         
         # Получаем дополнительные параметры
         sheet_name = request.form.get('sheet_name')
         filters = request.form.get('filters')
         group = request.form.get('group')  # Получаем группу из формы
+        detected_group = request.form.get('detected_group')  # Получаем определенную группу из формы
+        
+        print(f"🔍 Sheet name: {sheet_name}")
+        print(f"🔍 Группа из формы: {group}")
+        print(f"🔍 Определенная группа из формы: {detected_group}")
+        print(f"🔍 Все данные формы: {dict(request.form)}")
         
         if filters:
             try:
                 filters = json.loads(filters)
+                print(f"🔍 Применены фильтры: {filters}")
                 logger.info(f"Применены фильтры: {filters}")
             except:
                 filters = None
+                print("⚠️ Ошибка парсинга фильтров")
                 logger.warning("Ошибка парсинга фильтров")
         
         # Получаем выбранные методы анализа
         analysis_methods = request.form.get('analysis_methods', 'classical')
+        print(f"🔧 Методы анализа из формы: {analysis_methods} (тип: {type(analysis_methods)})")
         logger.info(f"Получены методы анализа из формы: {analysis_methods} (тип: {type(analysis_methods)})")
         
         # Отладочная информация - выводим все данные формы
+        print(f"📋 Все данные формы: {dict(request.form)}")
         logger.info(f"Все данные формы: {dict(request.form)}")
         
         if isinstance(analysis_methods, str):
@@ -237,123 +315,217 @@ def upload_file():
                 # Пытаемся распарсить JSON
                 import json
                 analysis_methods = json.loads(analysis_methods)
+                print(f"✅ Распарсенные методы из JSON: {analysis_methods}")
                 logger.info(f"Распарсенные методы из JSON: {analysis_methods}")
             except:
                 # Если не JSON, то это просто строка
                 analysis_methods = [analysis_methods]
+                print(f"📝 Методы как список строк: {analysis_methods}")
                 logger.info(f"Методы как список строк: {analysis_methods}")
         elif not analysis_methods:
             analysis_methods = ['classical']
+            print(f"🔄 Используем классический метод по умолчанию: {analysis_methods}")
             logger.info(f"Используем классический метод по умолчанию: {analysis_methods}")
         
+        print(f"🎯 Финальные методы анализа: {analysis_methods}")
+        print(f"🔍 Указанная группа: {group}")
         logger.info(f"Финальные методы анализа: {analysis_methods}")
         logger.info(f"Указанная группа: {group}")
         
         # Обрабатываем данные
+        print("🔄 Начинаем загрузку данных...")
         logger.info("Начинаем загрузку данных...")
-        df = data_processor.load_data(temp_path, file_type, sheet_name, filters)
-        logger.info(f"Данные загружены: {len(df)} строк")
+        
+        try:
+            df = data_processor.load_data(temp_path, file_type, sheet_name, filters)
+            print(f"✅ Данные загружены: {len(df)} строк")
+            logger.info(f"Данные загружены: {len(df)} строк")
+        except Exception as e:
+            print(f"❌ Ошибка загрузки данных: {e}")
+            logger.error(f"Ошибка загрузки данных: {e}")
+            return jsonify({'error': f'Ошибка загрузки данных: {str(e)}'}), 400
         
         if df.empty:
+            print("❌ DataFrame пустой")
             logger.error("Ошибка загрузки файла - DataFrame пустой")
             return jsonify({'error': 'Ошибка загрузки файла'}), 400
         
-        # Применяем группу, если она указана
+        print(f"📊 Колонки в DataFrame: {list(df.columns)}")
+        
+        # Применяем группы, если они указаны
         if group and 'group' in df.columns:
+            print(f"🔍 Применяем группу '{group}' ко всем записям")
             logger.info(f"Применяем группу '{group}' ко всем записям")
             df['group'] = group
+            print(f"✅ Группа применена. Уникальные группы в данных: {df['group'].unique()}")
             logger.info(f"Группа применена. Уникальные группы в данных: {df['group'].unique()}")
-        else:
-            # Проверяем, есть ли записи с пустой группой или отсутствующим полем group
-            needs_group_input = False
+        elif group:
+            print(f"⚠️ Группа '{group}' указана, но поле 'group' отсутствует в данных")
+            print(f"📊 Доступные колонки: {list(df.columns)}")
+        
+        # Создаем поля если их нет
+        if 'group' not in df.columns:
+            print("➕ Создаем поле 'group'")
+            df['group'] = ''
+        if 'determined_group' not in df.columns:
+            print("➕ Создаем поле 'determined_group'")
+            df['determined_group'] = ''
+        
+        if detected_group:
+            print(f"🔍 Применяем определенную группу '{detected_group}' ко всем записям")
+            logger.info(f"Применяем определенную группу '{detected_group}' ко всем записям")
+            df['determined_group'] = detected_group
+            print(f"✅ Определенная группа применена. Уникальные определенные группы в данных: {df['determined_group'].unique()}")
+            logger.info(f"Определенная группа применена. Уникальные определенные группы в данных: {df['determined_group'].unique()}")
+        
+        # Если группы не указаны, анализируем данные
+        if not group and not detected_group:
+            print("🔍 Группы не указаны, анализируем данные...")
+            # Импортируем утилиты для работы с группами
+            from app.core.group_utils import normalize_group_name, get_russian_group_name
+            from app.core.data_normalizer import DataNormalizer
             
-            logger.info(f"Проверяем поле 'group' в данных...")
+            logger.info("Анализируем поля групп в данных...")
+            print("🔍 Анализируем поля групп в данных...")
+            print(f"📊 Колонки в DataFrame: {list(df.columns)}")
             logger.info(f"Колонки в DataFrame: {list(df.columns)}")
             
-            if 'group' in df.columns:
-                logger.info(f"Поле 'group' присутствует в данных")
-                logger.info(f"Уникальные значения в поле 'group': {df['group'].unique()}")
-                
-                # Проверяем пустые группы (NaN, пустые строки, пробелы)
-                empty_groups = df[df['group'].isna() | (df['group'] == '') | (df['group'].astype(str).str.strip() == '')]
-                logger.info(f"Найдено {len(empty_groups)} записей с пустой группой")
-                
-                if len(empty_groups) > 0:
-                    needs_group_input = True
-                    logger.warning(f"Обнаружено {len(empty_groups)} записей с пустой группой")
-                else:
-                    logger.info("Все записи имеют непустые группы")
-            else:
-                # Если поле group отсутствует вообще
-                needs_group_input = True
-                logger.warning(f"Поле 'group' отсутствует в данных")
+            # Проверяем наличие полей групп
+            has_group_field = 'group' in df.columns
+            has_detected_group_field = 'determined_group' in df.columns
             
-            logger.info(f"needs_group_input = {needs_group_input}")
+            print(f"🔍 Поле 'group' присутствует: {has_group_field}")
+            print(f"🔍 Поле 'determined_group' присутствует: {has_detected_group_field}")
+            logger.info(f"Поле 'group' присутствует: {has_group_field}")
+            logger.info(f"Поле 'determined_group' присутствует: {has_detected_group_field}")
             
-            if needs_group_input:
-                logger.info("Пытаемся определить группу автоматически...")
+            # Создаем поля если их нет
+            if not has_group_field:
+                print("➕ Создаем поле 'group'")
+                df['group'] = ''
+            if not has_detected_group_field:
+                print("➕ Создаем поле 'determined_group'")
+                df['determined_group'] = ''
+            
+            # Автоматически определяем detected_group_type для всех записей
+            print("🤖 Автоматически определяем группы для всех записей...")
+            logger.info("Автоматически определяем группы для всех записей...")
+            
+            # Автоматически определяем группы по содержимому
+            for idx, row in df.iterrows():
+                object_name = str(row.get('name', ''))
+                review_text = str(row.get('review_text', ''))
                 
-                # Пытаемся определить группу автоматически
-                detected_group = "unknown"
+                # Используем существующую систему определения групп
                 try:
-                    # Объединяем все тексты для определения группы
-                    combined_text = ""
-                    if 'name' in df.columns:
-                        combined_text += " ".join(df['name'].dropna().astype(str)) + " "
-                    if 'address' in df.columns:
-                        combined_text += " ".join(df['address'].dropna().astype(str)) + " "
-                    if 'review_text' in df.columns:
-                        combined_text += " ".join(df['review_text'].dropna().astype(str))
-                    
-                    if combined_text.strip():
-                        from initial_keywords_system import detect_group_by_initial_keywords
-                        # Извлекаем название объекта из данных
-                        object_names = df['name'].dropna().astype(str).tolist()
-                        object_name = " ".join(object_names[:3]) if object_names else ""  # Берем первые 3 названия
-                        review_texts = df['review_text'].dropna().astype(str).tolist()
-                        review_text = " ".join(review_texts[:5]) if review_texts else ""  # Берем первые 5 отзывов
-                        
-                        detected_group, confidence = detect_group_by_initial_keywords(object_name, review_text)
-                        logger.info(f"Автоматически определена группа: {detected_group} (уверенность: {confidence})")
-                    else:
-                        logger.warning("Не удалось определить группу - нет текста для анализа")
-                        detected_group = 'undetected'
-                        
+                    from initial_keywords_system import detect_group_by_initial_keywords
+                    detected_group, confidence = detect_group_by_initial_keywords(object_name, review_text)
+                    df.at[idx, 'determined_group'] = detected_group
+                    if idx < 3:  # Логируем только первые 3 записи для краткости
+                        print(f"🔍 Запись {idx}: '{object_name[:30]}...' -> группа '{detected_group}' (уверенность: {confidence})")
+                    logger.debug(f"Запись {idx}: '{object_name[:30]}...' -> группа '{detected_group}' (уверенность: {confidence})")
                 except Exception as e:
-                    logger.error(f"Ошибка автоматического определения группы: {e}")
+                    print(f"⚠️ Не удалось определить группу для записи {idx}: {e}")
+                    logger.warning(f"Не удалось определить группу для записи {idx}: {e}")
+                    df.at[idx, 'determined_group'] = 'unknown'
+            
+            # Анализируем, какие поля пустые
+            print("🔍 Анализируем пустые поля групп...")
+            empty_group = df['group'].isna() | (df['group'] == '') | (df['group'].astype(str).str.strip() == '')
+            empty_detected_group = df['determined_group'].isna() | (df['determined_group'] == '') | (df['determined_group'].astype(str).str.strip() == '')
+            
+            empty_group_count = empty_group.sum()
+            empty_detected_group_count = empty_detected_group.sum()
+            
+            print(f"📊 Записей с пустым 'group': {empty_group_count}")
+            print(f"📊 Записей с пустым 'determined_group': {empty_detected_group_count}")
+            logger.info(f"Записей с пустым 'group': {empty_group_count}")
+            logger.info(f"Записей с пустым 'determined_group': {empty_detected_group_count}")
+            
+            # Определяем, нужно ли показывать модальное окно
+            needs_modal = False
+            modal_reason = ""
+            
+            if empty_group_count > 0 and empty_detected_group_count > 0:
+                # Оба поля пустые - показываем модальное окно
+                needs_modal = True
+                modal_reason = "both_empty"
+                print("🔄 Оба поля групп пустые - показываем модальное окно")
+                logger.info("Оба поля групп пустые - показываем модальное окно")
+            elif empty_group_count > 0 and empty_detected_group_count == 0:
+                # Только object_group пустое - показываем модальное окно
+                needs_modal = True
+                modal_reason = "group_empty"
+                print("🔄 Только поле 'group' пустое - показываем модальное окно")
+                logger.info("Только поле 'group' пустое - показываем модальное окно")
+            elif empty_group_count == 0 and empty_detected_group_count > 0:
+                # Только detected_group пустое - определяем автоматически без модального окна
+                print("✅ Только поле 'determined_group' пустое - определяем автоматически")
+                logger.info("Только поле 'determined_group' пустое - определяем автоматически")
                 
-                # Всегда возвращаем данные для показа модального окна
-                logger.info("Возвращаем данные для ручного ввода группы")
+                # Заполняем пустые detected_group на основе group
+                for idx in df[empty_detected_group].index:
+                    group_value = df.at[idx, 'group']
+                    if group_value and str(group_value).strip():
+                        # Нормализуем название группы
+                        normalized_group = normalize_group_name(group_value)
+                        df.at[idx, 'determined_group'] = normalized_group
+                        print(f"🔍 Заполнено detected_group для записи {idx}: '{group_value}' -> '{normalized_group}'")
+                        logger.info(f"Заполнено detected_group для записи {idx}: '{group_value}' -> '{normalized_group}'")
+                
+                needs_modal = False
+            else:
+                # Все поля заполнены
+                print("✅ Все поля групп заполнены")
+                logger.info("Все поля групп заполнены")
+                needs_modal = False
+            
+            if needs_modal:
+                print("🔄 Показываем модальное окно для выбора групп")
+                logger.info("Показываем модальное окно для выбора групп")
                 
                 # Подготавливаем данные для отображения
-                display_columns = ['name', 'address', 'review_text']
+                display_columns = ['name', 'address', 'review_text', 'group', 'determined_group']
                 available_columns = [col for col in display_columns if col in df.columns]
                 
                 # Берем первые 10 записей для отображения
-                display_df = convert_dataframe_for_json(df[available_columns].head(10))
+                display_df = df[available_columns].head(10)
                 display_data = display_df.to_dict('records')
                 
-                return jsonify({
+                # Получаем статистику по определенным группам
+                detected_groups_stats = df['determined_group'].value_counts().to_dict()
+                
+                print(f"📊 Возвращаем ошибку group_required для {len(df)} записей")
+                print(f"🔍 Статистика групп: {detected_groups_stats}")
+                
+                return jsonify(make_json_safe({
                     'error': 'group_required',
-                    'message': f'Пожалуйста, подтвердите или измените группу для {len(df)} записей.',
+                    'message': f'Требуется подтверждение групп для {len(df)} записей.',
                     'total_records': len(df),
-                    'empty_group_records': len(df),
-                    'detected_group': detected_group,
+                    'empty_group_records': empty_group_count,
+                    'empty_detected_group_records': empty_detected_group_count,
+                    'modal_reason': modal_reason,
+                    'detected_groups_stats': detected_groups_stats,
                     'data': display_data
-                }), 400
+                })), 400
             else:
-                logger.info("Группа определена автоматически, продолжаем обработку")
+                print("✅ Все группы определены автоматически, продолжаем обработку")
+                logger.info("Все группы определены автоматически, продолжаем обработку")
         
         # Валидируем данные
+        print("🔍 Начинаем валидацию данных...")
         logger.info("Начинаем валидацию данных...")
         valid_df, addressless_df = data_processor.validate_data(df)
+        print(f"✅ Валидация завершена: валидных записей {len(valid_df)}, без адреса {len(addressless_df)}")
         logger.info(f"Валидация завершена: валидных записей {len(valid_df)}, без адреса {len(addressless_df)}")
         
         # Анализируем текст с выбранными методами
         if not valid_df.empty:
+            print("🧠 Начинаем анализ текста...")
             logger.info("Начинаем анализ текста...")
             # Используем LLM анализатор для множественных методов
             analyzed_df = llm_analyzer.analyze_dataframe(valid_df, methods=analysis_methods)
+            print(f"✅ Анализ завершен: {len(analyzed_df)} записей")
             logger.info(f"Анализ завершен: {len(analyzed_df)} записей")
             
             # Получаем информацию о методах
@@ -362,10 +534,12 @@ def upload_file():
             if not used_methods:
                 used_methods = ['classical']
             
+            print(f"🔧 Используемые методы: {used_methods}")
             logger.info(f"Используемые методы: {used_methods}")
             
             # Сравниваем результаты методов
             comparison = llm_analyzer.compare_methods(analyzed_df, methods=used_methods)
+            print("✅ Сравнение методов завершено")
             logger.info("Сравнение методов завершено")
             
             # Определяем основной метод для отображения
@@ -373,53 +547,68 @@ def upload_file():
             analysis_method = f"Анализ с использованием методов: {', '.join(used_methods)}"
         
             # Проверяем и получаем координаты
+            print("📍 Проверяем координаты...")
             logger.info("Проверяем координаты...")
             coordinates_status = geocoder.get_coordinates_status(analyzed_df)
             if not coordinates_status['coordinates_exist']:
+                print("🌍 Выполняется геокодирование адресов...")
                 logger.info("Выполняется геокодирование адресов...")
                 analyzed_df = geocoder.process_dataframe(analyzed_df)
             else:
+                print("✅ Координаты уже присутствуют в данных")
                 logger.info("Координаты уже присутствуют в данных")
             
             # Обрабатываем районы
+            print("🏘️ Обрабатываем районы...")
             logger.info("Обрабатываем районы...")
             analyzed_df = data_processor.process_districts(analyzed_df)
             
             # Сохраняем в БД
+            print("💾 Сохраняем в БД...")
             logger.info("Сохраняем в БД...")
             try:
                 # Импортируем db_manager_fixed
                 from app.core.database_fixed import db_manager_fixed
                 
                 # Сохраняем данные в БД
+                print(f"📊 Сохраняем {len(analyzed_df)} записей в БД...")
                 success = db_manager_fixed.migrate_csv_to_database(analyzed_df, source="upload")
+                print(f"✅ Сохранение в БД: {'успешно' if success else 'ошибка'}")
                 logger.info(f"Сохранение в БД: {'успешно' if success else 'ошибка'}")
                 
                 # Сохраняем данные в app.archive_data для возможности миграции
                 app.archive_data = analyzed_df
+                print(f"💾 Данные сохранены в app.archive_data: {len(analyzed_df)} записей")
                 logger.info(f"Данные сохранены в app.archive_data: {len(analyzed_df)} записей")
                 logger.info(f"Тип app.archive_data: {type(app.archive_data)}")
                 logger.info(f"Колонки в app.archive_data: {list(app.archive_data.columns)}")
                 
             except Exception as e:
+                print(f"❌ Ошибка сохранения в БД: {e}")
                 logger.error(f"Ошибка сохранения в БД: {e}")
                 success = False
             
             # Подготавливаем результаты для отображения
+            print("📋 Подготавливаем результаты для отображения...")
             display_columns = ['group', 'name', 'determined_group', 'address', 'review_text', 'rating']
             # Добавляем колонки для каждого метода анализа
             for method in used_methods:
                 display_columns.extend([f'{method}_sentiment', f'{method}_sentiment_score', f'{method}_review_type'])
             
             available_columns = [col for col in display_columns if col in analyzed_df.columns]
+            print(f"🔍 Колонки для отображения: {available_columns}")
             logger.info(f"Колонки для отображения: {available_columns}")
             
             # Берем первые 10 записей для отображения
             display_df = convert_dataframe_for_json(analyzed_df[available_columns].head(10))
             display_data = display_df.to_dict('records')
+            print(f"📊 Подготовлено {len(display_data)} записей для отображения")
             logger.info(f"Подготовлено {len(display_data)} записей для отображения")
             
             logger.info("=== ЗАВЕРШЕНИЕ ОБРАБОТКИ ФАЙЛА ===")
+            print("🎉 Обработка файла завершена успешно!")
+            print(f"📊 Обработано записей: {len(analyzed_df)}")
+            print(f"💾 Сохранено в БД: {'Да' if success else 'Нет'}")
             
             return jsonify(make_json_safe({
                 'success': True,
@@ -442,12 +631,16 @@ def upload_file():
                 }
             }))
         else:
+            print("❌ Нет валидных записей для обработки")
             logger.error("Нет валидных записей для обработки")
             return jsonify({'error': 'Нет валидных записей для обработки'}), 400
             
     except Exception as e:
+        print(f"💥 КРИТИЧЕСКАЯ ОШИБКА: {str(e)}")
         logger.error(f"Ошибка обработки: {str(e)}")
         import traceback
+        print(f"🔍 Полный traceback:")
+        print(traceback.format_exc())
         logger.error(f"Полный traceback: {traceback.format_exc()}")
         return jsonify({'error': f'Ошибка обработки: {str(e)}'}), 500
 
@@ -498,17 +691,17 @@ def get_archive_info():
                 completeness = int((non_empty.sum() / len(df)) * 100) if len(df) > 0 else 0
                 field_completeness[field] = completeness
         
-        return jsonify({
+        return jsonify(make_json_safe({
             'total_records': len(df),
             'groups': groups,  # Группы от поставщика
             'determined_groups': determined_groups,  # Определенные группы
             'date_range': date_range,
             'field_completeness': field_completeness
-        })
+        }))
         
     except Exception as e:
         logger.error(f"Ошибка получения информации о данных: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify(make_json_safe({'error': str(e)})), 500
 
 @app.route('/archive/clear', methods=['POST'])
 def clear_archive():
@@ -705,7 +898,7 @@ def get_database_stats():
         })
     except Exception as e:
         logger.error(f"Ошибка при получении статистики БД: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify(make_json_safe({'error': str(e)})), 500
 
 @app.route('/database/migrate', methods=['POST'])
 def migrate_to_database():
@@ -752,7 +945,7 @@ def migrate_to_database():
             
     except Exception as e:
         logger.error(f"Ошибка при миграции в БД: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify(make_json_safe({'error': str(e)})), 500
 
 @app.route('/database/export', methods=['POST'])
 def export_from_database():
@@ -780,7 +973,7 @@ def export_from_database():
         
     except Exception as e:
         logger.error(f"Ошибка при экспорте из БД: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify(make_json_safe({'error': str(e)})), 500
 
 @app.route('/database/validate')
 def validate_database():
@@ -793,7 +986,7 @@ def validate_database():
         })
     except Exception as e:
         logger.error(f"Ошибка при валидации БД: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify(make_json_safe({'error': str(e)})), 500
 
 @app.route('/database/sentiment_distribution')
 def get_sentiment_distribution():
@@ -802,13 +995,13 @@ def get_sentiment_distribution():
         method_name = request.args.get('method')
         df = db_manager_fixed.get_sentiment_distribution(method_name)
         
-        return jsonify({
+        return jsonify(make_json_safe({
             'success': True,
             'data': df.to_dict('records')
-        })
+        }))
     except Exception as e:
         logger.error(f"Ошибка при получении распределения сентиментов: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify(make_json_safe({'error': str(e)})), 500
 
 @app.route('/map/data')
 def get_map_data():
@@ -1035,7 +1228,7 @@ def get_map_data():
 
     except Exception as e:
         logger.error(f"Ошибка при получении данных карты: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify(make_json_safe({'error': str(e)})), 500
 
 def get_point_color(row, color_scheme, sentiment_method, group_type='supplier'):
     """Определяет цвет точки на карте"""

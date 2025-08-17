@@ -306,6 +306,223 @@
             background-color: #198754 !important;
             border-color: #198754 !important;
         }
+        
+        /* Стили для блок-схемы */
+        .flowchart-container {
+            position: relative;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .flowchart-main-flow {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .flowchart-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            min-width: 120px;
+            text-align: center;
+        }
+        
+        .flowchart-step:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+        
+        .flowchart-input {
+            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+            border: 2px solid #2196f3;
+        }
+        
+        .flowchart-process {
+            background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+            border: 2px solid #ff9800;
+        }
+        
+        .flowchart-database {
+            background: linear-gradient(135deg, #e8f5e8, #c8e6c9);
+            border: 2px solid #4caf50;
+        }
+        
+        .flowchart-analysis {
+            background: linear-gradient(135deg, #f3e5f5, #e1bee7);
+            border: 2px solid #9c27b0;
+        }
+        
+        .flowchart-output {
+            background: linear-gradient(135deg, #fff8e1, #fff9c4);
+            border: 2px solid #ffc107;
+        }
+        
+        .step-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        
+        .step-label {
+            font-weight: 600;
+            color: #333;
+            line-height: 1.3;
+        }
+        
+        .step-label small {
+            font-weight: 400;
+            color: #666;
+        }
+        
+        .flowchart-arrow {
+            font-size: 1.5rem;
+            color: #666;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+        }
+        
+        .flowchart-side-components {
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .flowchart-side-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px;
+            border-radius: 10px;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+            background: linear-gradient(135deg, #f5f5f5, #e0e0e0);
+            border: 2px solid #757575;
+            min-width: 100px;
+            text-align: center;
+        }
+        
+        .flowchart-side-step:hover {
+            transform: scale(1.05);
+        }
+        
+        .flowchart-master {
+            background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+            border-color: #ff9800;
+        }
+        
+        .flowchart-filters {
+            background: linear-gradient(135deg, #e8f5e8, #c8e6c9);
+            border-color: #4caf50;
+        }
+        
+        .flowchart-api {
+            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+            border-color: #2196f3;
+        }
+        
+        .flowchart-connections {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        .connection-line {
+            position: absolute;
+            background: #ddd;
+            border-radius: 2px;
+        }
+        
+        .connection-1 {
+            top: 25%;
+            right: 15%;
+            width: 2px;
+            height: 60px;
+            transform: rotate(45deg);
+        }
+        
+        .connection-2 {
+            top: 45%;
+            right: 15%;
+            width: 2px;
+            height: 40px;
+            transform: rotate(45deg);
+        }
+        
+        .connection-3 {
+            top: 65%;
+            right: 15%;
+            width: 2px;
+            height: 60px;
+            transform: rotate(45deg);
+        }
+        
+        .flowchart-legend-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 2px solid #333;
+        }
+        
+        .legend-input {
+            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+        }
+        
+        .legend-process {
+            background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+        }
+        
+        .legend-output {
+            background: linear-gradient(135deg, #fff8e1, #fff9c4);
+        }
+        
+        /* Адаптивность для мобильных устройств */
+        @media (max-width: 768px) {
+            .flowchart-side-components {
+                position: static;
+                transform: none;
+                margin-top: 20px;
+                flex-direction: row;
+                justify-content: center;
+            }
+            
+            .flowchart-main-flow {
+                gap: 10px;
+            }
+            
+            .flowchart-step {
+                min-width: 100px;
+                padding: 10px;
+            }
+            
+            .step-icon {
+                font-size: 1.5rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -329,14 +546,21 @@
                             <h6><i class="fas fa-upload"></i> Загрузка файла</h6>
                         </div>
                         <div class="card-body">
-                            <div class="upload-area" id="uploadArea">
-                                <i class="fas fa-cloud-upload-alt fa-2x text-muted mb-2"></i>
+                            <div class="upload-area" id="uploadArea" style="min-height: 200px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                                <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
                                 <h6>Перетащите файл сюда</h6>
-                                <p class="text-muted small">CSV, JSON, Excel</p>
-                                <input type="file" id="fileInput" accept=".csv,.json,.xlsx,.xls" style="display: none;">
-                                <button class="btn btn-primary btn-sm" onclick="document.getElementById('fileInput').click()">
-                                    <i class="fas fa-folder-open"></i> Выбрать файл
-                                </button>
+                                <p class="text-muted small">JSON, Excel</p>
+                                <div class="mt-3">
+                                    <input type="file" id="fileInput" accept=".json,.xlsx,.xls" style="display: none;">
+                                    <button class="btn btn-primary btn-sm" onclick="document.getElementById('fileInput').click()">
+                                        <i class="fas fa-folder-open"></i> Выбрать файл
+                                    </button>
+                                </div>
+                                <div class="mt-3 text-center">
+                                    <small class="text-muted">
+                                        <i class="fas fa-info-circle"></i> Поддерживаются файлы JSON и Excel
+                                    </small>
+                                </div>
                             </div>
                             
                             <!-- Настройки для Excel файлов -->
@@ -376,10 +600,24 @@
                                                     Классический анализ
                                                 </label>
                                             </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" value="llm" id="methodLLM">
+                                                <label class="form-check-label small" for="methodLLM">
+                                                    LLM анализ
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" value="geocoding" id="methodGeocoding">
+                                                <label class="form-check-label small" for="methodGeocoding">
+                                                    Геокодирование
+                                                </label>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
+                            
+
                             
                             <div class="loading text-center mt-2" id="loading">
                                 <div class="spinner-border spinner-border-sm text-primary" role="status">
@@ -394,8 +632,8 @@
                         </div>
                     </div>
 
-                    <!-- Переключатель источника данных -->
-                    <div class="card mb-3">
+                    <!-- Переключатель источника данных (временно скрыт) -->
+                    <!-- <div class="card mb-3">
                         <div class="card-header">
                             <h6><i class="fas fa-database"></i> Источник данных</h6>
                         </div>
@@ -418,10 +656,10 @@
                                 </small>
                             </div>
                         </div>
-                    </div>
+                    </div> -->
 
-                    <!-- Управление выборкой -->
-                    <div class="card" id="sampleManagementCard" style="display: none;">
+                    <!-- Управление выборкой (временно скрыто) -->
+                    <!-- <div class="card" id="sampleManagementCard" style="display: none;">
                         <div class="card-header">
                             <h6><i class="fas fa-filter"></i> Управление выборкой</h6>
                         </div>
@@ -461,10 +699,10 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </div> -->
 
-                    <!-- Управление ключевыми словами -->
-                    <div class="card" id="keywordsManagementCard">
+                    <!-- Управление ключевыми словами (временно скрыто) -->
+                    <!-- <div class="card" id="keywordsManagementCard">
                         <div class="card-header">
                             <h6><i class="fas fa-key"></i> Управление ключевыми словами</h6>
                         </div>
@@ -504,7 +742,7 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </div> -->
 
                     <!-- Информация о базе данных -->
                     <div class="card" id="archiveManagementCard">
@@ -512,21 +750,7 @@
                             <h6><i class="fas fa-database"></i> Информация о базе данных</h6>
                         </div>
                         <div class="card-body">
-                            <div class="row">
-                                <div class="col-12">
-                                    <div class="d-grid gap-2">
-                                        <button class="btn btn-outline-info btn-sm" onclick="getArchiveInfo()">
-                                            <i class="fas fa-info-circle"></i> Информация о БД
-                                        </button>
-                                        <button class="btn btn-outline-secondary btn-sm" onclick="getCSVFieldsInfo()">
-                                            <i class="fas fa-list"></i> Поддерживаемые поля
-                                        </button>
-                                        <button class="btn btn-secondary btn-sm" onclick="getSampleData()">
-                                            <i class="fas fa-database"></i> Образец данных
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
+
                             
                             <div class="archive-info" id="archiveInfo" style="display: none;">
                                 <h6>Информация о базе данных:</h6>
@@ -704,11 +928,11 @@
                         <div class="mb-3">
                             <label class="form-label"><strong>Вид результатов:</strong></label>
                             <div class="btn-group w-100" role="group">
-                                <input type="radio" class="btn-check" name="viewMode" id="tableView" value="table" checked>
+                                <input type="radio" class="btn-check" name="viewMode" id="tableView" value="table">
                                 <label class="btn btn-outline-primary btn-sm" for="tableView">
-                                    <i class="fas fa-table"></i> Таблица
+                                    <i class="fas fa-project-diagram"></i> Блок-Схема
                                 </label>
-                                <input type="radio" class="btn-check" name="viewMode" id="chartView" value="chart">
+                                <input type="radio" class="btn-check" name="viewMode" id="chartView" value="chart" checked>
                                 <label class="btn btn-outline-primary btn-sm" for="chartView">
                                     <i class="fas fa-star"></i> Master Rating
                                 </label>
@@ -770,6 +994,135 @@
                                     <!-- Данные будут добавлены динамически -->
                                 </tbody>
                             </table>
+                        </div>
+                        
+                        <!-- Блок-схема системы -->
+                        <div id="systemFlowchart" class="border border-2 border-light rounded p-3 bg-light mb-4" style="display: none;">
+                            <h5 class="text-center mb-4">
+                                <i class="fas fa-project-diagram"></i> Архитектура системы анализа городской среды
+                            </h5>
+                            <div class="flowchart-container">
+                                <!-- Основной поток данных -->
+                                <div class="flowchart-main-flow">
+                                    <!-- Входные данные -->
+                                    <div class="flowchart-step flowchart-input">
+                                        <div class="step-icon">
+                                            <i class="fas fa-file-upload"></i>
+                                        </div>
+                                        <div class="step-label">Загрузка файлов<br><small>(JSON, Excel)</small></div>
+                                    </div>
+                                    
+                                    <!-- Стрелка -->
+                                    <div class="flowchart-arrow">
+                                        <i class="fas fa-arrow-down"></i>
+                                    </div>
+                                    
+                                    <!-- Обработка -->
+                                    <div class="flowchart-step flowchart-process">
+                                        <div class="step-icon">
+                                            <i class="fas fa-cogs"></i>
+                                        </div>
+                                        <div class="step-label">Обработка<br><small>(VADER, LLM)</small></div>
+                                    </div>
+                                    
+                                    <!-- Стрелка -->
+                                    <div class="flowchart-arrow">
+                                        <i class="fas fa-arrow-down"></i>
+                                    </div>
+                                    
+                                    <!-- База данных -->
+                                    <div class="flowchart-step flowchart-database">
+                                        <div class="step-icon">
+                                            <i class="fas fa-database"></i>
+                                        </div>
+                                        <div class="step-label">База данных<br><small>(SQLite)</small></div>
+                                    </div>
+                                    
+                                    <!-- Стрелка -->
+                                    <div class="flowchart-arrow">
+                                        <i class="fas fa-arrow-down"></i>
+                                    </div>
+                                    
+                                    <!-- Анализ -->
+                                    <div class="flowchart-step flowchart-analysis">
+                                        <div class="step-icon">
+                                            <i class="fas fa-chart-line"></i>
+                                        </div>
+                                        <div class="step-label">Анализ<br><small>(Корреляции)</small></div>
+                                    </div>
+                                    
+                                    <!-- Стрелка -->
+                                    <div class="flowchart-arrow">
+                                        <i class="fas fa-arrow-down"></i>
+                                    </div>
+                                    
+                                    <!-- Визуализация -->
+                                    <div class="flowchart-step flowchart-output">
+                                        <div class="step-icon">
+                                            <i class="fas fa-eye"></i>
+                                        </div>
+                                        <div class="step-label">Визуализация<br><small>(Карты, графики)</small></div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Дополнительные компоненты -->
+                                <div class="flowchart-side-components">
+                                    <!-- Мастер-рейтинг -->
+                                    <div class="flowchart-side-step flowchart-master">
+                                        <div class="step-icon">
+                                            <i class="fas fa-star"></i>
+                                        </div>
+                                        <div class="step-label">Master Rating<br><small>(Экспертная оценка)</small></div>
+                                    </div>
+                                    
+                                    <!-- Фильтры -->
+                                    <div class="flowchart-side-step flowchart-filters">
+                                        <div class="step-icon">
+                                            <i class="fas fa-filter"></i>
+                                        </div>
+                                        <div class="step-label">Фильтры<br><small>(Группы, методы)</small></div>
+                                    </div>
+                                    
+                                    <!-- API -->
+                                    <div class="flowchart-side-step flowchart-api">
+                                        <div class="step-icon">
+                                            <i class="fas fa-code"></i>
+                                        </div>
+                                        <div class="step-label">API<br><small>(Flask endpoints)</small></div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Связи между компонентами -->
+                                <div class="flowchart-connections">
+                                    <div class="connection-line connection-1"></div>
+                                    <div class="connection-line connection-2"></div>
+                                    <div class="connection-line connection-3"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Описание системы -->
+                            <div class="mt-4 text-center">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="flowchart-legend-item">
+                                            <div class="legend-color legend-input"></div>
+                                            <small>Входные данные</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="flowchart-legend-item">
+                                            <div class="legend-color legend-process"></div>
+                                            <small>Обработка</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="flowchart-legend-item">
+                                            <div class="legend-color legend-output"></div>
+                                            <small>Результаты</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         
                         <!-- Контейнер для диаграммы -->
@@ -2709,6 +3062,7 @@
             const sentimentTable = document.getElementById('sentimentTable');
             const correlationHeatmap = document.getElementById('correlationHeatmap');
             const masterRatingTable = document.getElementById('masterRatingTable');
+            const systemFlowchart = document.getElementById('systemFlowchart');
             const completenessFilterSection = document.getElementById('completenessFilterSection');
             
             // Скрываем все контейнеры по умолчанию
@@ -2716,10 +3070,13 @@
             if (chartContainer) chartContainer.style.display = 'none';
             if (sentimentTable) sentimentTable.style.display = 'none';
             if (correlationHeatmap) correlationHeatmap.style.display = 'none';
-            if (masterRatingTable) masterRatingTable.style.display = 'none';
+            if (systemFlowchart) systemFlowchart.style.display = 'none';
             if (completenessFilterSection) completenessFilterSection.style.display = 'none';
             
-            console.log('Все контейнеры скрыты при инициализации');
+            // Показываем таблицу Master Rating по умолчанию (так как она выбрана checked)
+            if (masterRatingTable) masterRatingTable.style.display = 'block';
+            
+            console.log('Таблица Master Rating показана по умолчанию');
         }
         
         // Функция для переключения между таблицей и диаграммой
@@ -2734,18 +3091,20 @@
             const sentimentTable = document.getElementById('sentimentTable');
             const correlationHeatmap = document.getElementById('correlationHeatmap');
             const masterRatingTable = document.getElementById('masterRatingTable');
+            const systemFlowchart = document.getElementById('systemFlowchart');
             const completenessFilterSection = document.getElementById('completenessFilterSection');
             const methodFilterSection = document.getElementById('methodFilterSection');
             
             if (tableView) {
                 tableView.addEventListener('change', function() {
-                    if (resultsTable) resultsTable.style.display = 'block';
+                    if (resultsTable) resultsTable.style.display = 'none';
                     if (chartContainer) chartContainer.style.display = 'none';
                     if (sentimentTable) sentimentTable.style.display = 'none';
                     if (correlationHeatmap) correlationHeatmap.style.display = 'none';
                     if (masterRatingTable) masterRatingTable.style.display = 'none';
+                    if (systemFlowchart) systemFlowchart.style.display = 'block';
                     if (completenessFilterSection) completenessFilterSection.style.display = 'none';
-                    loadTableData();
+                    // Блок-схема не требует загрузки данных
                 });
             }
             
@@ -2756,6 +3115,7 @@
                     if (sentimentTable) sentimentTable.style.display = 'none';
                     if (correlationHeatmap) correlationHeatmap.style.display = 'none';
                     if (masterRatingTable) masterRatingTable.style.display = 'block';
+                    if (systemFlowchart) systemFlowchart.style.display = 'none';
                     if (completenessFilterSection) completenessFilterSection.style.display = 'none';
                     loadMasterRatingData();
                 });
@@ -2767,6 +3127,8 @@
                     if (chartContainer) chartContainer.style.display = 'none';
                     if (sentimentTable) sentimentTable.style.display = 'block';
                     if (correlationHeatmap) correlationHeatmap.style.display = 'none';
+                    if (masterRatingTable) masterRatingTable.style.display = 'none';
+                    if (systemFlowchart) systemFlowchart.style.display = 'none';
                     if (completenessFilterSection) completenessFilterSection.style.display = 'block';
                     if (methodFilterSection) methodFilterSection.style.display = 'block';
                     loadSentimentTableData();
@@ -2779,6 +3141,8 @@
                     if (chartContainer) chartContainer.style.display = 'none';
                     if (sentimentTable) sentimentTable.style.display = 'none';
                     if (correlationHeatmap) correlationHeatmap.style.display = 'block';
+                    if (masterRatingTable) masterRatingTable.style.display = 'none';
+                    if (systemFlowchart) systemFlowchart.style.display = 'none';
                     if (completenessFilterSection) completenessFilterSection.style.display = 'block';
                     loadCorrelationHeatmapData();
                 });
@@ -2790,6 +3154,8 @@
                     if (chartContainer) chartContainer.style.display = 'none';
                     if (sentimentTable) sentimentTable.style.display = 'none';
                     if (correlationHeatmap) correlationHeatmap.style.display = 'none';
+                    if (masterRatingTable) masterRatingTable.style.display = 'none';
+                    if (systemFlowchart) systemFlowchart.style.display = 'none';
                     if (completenessFilterSection) completenessFilterSection.style.display = 'none';
                     loadDbTableData();
                 });

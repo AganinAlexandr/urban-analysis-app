@@ -106,30 +106,34 @@ def calculate_method_correlation(group_data, all_methods):
     for expected_method in all_methods:
         if expected_method in available_methods:
             method = expected_method
-        method_values = []
-        master_values = []
-        
-        for review in group_data:
-            if method in review and 'master_rating' in review:
-                method_val = review[method]
-                master_val = review['master_rating']
-                
-                # Проверяем, что оба значения не None
-                if method_val is not None and master_val is not None:
-                    method_values.append(method_val)
-                    master_values.append(master_val)
-        
-        # Рассчитываем корреляцию только если есть достаточно данных
-        if len(method_values) >= 3 and len(master_values) >= 3 and len(method_values) == len(master_values):
-            try:
-                correlation = np.corrcoef(method_values, master_values)[0, 1]
-                if pd.isna(correlation):
-                    correlation = 0.0
-                correlations.append(max(0.0, min(1.0, abs(correlation))))
-            except Exception as e:
-                logger.error(f"calculate_method_correlation: ошибка расчета корреляции для метода {method}: {e}")
+            method_values = []
+            master_values = []
+            
+            for review in group_data:
+                if method in review and 'master_rating' in review:
+                    method_val = review[method]
+                    master_val = review['master_rating']
+                    
+                    # Проверяем, что оба значения не None
+                    if method_val is not None and master_val is not None:
+                        method_values.append(method_val)
+                        master_values.append(master_val)
+            
+            # Рассчитываем корреляцию только если есть достаточно данных
+            if len(method_values) >= 3 and len(master_values) >= 3 and len(method_values) == len(master_values):
+                try:
+                    correlation = np.corrcoef(method_values, master_values)[0, 1]
+                    if pd.isna(correlation):
+                        correlation = 0.0
+                    correlations.append(max(0.0, min(1.0, abs(correlation))))
+                except Exception as e:
+                    logger.error(f"calculate_method_correlation: ошибка расчета корреляции для метода {method}: {e}")
+                    correlations.append(0.0)
+            else:
                 correlations.append(0.0)
         else:
+            # Если метода нет в данных, добавляем 0.0
+            logger.info(f"calculate_method_correlation: метод {expected_method} отсутствует в данных, добавляем 0.0")
             correlations.append(0.0)
     
     return correlations

@@ -2666,13 +2666,13 @@
         
         function getSentimentMethodDisplayName(method) {
             const names = {
-                'user_rating': 'Рейтинг-Master_Rating',
-                'nlp_vader': 'VADER-Master_Rating',
-                'yandex_gpt': 'YandexGPT-Master_Rating',
-                'openai_gpt': 'OpenAI-Master_Rating',
-                'google_gemini': 'Gemini-Master_Rating',
-                'gigachat': 'GigaChat-Master_Rating',
-                'deepseek_chat': 'DeepSeek-Master_Rating'
+                'user_rating': 'Рейтинг',
+                'nlp_vader': 'VADER',
+                'yandex_gpt': 'YandexGPT',
+                'openai_gpt': 'OpenAI',
+                'google_gemini': 'Gemini',
+                'gigachat': 'GigaChat',
+                'deepseek_chat': 'DeepSeek'
             };
             return names[method] || method;
         }
@@ -2687,6 +2687,20 @@
                 'google_gemini': 'Gemini',
                 'gigachat': 'GigaChat',
                 'deepseek_chat': 'DeepSeek'
+            };
+            return names[method] || method;
+        }
+        
+        // Функция для названий методов в графике корреляции (с -Master_Rating)
+        function getMethodDisplayNameForCorrelationChart(method) {
+            const names = {
+                'user_rating': 'Рейтинг-Master_Rating',
+                'nlp_vader': 'VADER-Master_Rating',
+                'yandex_gpt': 'YandexGPT-Master_Rating',
+                'openai_gpt': 'OpenAI-Master_Rating',
+                'google_gemini': 'Gemini-Master_Rating',
+                'gigachat': 'GigaChat-Master_Rating',
+                'deepseek_chat': 'DeepSeek-Master_Rating'
             };
             return names[method] || method;
         }
@@ -4140,13 +4154,13 @@
             
             // Создаем график
             console.log('🎯 Создание Chart.js графика...');
-            console.log('  labels:', methods.map(method => getSentimentMethodDisplayName(method)));
+            console.log('  labels:', methods.map(method => getMethodDisplayNameForCorrelationChart(method)));
             
             const ctx = canvas.getContext('2d');
             new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: methods.map(method => getSentimentMethodDisplayName(method)),
+                    labels: methods.map(method => getMethodDisplayNameForCorrelationChart(method)),
                     datasets: datasets
                 },
                 options: {

@@ -794,12 +794,34 @@
                         </div>
                         
                         <div id="correlationHeatmap" style="display: none;">
-                            <div id="correlationHeatmapLoading" class="text-center">
-                                <div class="spinner-border" role="status">
-                                    <span class="visually-hidden">Загрузка...</span>
+                            <div class="border border-2 border-light rounded p-3 bg-light mb-3">
+                                <h5 class="text-center mb-3">
+                                    <i class="fas fa-fire"></i> Тепловая карта корреляции методов
+                                </h5>
+                                <div id="correlationHeatmapLoading" class="text-center">
+                                    <div class="spinner-border" role="status">
+                                        <span class="visually-hidden">Загрузка...</span>
+                                    </div>
                                 </div>
                             </div>
-                            <div id="correlationHeatmapContainer"></div>
+                            <div id="correlationHeatmapContainer" class="border border-2 border-light rounded p-3 bg-light mb-4"></div>
+                            
+                            
+                            
+                            <!-- Третья диаграмма для корреляции методов с master_rating по группам -->
+                            <div class="mt-5">
+                                <div class="border border-2 border-light rounded p-3 bg-light mb-3">
+                                    <h5 class="text-center mb-3">
+                                        <i class="fas fa-chart-bar"></i> Корреляция методов с Master Rating по группам
+                                    </h5>
+                                    <div id="methodCorrelationLoading" class="text-center">
+                                        <div class="spinner-border" role="status">
+                                            <span class="visually-hidden">Загрузка корреляции методов...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="methodCorrelationContainer" class="border border-2 border-light rounded p-3 bg-light"></div>
+                            </div>
                         </div>
                         
                         <!-- Контейнер для мастер-рейтинга -->
@@ -2644,14 +2666,27 @@
         
         function getSentimentMethodDisplayName(method) {
             const names = {
+                'user_rating': 'Рейтинг-Master_Rating',
+                'nlp_vader': 'VADER-Master_Rating',
+                'yandex_gpt': 'YandexGPT-Master_Rating',
+                'openai_gpt': 'OpenAI-Master_Rating',
+                'google_gemini': 'Gemini-Master_Rating',
+                'gigachat': 'GigaChat-Master_Rating',
+                'deepseek_chat': 'DeepSeek-Master_Rating'
+            };
+            return names[method] || method;
+        }
+        
+        // Функция для названий методов в тепловой карте (без -Master_Rating)
+        function getMethodDisplayNameForHeatmap(method) {
+            const names = {
                 'user_rating': 'Рейтинг',
                 'nlp_vader': 'VADER',
-                'llm_yandex': 'YandexGPT',
-                'openai': 'OpenAI',
+                'yandex_gpt': 'YandexGPT',
+                'openai_gpt': 'OpenAI',
                 'google_gemini': 'Gemini',
                 'gigachat': 'GigaChat',
-                'qwen': 'Qwen',
-                'deepseek': 'DeepSeek'
+                'deepseek_chat': 'DeepSeek'
             };
             return names[method] || method;
         }
@@ -3726,6 +3761,58 @@
                 correlationHeatmapLoading.style.display = 'none';
                 correlationHeatmapContainer.style.display = 'block';
             }
+            
+            // Загружаем данные корреляции между группами
+            await loadGroupCorrelationData();
+            
+            // Загружаем данные корреляции методов с master_rating
+            await loadMethodCorrelationData();
+        }
+        
+        // Функция для загрузки данных корреляции между группами
+        async function loadGroupCorrelationData() {
+            const groupCorrelationLoading = document.getElementById('groupCorrelationHeatmapLoading');
+            const groupCorrelationContainer = document.getElementById('groupCorrelationHeatmapContainer');
+            
+            if (!groupCorrelationLoading || !groupCorrelationContainer) {
+                console.error('Элементы корреляции групп не найдены');
+                return;
+            }
+            
+            try {
+                groupCorrelationLoading.style.display = 'block';
+                groupCorrelationContainer.style.display = 'none';
+                
+                const filterParams = getAllFilterParams();
+                const filtersParam = filterParams.group_filters.join(',');
+                const groupTypeParam = filterParams.group_type;
+                const colorSchemeParam = filterParams.color_scheme;
+                const sentimentMethodParam = filterParams.sentiment_method;
+                
+                // Получаем значение фильтра полноты данных (для групп используем "без пустых")
+                const completenessFilter = 'no_empty_values';
+                
+                const response = await fetch(`/chart/group-correlation?filters=${filtersParam}&group_type=${groupTypeParam}&color_scheme=${colorSchemeParam}&sentiment_method=${sentimentMethodParam}&completeness_filter=${completenessFilter}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    createGroupCorrelationHeatmap(result.data);
+                } else {
+                    console.error('Ошибка загрузки данных корреляции групп:', result.error);
+                    groupCorrelationContainer.innerHTML = '<div class="alert alert-danger">Ошибка загрузки данных корреляции групп</div>';
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки данных корреляции групп:', error);
+                groupCorrelationContainer.innerHTML = '<div class="alert alert-danger">Ошибка загрузки данных корреляции групп</div>';
+            } finally {
+                groupCorrelationLoading.style.display = 'none';
+                groupCorrelationContainer.style.display = 'block';
+            }
         }
         
         // Функция для создания тепловой карты корреляции
@@ -3747,14 +3834,14 @@
             // Заголовок таблицы
             heatmapHtml += '<thead><tr><th style="width: 120px; height: 50px;">Методы</th>';
             methods.forEach(method => {
-                heatmapHtml += `<th style="text-align: center; font-size: 20px; height: 50px; width: ${Math.max(80, 400 / methods.length)}px;">${getSentimentMethodDisplayName(method)}</th>`;
+                heatmapHtml += `<th style="text-align: center; font-size: 20px; height: 50px; width: ${Math.max(80, 400 / methods.length)}px;">${getMethodDisplayNameForHeatmap(method)}</th>`;
             });
             heatmapHtml += '</tr></thead>';
             
             // Тело таблицы
             heatmapHtml += '<tbody>';
             methods.forEach((method, i) => {
-                heatmapHtml += `<tr><td style="width: 120px; height: 50px; font-weight: bold; vertical-align: middle; font-size: 20px;">${getSentimentMethodDisplayName(method)}</td>`;
+                heatmapHtml += `<tr><td style="width: 120px; height: 50px; font-weight: bold; vertical-align: middle; font-size: 20px;">${getMethodDisplayNameForHeatmap(method)}</td>`;
                 
                 methods.forEach((otherMethod, j) => {
                     const correlation = correlationMatrix[i][j];
@@ -3803,7 +3890,353 @@
             
             container.innerHTML = heatmapHtml;
         }
-
+        
+        // Функция для создания тепловой карты корреляции между группами
+        function createGroupCorrelationHeatmap(correlationData) {
+            const container = document.getElementById('groupCorrelationHeatmapContainer');
+            
+            if (!container) {
+                console.error('Контейнер корреляции групп не найден');
+                return;
+            }
+            
+            const groups = correlationData.groups;
+            const correlationMatrix = correlationData.correlation_matrix;
+            
+            if (!groups || !correlationMatrix || groups.length === 0) {
+                container.innerHTML = '<div class="alert alert-info">Недостаточно данных для построения корреляции между группами</div>';
+                return;
+            }
+            
+            // Создаем HTML таблицу для тепловой карты корреляции групп
+            let heatmapHtml = '<div class="table-responsive" style="max-width: 800px; margin: 0 auto;">';
+            heatmapHtml += '<table class="table table-bordered table-sm" style="font-size: 18px; width: 100%; table-layout: fixed;">';
+            
+            // Заголовок таблицы
+            heatmapHtml += '<thead><tr><th style="width: 150px; height: 50px;">Группы</th>';
+            groups.forEach(group => {
+                const groupDisplayName = getGroupDisplayName(group);
+                heatmapHtml += `<th style="text-align: center; font-size: 16px; height: 50px; width: ${Math.max(100, 600 / groups.length)}px;">${groupDisplayName}</th>`;
+            });
+            heatmapHtml += '</tr></thead>';
+            
+            // Тело таблицы
+            heatmapHtml += '<tbody>';
+            groups.forEach((group, i) => {
+                const groupDisplayName = getGroupDisplayName(group);
+                heatmapHtml += `<tr><td style="width: 150px; height: 50px; font-weight: bold; vertical-align: middle; font-size: 16px;">${groupDisplayName}</td>`;
+                
+                groups.forEach((otherGroup, j) => {
+                    const correlation = correlationMatrix[i][j];
+                    let cellClass = '';
+                    let cellStyle = '';
+                    
+                    // Определяем цвет на основе корреляции
+                    if (i === j) {
+                        // Диагональ - всегда 1.0
+                        cellClass = 'table-primary';
+                        cellStyle = `background-color: #007bff; color: white; text-align: center; font-weight: bold; height: 50px; width: ${Math.max(100, 600 / groups.length)}px; vertical-align: middle;`;
+                    } else if (correlation >= 0.8) {
+                        cellClass = 'table-success';
+                        cellStyle = `background-color: #28a745; color: white; text-align: center; height: 50px; width: ${Math.max(100, 600 / groups.length)}px; vertical-align: middle;`;
+                    } else if (correlation >= 0.6) {
+                        cellClass = 'table-info';
+                        cellStyle = `background-color: #17a2b8; color: white; text-align: center; height: 50px; width: ${Math.max(100, 600 / groups.length)}px; vertical-align: middle;`;
+                    } else if (correlation >= 0.4) {
+                        cellClass = 'table-warning';
+                        cellStyle = `background-color: #ffc107; color: black; text-align: center; height: 50px; width: ${Math.max(100, 600 / groups.length)}px; vertical-align: middle;`;
+                    } else if (correlation >= 0.2) {
+                        cellClass = 'table-danger';
+                        cellStyle = `background-color: #dc3545; color: white; text-align: center; height: 50px; width: ${Math.max(100, 600 / groups.length)}px; vertical-align: middle;`;
+                    } else {
+                        cellClass = 'table-secondary';
+                        cellStyle = `background-color: #6c757d; color: white; text-align: center; height: 50px; width: ${Math.max(100, 600 / groups.length)}px; vertical-align: middle;`;
+                    }
+                    
+                    heatmapHtml += `<td class="${cellClass}" style="${cellStyle} font-size: 16px;">${correlation.toFixed(3)}</td>`;
+                });
+                
+                heatmapHtml += '</tr>';
+            });
+            heatmapHtml += '</tbody></table></div>';
+            
+            // Добавляем легенду
+            heatmapHtml += '<div class="mt-3">';
+            heatmapHtml += '<div class="d-flex justify-content-center flex-wrap">';
+            heatmapHtml += '<div class="d-flex align-items-center me-3"><div style="width: 15px; height: 15px; background-color: #007bff; margin-right: 5px;"></div><span style="font-size: 14px;">Диагональ (1.000)</span></div>';
+            heatmapHtml += '<div class="d-flex align-items-center me-3"><div style="width: 15px; height: 15px; background-color: #28a745; margin-right: 5px;"></div><span style="font-size: 14px;">Высокая (≥0.8)</span></div>';
+            heatmapHtml += '<div class="d-flex align-items-center me-3"><div style="width: 15px; height: 15px; background-color: #17a2b8; margin-right: 5px;"></div><span style="font-size: 14px;">Средняя (≥0.6)</span></div>';
+            heatmapHtml += '<div class="d-flex align-items-center me-3"><div style="width: 15px; height: 15px; background-color: #ffc107; margin-right: 5px;"></div><span style="font-size: 14px;">Низкая (≥0.4)</span></div>';
+            heatmapHtml += '<div class="d-flex align-items-center me-3"><div style="width: 15px; height: 15px; background-color: #dc3545; margin-right: 5px;"></div><span style="font-size: 14px;">Очень низкая (≥0.2)</span></div>';
+            heatmapHtml += '<div class="d-flex align-items-center"><div style="width: 15px; height: 15px; background-color: #6c757d; margin-right: 5px;"></div><span style="font-size: 14px;">Минимальная (<0.2)</span></div>';
+            heatmapHtml += '</div></div>';
+            
+            // Добавляем описание
+            heatmapHtml += '<div class="mt-3 text-center">';
+            heatmapHtml += '<small class="text-muted">';
+            heatmapHtml += '<i class="fas fa-info-circle"></i> ';
+            heatmapHtml += 'Корреляция показывает степень сходства между группами объектов на основе средних рейтингов и сентиментов. ';
+            heatmapHtml += 'Высокие значения означают, что группы имеют похожие характеристики оценки.';
+            heatmapHtml += '</small>';
+            heatmapHtml += '</div>';
+            
+            container.innerHTML = heatmapHtml;
+        }
+        
+        // Функция для получения отображаемого названия группы
+        function getGroupDisplayName(groupKey) {
+            const groupNames = {
+                'school': 'Школа',
+                'hospital': 'Больница',
+                'university': 'Университет',
+                'pharmacy': 'Аптека',
+                'kindergarden': 'Детский сад',
+                'polyclinic': 'Поликлиника',
+                'shopmall': 'Торговый центр',
+                'resident_complex': 'Жилой комплекс'
+            };
+            return groupNames[groupKey] || groupKey;
+        }
+        
+        // Функция для загрузки данных корреляции методов с master_rating
+        async function loadMethodCorrelationData() {
+            console.log('🔍 Вызвана функция loadMethodCorrelationData()');
+            const methodCorrelationLoading = document.getElementById('methodCorrelationLoading');
+            const methodCorrelationContainer = document.getElementById('methodCorrelationContainer');
+            
+            if (!methodCorrelationLoading || !methodCorrelationContainer) {
+                console.error('Элементы корреляции методов не найдены');
+                return;
+            }
+            
+            try {
+                methodCorrelationLoading.style.display = 'block';
+                methodCorrelationContainer.style.display = 'none';
+                
+                const filterParams = getAllFilterParams();
+                const filtersParam = filterParams.group_filters.join(',');
+                const groupTypeParam = filterParams.group_type;
+                const colorSchemeParam = filterParams.color_scheme;
+                const sentimentMethodParam = filterParams.sentiment_method;
+                
+                // Получаем значение фильтра полноты данных (для методов используем "без пустых")
+                const completenessFilter = 'no_empty_values';
+                
+                const response = await fetch(`/chart/method-correlation?filters=${filtersParam}&group_type=${groupTypeParam}&color_scheme=${colorSchemeParam}&sentiment_method=${sentimentMethodParam}&completeness_filter=${completenessFilter}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    createMethodCorrelationChart(result.data);
+                } else {
+                    console.error('Ошибка загрузки данных корреляции методов:', result.error);
+                    methodCorrelationContainer.innerHTML = '<div class="alert alert-danger">Ошибка загрузки данных корреляции методов</div>';
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки данных корреляции методов:', error);
+                methodCorrelationContainer.innerHTML = '<div class="alert alert-danger">Ошибка загрузки данных корреляции методов</div>';
+            } finally {
+                methodCorrelationLoading.style.display = 'none';
+                methodCorrelationContainer.style.display = 'block';
+            }
+                }
+        
+        // Функция для создания диаграммы корреляции методов с master_rating
+        function createMethodCorrelationChart(correlationData) {
+            const container = document.getElementById('methodCorrelationContainer');
+            
+            if (!container) {
+                console.error('Контейнер корреляции методов не найден');
+                return;
+            }
+            
+            const methods = correlationData.methods;
+            const groups = correlationData.groups;
+            const correlationMatrix = correlationData.correlation_matrix;
+            
+            if (!methods || !groups || !correlationMatrix || methods.length === 0 || groups.length === 0) {
+                container.innerHTML = '<div class="alert alert-info">Недостаточно данных для построения корреляции методов</div>';
+                return;
+            }
+            
+            // Создаем контейнер для графика
+            let chartHtml = '<div style="max-width: 900px; margin: 0 auto;">';
+            chartHtml += '<canvas id="methodCorrelationChart" width="800" height="400"></canvas>';
+            chartHtml += '</div>';
+            
+            // Добавляем описание
+            chartHtml += '<div class="mt-3 text-center">';
+            chartHtml += '<small class="text-muted">';
+            chartHtml += '<i class="fas fa-info-circle"></i> ';
+            chartHtml += 'Корреляция показывает степень соответствия между автоматическими методами анализа и Master Rating. ';
+            chartHtml += 'Высокие значения означают, что метод хорошо согласуется с экспертными оценками.';
+            chartHtml += '</small>';
+            chartHtml += '</div>';
+            
+            container.innerHTML = chartHtml;
+            
+            // Создаем график после добавления HTML
+            setTimeout(() => {
+                createMethodCorrelationLineChart(methods, groups, correlationMatrix);
+            }, 100);
+        }
+        
+        // Функция для создания линейного графика корреляции методов
+        function createMethodCorrelationLineChart(methods, groups, correlationMatrix) {
+            console.log('🔍 === СОЗДАНИЕ ГРАФИКА КОРРЕЛЯЦИИ ===');
+            console.log('📊 Входные данные:');
+            console.log('  methods:', methods);
+            console.log('  groups:', groups);
+            console.log('  correlationMatrix:', correlationMatrix);
+            
+            const canvas = document.getElementById('methodCorrelationChart');
+            if (!canvas) {
+                console.error('Canvas для графика не найден');
+                return;
+            }
+            
+            // Цвета для групп
+            const groupColors = [
+                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
+                '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'
+            ];
+            
+            // Подготавливаем данные для Chart.js
+            console.log('🎨 Подготовка данных для Chart.js...');
+            
+            const datasets = groups.map((group, groupIndex) => {
+                const groupDisplayName = getGroupDisplayName(group);
+                const color = groupColors[groupIndex % groupColors.length];
+                
+                const data = methods.map((method, methodIndex) => {
+                    const value = correlationMatrix[groupIndex][methodIndex] || 0;
+                    console.log(`  Группа ${group} (${groupDisplayName}), метод ${method}: ${value}`);
+                    return value;
+                });
+                
+                console.log(`📈 Группа ${group}: данные = ${data}`);
+                
+                return {
+                    label: groupDisplayName,
+                    data: data,
+                    borderColor: color,
+                    backgroundColor: color + '20', // Прозрачная версия цвета
+                    borderWidth: 3,
+                    pointBackgroundColor: color,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    tension: 0.1, // Небольшая кривизна линий
+                    fill: false
+                };
+            });
+            
+            console.log('📊 Итоговые datasets:', datasets);
+            
+            // Создаем график
+            console.log('🎯 Создание Chart.js графика...');
+            console.log('  labels:', methods.map(method => getSentimentMethodDisplayName(method)));
+            
+            const ctx = canvas.getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: methods.map(method => getSentimentMethodDisplayName(method)),
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Корреляция методов с Master Rating по группам',
+                            font: {
+                                size: 16,
+                                weight: 'bold'
+                            }
+                        },
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 20,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    const groupName = context.dataset.label;
+                                    const methodName = context.label;
+                                    const value = context.parsed.y;
+                                    return `${groupName}: ${value.toFixed(3)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Методы анализа',
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                }
+                            },
+                            ticks: {
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Коэффициент корреляции',
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                }
+                            },
+                            min: 0,
+                            max: 1.2,
+                            ticks: {
+                                stepSize: 0.2,
+                                font: {
+                                    size: 12
+                                },
+                                callback: function(value) {
+                                    return value.toFixed(1);
+                                }
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    },
+                    elements: {
+                        point: {
+                            hoverRadius: 8
+                        }
+                    }
+                }
+            });
+        }
+        
         // Функция для рендера фильтра методов
         function renderMethodFilter(methods) {
             const container = document.getElementById('methodFilterContainer');

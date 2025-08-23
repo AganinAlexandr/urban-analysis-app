@@ -85,57 +85,73 @@ def calculate_method_correlation(group_data, all_methods):
     Returns:
         список коэффициентов корреляции для каждого метода
     """
-    if not group_data or len(group_data) < 3:
+    if not group_data:
         return []
     
-    # Получаем список методов (исключаем master_rating) и сортируем в том же порядке, что и all_methods
-    # Это важно для соответствия порядка корреляций порядку методов на графике
-    available_methods = [key for key in group_data[0].keys() if key != 'master_rating']
-    
-    # Сортируем методы в том же порядке, что и в all_methods (который передаем извне)
-    # Для этого нужно передать all_methods в функцию
-    if not available_methods:
-        return []
-    
-    logger.info(f"🔍 calculate_method_correlation: доступные методы: {available_methods}")
+    logger.info(f"🔍 calculate_method_correlation: доступные методы: {list(group_data[0].keys()) if group_data else 'нет данных'}")
     logger.info(f"🔍 calculate_method_correlation: ожидаемый порядок методов: {all_methods}")
     
     correlations = []
     
     # Обрабатываем методы в том же порядке, что и в all_methods
     for expected_method in all_methods:
-        if expected_method in available_methods:
-            method = expected_method
-            method_values = []
-            master_values = []
+        if expected_method == 'master_rating':
+            continue
             
-            for review in group_data:
-                if method in review and 'master_rating' in review:
-                    method_val = review[method]
-                    master_val = review['master_rating']
+        method_values = []
+        master_values = []
+        
+        for review in group_data:
+            if expected_method in review and 'master_rating' in review:
+                method_val = review[expected_method]
+                master_val = review['master_rating']
+                
+                # Проверяем, что оба значения не None
+                if method_val is not None and master_val is not None:
+                    method_values.append(method_val)
+                    master_values.append(master_val)
+        
+        logger.info(f"🔍 {expected_method}: {len(method_values)} значений, master_rating: {len(master_values)} значений")
+        
+        # Рассчитываем корреляцию если есть данные
+        if len(method_values) >= 2 and len(master_values) >= 2 and len(method_values) == len(master_values):
+            try:
+                correlation = np.corrcoef(method_values, master_values)[0, 1]
+                if pd.isna(correlation):
+                    correlation = 0.0
+                
+                # Проверяем на случай низкой вариации в master_rating
+                master_variance = np.var(master_values)
+                if master_variance == 0:
+                    logger.warning(f"  ⚠️ Метод {expected_method}: master_rating имеет нулевую вариацию, используем альтернативную оценку")
                     
-                    # Проверяем, что оба значения не None
-                    if method_val is not None and master_val is not None:
-                        method_values.append(method_val)
-                        master_values.append(master_val)
-            
-            # Рассчитываем корреляцию только если есть достаточно данных
-            if len(method_values) >= 3 and len(master_values) >= 3 and len(method_values) == len(master_values):
-                try:
-                    correlation = np.corrcoef(method_values, master_values)[0, 1]
-                    if pd.isna(correlation):
-                        correlation = 0.0
-                    correlations.append(max(0.0, min(1.0, abs(correlation))))
-                except Exception as e:
-                    logger.error(f"calculate_method_correlation: ошибка расчета корреляции для метода {method}: {e}")
-                    correlations.append(0.0)
-            else:
+                    # Если master_rating все одинаковые, оцениваем по совпадению значений
+                    matches = sum(1 for m, mr in zip(method_values, master_values) if m == mr)
+                    total = len(method_values)
+                    correlation = matches / total if total > 0 else 0.0
+                    logger.info(f"    Альтернативная оценка по совпадению: {matches}/{total} = {correlation:.3f}")
+                else:
+                    logger.info(f"    Стандартная корреляция: {correlation:.3f}")
+                
+                correlations.append(max(0.0, min(1.0, abs(correlation))))
+            except Exception as e:
+                logger.error(f"calculate_method_correlation: ошибка расчета корреляции для метода {expected_method}: {e}")
                 correlations.append(0.0)
         else:
-            # Если метода нет в данных, добавляем 0.0
-            logger.info(f"calculate_method_correlation: метод {expected_method} отсутствует в данных, добавляем 0.0")
+            # Если данных недостаточно, возвращаем 0.0
+            logger.info(f"calculate_method_correlation: для метода {expected_method} недостаточно данных ({len(method_values)}), возвращаем 0.0")
+            
+            # Дополнительная диагностика для понимания проблемы
+            if len(method_values) == 0:
+                logger.warning(f"  ⚠️ Метод {expected_method}: нет значений метода")
+            if len(master_values) == 0:
+                logger.warning(f"  ⚠️ Метод {expected_method}: нет значений master_rating")
+            if len(method_values) != len(master_values):
+                logger.warning(f"  ⚠️ Метод {expected_method}: несоответствие количества значений ({len(method_values)} vs {len(master_values)})")
+            
             correlations.append(0.0)
     
+    logger.info(f"🔍 Результат корреляции: {correlations}")
     return correlations
 
 def make_json_safe(obj):
@@ -2378,14 +2394,21 @@ def get_correlation_data():
             
             # Фильтруем группы по активным фильтрам
             if active_filters and len(active_filters) > 0:
+                logger.info(f"🔍 Применяем фильтры: {active_filters}")
+                original_groups = all_groups.copy()
                 all_groups = [group for group in all_groups if group in active_filters]
+                logger.info(f"🔍 Группы до фильтрации: {original_groups}")
+                logger.info(f"🔍 Группы после фильтрации: {all_groups}")
+                logger.info(f"🔍 Отфильтровано групп: {len(original_groups) - len(all_groups)}")
+            else:
+                logger.info("🔍 Фильтры не указаны, используем все группы")
             
             if not all_groups:
-                conn.close()
+                logger.warning("⚠️ После фильтрации не осталось групп для анализа!")
                 return jsonify({
                     'success': True,
                     'data': {
-                        'methods': all_methods,
+                        'methods': [],
                         'groups': [],
                         'correlation_matrix': []
                     }
@@ -2461,8 +2484,22 @@ def get_correlation_data():
                             correlation = np.corrcoef(method_values, master_values)[0, 1]
                             if pd.isna(correlation):
                                 correlation = 0.0
+                            
+                            # Проверяем на случай низкой вариации в master_rating
+                            master_variance = np.var(master_values)
+                            if master_variance == 0:
+                                logger.warning(f"  ⚠️ Метод {expected_method}: master_rating имеет нулевую вариацию, используем альтернативную оценку")
+                                
+                                # Если master_rating все одинаковые, оцениваем по совпадению значений
+                                matches = sum(1 for m, mr in zip(method_values, master_values) if m == mr)
+                                total = len(method_values)
+                                correlation = matches / total if total > 0 else 0.0
+                                logger.info(f"    Альтернативная оценка по совпадению: {matches}/{total} = {correlation:.3f}")
+                            else:
+                                logger.info(f"    Стандартная корреляция: {correlation:.3f}")
+                            
                             group_row.append(max(0.0, min(1.0, abs(correlation))))
-                        except:
+                        except Exception as e:
                             group_row.append(0.0)
                     else:
                         group_row.append(0.0)
@@ -2724,7 +2761,9 @@ def get_method_correlation_data():
         for i, method in enumerate(all_methods):
             logger.info(f"  [{i}] {method}")
         
+        # Проверяем, что у нас есть методы для анализа
         if not all_methods:
+            logger.warning("⚠️ Нет методов для анализа корреляции!")
             return jsonify({
                 'success': True,
                 'data': {
@@ -2769,10 +2808,77 @@ def get_method_correlation_data():
                 LEFT JOIN master_ratings mr ON r.id = mr.review_id
                 WHERE r.object_id IN ({placeholders}) AND mr.sentiment IS NOT NULL
             """
+            logger.info(f"🔍 SQL запрос для группы {group}: {reviews_query}")
+            logger.info(f"🔍 Параметры запроса: {object_ids}")
+            
             cursor.execute(reviews_query, object_ids)
             reviews = cursor.fetchall()
             
             logger.info(f"Группа {group}: найдено {len(reviews)} отзывов")
+            
+            # Дополнительная диагностика SQL запроса
+            if len(reviews) == 0:
+                logger.warning(f"⚠️ Группа {group}: нет отзывов! Проверяем данные...")
+                
+                # Проверяем, есть ли вообще отзывы для объектов группы
+                check_reviews_query = f"""
+                    SELECT COUNT(*) as total_reviews
+                    FROM reviews r
+                    WHERE r.object_id IN ({placeholders})
+                """
+                cursor.execute(check_reviews_query, object_ids)
+                total_reviews_count = cursor.fetchone()[0]
+                logger.info(f"🔍 Группа {group}: всего отзывов (без фильтра master_rating): {total_reviews_count}")
+                
+                # Проверяем, есть ли master_rating для отзывов
+                check_master_query = f"""
+                    SELECT COUNT(*) as master_reviews
+                    FROM reviews r
+                    JOIN master_ratings mr ON r.id = mr.review_id
+                    WHERE r.object_id IN ({placeholders})
+                """
+                cursor.execute(check_master_query, object_ids)
+                master_reviews_count = cursor.fetchone()[0]
+                logger.info(f"🔍 Группа {group}: отзывов с master_rating: {master_reviews_count}")
+                
+                # Дополнительная диагностика для university
+                if group == 'university' and total_reviews_count > 0 and master_reviews_count == 0:
+                    logger.error(f"❌ КРИТИЧЕСКАЯ ПРОБЛЕМА: Группа {group} имеет {total_reviews_count} отзывов, но 0 master_rating!")
+                    
+                    # Проверяем структуру таблицы master_ratings
+                    check_master_structure = """
+                        SELECT name FROM sqlite_master WHERE type='table' AND name='master_ratings'
+                    """
+                    cursor.execute(check_master_structure)
+                    master_table_exists = cursor.fetchone()
+                    logger.info(f"�� Таблица master_ratings существует: {master_table_exists is not None}")
+                    
+                    if master_table_exists:
+                        # Проверяем содержимое master_ratings
+                        check_master_content = "SELECT COUNT(*) FROM master_ratings"
+                        cursor.execute(check_master_content)
+                        total_master_ratings = cursor.fetchone()[0]
+                        logger.info(f"🔍 Всего записей в master_ratings: {total_master_ratings}")
+                        
+                        # Проверяем несколько примеров отзывов university
+                        sample_reviews_query = f"""
+                            SELECT r.id, r.review_text, r.rating
+                            FROM reviews r
+                            WHERE r.object_id IN ({placeholders})
+                            LIMIT 3
+                        """
+                        cursor.execute(sample_reviews_query, object_ids)
+                        sample_reviews = cursor.fetchall()
+                        logger.info(f"🔍 Примеры отзывов university:")
+                        for review_id, text, rating in sample_reviews:
+                            logger.info(f"  ID: {review_id}, Rating: {rating}, Text: {text[:100]}...")
+                
+                if total_reviews_count == 0:
+                    logger.error(f"❌ Группа {group}: нет отзывов вообще!")
+                elif master_reviews_count == 0:
+                    logger.error(f"❌ Группа {group}: нет отзывов с master_rating!")
+                else:
+                    logger.warning(f"⚠️ Группа {group}: есть отзывы, но что-то не так с запросом")
             
             if not reviews:
                 # Если нет отзывов в группе, заполняем нулями
@@ -2784,6 +2890,11 @@ def get_method_correlation_data():
             group_data = []
             logger.info(f"Группа {group}: преобразуем данные отзывов...")
             
+            # Счетчики для диагностики
+            total_reviews = len(reviews)
+            reviews_with_master = 0
+            reviews_with_methods = 0
+            
             for i, (review_id, rating, master_sentiment) in enumerate(reviews):
                 review_data = {}
                 
@@ -2791,8 +2902,18 @@ def get_method_correlation_data():
                 
                 # Добавляем user_rating
                 if rating and pd.notna(rating):
-                    from app.core.config import SENTIMENT_CONFIG
-                    sentiment_rating = SENTIMENT_CONFIG['rating_to_sentiment'].get(int(rating), 'удовлетворительно')
+                    try:
+                        from app.core.config import SENTIMENT_CONFIG
+                        sentiment_rating = SENTIMENT_CONFIG['rating_to_sentiment'].get(int(rating), 'удовлетворительно')
+                    except ImportError:
+                        # Fallback если конфиг недоступен
+                        if int(rating) >= 4:
+                            sentiment_rating = 'положительный'
+                        elif int(rating) <= 2:
+                            sentiment_rating = 'отрицательный'
+                        else:
+                            sentiment_rating = 'удовлетворительно'
+                    
                     if sentiment_rating == 'положительный':
                         review_data['user_rating'] = 1
                     elif sentiment_rating == 'отрицательный':
@@ -2810,6 +2931,7 @@ def get_method_correlation_data():
                     else:  # neutral
                         review_data['master_rating'] = 0
                     logger.info(f"  master_rating: {master_sentiment} -> {review_data['master_rating']}")
+                    reviews_with_master += 1
                 
                 # Теперь получаем ВСЕ методы для этого отзыва
                 methods_query = """
@@ -2824,6 +2946,7 @@ def get_method_correlation_data():
                 logger.info(f"  Отзыв {review_id}: найдено {len(method_results)} методов")
                 
                 # Добавляем все методы для этого отзыва
+                methods_added = 0
                 for method_name, sentiment, method_id in method_results:
                     logger.info(f"    🔍 Проверяем метод: {method_name} (ID: {method_id}) - в all_methods: {method_name in all_methods}")
                     if method_name in all_methods:  # Только те методы, которые мы анализируем
@@ -2833,9 +2956,13 @@ def get_method_correlation_data():
                             review_data[method_name] = -1
                         else:
                             review_data[method_name] = 0
+                        methods_added += 1
                         logger.info(f"      ✅ {method_name}: {sentiment} -> {review_data[method_name]}")
                     else:
                         logger.info(f"      ❌ {method_name} НЕ в all_methods, пропускаем")
+                
+                if methods_added > 0:
+                    reviews_with_methods += 1
                 
                 if 'master_rating' in review_data:  # Только если есть master_rating
                     group_data.append(review_data)
@@ -2844,6 +2971,7 @@ def get_method_correlation_data():
                     logger.info(f"  Отзыв пропущен (нет master_rating)")
             
             logger.info(f"Группа {group}: итоговых отзывов для анализа: {len(group_data)}")
+            logger.info(f"Группа {group}: статистика - всего отзывов: {total_reviews}, с master_rating: {reviews_with_master}, с методами: {reviews_with_methods}")
             
             # Используем нашу простую функцию для расчета корреляции
             if group_data:
@@ -2867,11 +2995,31 @@ def get_method_correlation_data():
                     if method_values:
                         logger.info(f"    Значения {method}: {method_values[:10]}{'...' if len(method_values) > 10 else ''}")
                         logger.info(f"    Значения master_rating: {master_values[:10]}{'...' if len(master_values) > 10 else ''}")
+                        
+                        # Дополнительная диагностика для понимания нулевых корреляций
+                        if len(method_values) >= 2:
+                            try:
+                                correlation = np.corrcoef(method_values, master_values)[0, 1]
+                                if pd.isna(correlation):
+                                    correlation = 0.0
+                                logger.info(f"    🔍 Прямой расчет корреляции {method}: {correlation}")
+                            except Exception as e:
+                                logger.error(f"    ❌ Ошибка прямого расчета корреляции {method}: {e}")
                     else:
                         logger.warning(f"    ⚠️ НЕТ ДАННЫХ для метода {method}!")
                 
                 correlations = calculate_method_correlation(group_data, all_methods)
                 logger.info(f"Результат корреляции для группы {group}: {correlations}")
+                
+                # Дополнительная диагностика для понимания нулевых значений
+                logger.info(f"🔍 ДИАГНОСТИКА КОРРЕЛЯЦИИ ДЛЯ ГРУППЫ {group}:")
+                for i, method in enumerate(all_methods):
+                    if method == 'master_rating':
+                        continue
+                    if i < len(correlations):
+                        logger.info(f"  {method}: корреляция = {correlations[i]}")
+                    else:
+                        logger.warning(f"  {method}: корреляция отсутствует в результате")
                 
                 # Проверяем соответствие количества методов
                 logger.info(f"  Ожидаем методов: {len(all_methods)}, получили корреляций: {len(correlations)}")
@@ -3275,6 +3423,345 @@ def test_calculate_method_correlation():
     logger.info(f"Корреляция = 0 (должна быть 0.0): {result_4_2}")
     
     logger.info("=== ТЕСТИРОВАНИЕ ЗАВЕРШЕНО ===")
+
+@app.route('/test/group-data/<group_name>')
+def test_group_data(group_name):
+    """Тестовая функция для проверки данных конкретной группы"""
+    try:
+        conn = sqlite3.connect('urban_analysis_fixed.db')
+        cursor = conn.cursor()
+        
+        logger.info(f"=== ТЕСТ ДАННЫХ ДЛЯ ГРУППЫ: {group_name} ===")
+        
+        # 1. Проверяем объекты группы
+        objects_query = """
+            SELECT o.id, o.name, o.latitude, o.longitude
+            FROM objects o
+            JOIN object_groups og ON o.group_id = og.id
+            WHERE og.group_name = ?
+        """
+        cursor.execute(objects_query, [group_name])
+        objects = cursor.fetchall()
+        logger.info(f"Объекты группы {group_name}: {len(objects)}")
+        for obj in objects[:3]:  # Показываем первые 3
+            logger.info(f"  ID: {obj[0]}, Name: {obj[1]}, Lat: {obj[2]}, Lon: {obj[3]}")
+        
+        if not objects:
+            return jsonify({'error': f'Группа {group_name} не найдена'})
+        
+        object_ids = [obj[0] for obj in objects]
+        placeholders = ','.join(['?' for _ in object_ids])
+        
+        # 2. Проверяем отзывы
+        reviews_query = f"""
+            SELECT r.id, r.rating, r.review_text
+            FROM reviews r
+            WHERE r.object_id IN ({placeholders})
+        """
+        cursor.execute(reviews_query, object_ids)
+        reviews = cursor.fetchall()
+        logger.info(f"Отзывы группы {group_name}: {len(reviews)}")
+        
+        # 3. Проверяем master_rating
+        master_query = f"""
+            SELECT mr.review_id, mr.sentiment
+            FROM master_ratings mr
+            JOIN reviews r ON mr.review_id = r.id
+            WHERE r.object_id IN ({placeholders})
+        """
+        cursor.execute(master_query, object_ids)
+        master_ratings = cursor.fetchall()
+        logger.info(f"Master ratings группы {group_name}: {len(master_ratings)}")
+        
+        # 4. Проверяем analysis_results
+        analysis_query = f"""
+            SELECT ar.review_id, pm.method_name, ar.sentiment
+            FROM analysis_results ar
+            JOIN processing_methods pm ON ar.method_id = pm.id
+            JOIN reviews r ON ar.review_id = r.id
+            WHERE r.object_id IN ({placeholders})
+        """
+        cursor.execute(analysis_query, object_ids)
+        analysis_results = cursor.fetchall()
+        logger.info(f"Analysis results группы {group_name}: {len(analysis_results)}")
+        
+        # Группируем по методам
+        methods_data = {}
+        for review_id, method_name, sentiment in analysis_results:
+            if method_name not in methods_data:
+                methods_data[method_name] = []
+            methods_data[method_name].append((review_id, sentiment))
+        
+        logger.info(f"Методы анализа для группы {group_name}:")
+        for method, data in methods_data.items():
+            logger.info(f"  {method}: {len(data)} результатов")
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'group_name': group_name,
+            'objects_count': len(objects),
+            'reviews_count': len(reviews),
+            'master_ratings_count': len(master_ratings),
+            'analysis_results_count': len(analysis_results),
+            'methods': list(methods_data.keys())
+        })
+        
+    except Exception as e:
+        logger.error(f"Ошибка тестирования группы {group_name}: {str(e)}")
+        return jsonify({'error': str(e)})
+
+@app.route('/test/correlation/<group_name>')
+def test_correlation(group_name):
+    """Тестовая функция для проверки расчета корреляции конкретной группы"""
+    try:
+        conn = sqlite3.connect('urban_analysis_fixed.db')
+        cursor = conn.cursor()
+        
+        logger.info(f"=== ТЕСТ КОРРЕЛЯЦИИ ДЛЯ ГРУППЫ: {group_name} ===")
+        
+        # Получаем объекты группы
+        objects_query = """
+            SELECT o.id
+            FROM objects o
+            JOIN object_groups og ON o.group_id = og.id
+            WHERE og.group_name = ?
+        """
+        cursor.execute(objects_query, [group_name])
+        objects = cursor.fetchall()
+        
+        if not objects:
+            return jsonify({'error': f'Группа {group_name} не найдена'})
+        
+        object_ids = [obj[0] for obj in objects]
+        placeholders = ','.join(['?' for _ in object_ids])
+        
+        # Получаем отзывы с master_rating
+        reviews_query = f"""
+            SELECT r.id as review_id, r.rating, 
+                   COALESCE(mr.sentiment, '') as master_sentiment
+            FROM reviews r
+            LEFT JOIN master_ratings mr ON r.id = mr.review_id
+            WHERE r.object_id IN ({placeholders}) AND mr.sentiment IS NOT NULL
+        """
+        cursor.execute(reviews_query, object_ids)
+        reviews = cursor.fetchall()
+        
+        logger.info(f"Группа {group_name}: найдено {len(reviews)} отзывов с master_rating")
+        
+        if not reviews:
+            return jsonify({'error': f'Нет отзывов с master_rating для группы {group_name}'})
+        
+        # Получаем методы анализа
+        methods_query = """
+            SELECT DISTINCT pm.method_name
+            FROM processing_methods pm
+            JOIN analysis_results ar ON pm.id = ar.method_id
+            WHERE pm.method_name NOT LIKE 'llm_%'
+            ORDER BY pm.method_name
+        """
+        cursor.execute(methods_query)
+        all_methods = [row[0] for row in cursor.fetchall()]
+        
+        # Добавляем user_rating
+        if 'user_rating' not in all_methods:
+            all_methods.insert(0, 'user_rating')
+        
+        logger.info(f"Методы для анализа: {all_methods}")
+        
+        # Группируем данные по отзывам
+        group_data = []
+        
+        for review_id, rating, master_sentiment in reviews:
+            review_data = {}
+            
+            # Добавляем user_rating
+            if rating and pd.notna(rating):
+                if int(rating) >= 4:
+                    review_data['user_rating'] = 1
+                elif int(rating) <= 2:
+                    review_data['user_rating'] = -1
+                else:
+                    review_data['user_rating'] = 0
+            
+            # Добавляем master_rating
+            if master_sentiment == 'positive':
+                review_data['master_rating'] = 1
+            elif master_sentiment == 'negative':
+                review_data['master_rating'] = -1
+            else:  # neutral
+                review_data['master_rating'] = 0
+            
+            # Получаем методы для этого отзыва
+            methods_query = """
+                SELECT pm.method_name, ar.sentiment
+                FROM analysis_results ar
+                JOIN processing_methods pm ON ar.method_id = pm.id
+                WHERE ar.review_id = ?
+            """
+            cursor.execute(methods_query, [review_id])
+            method_results = cursor.fetchall()
+            
+            # Добавляем методы
+            for method_name, sentiment in method_results:
+                if method_name in all_methods:
+                    if sentiment in ['positive', 'положительный']:
+                        review_data[method_name] = 1
+                    elif sentiment in ['negative', 'отрицательный']:
+                        review_data[method_name] = -1
+                    else:
+                        review_data[method_name] = 0
+            
+            if 'master_rating' in review_data:
+                group_data.append(review_data)
+        
+        logger.info(f"Группа {group_name}: итоговых отзывов для анализа: {len(group_data)}")
+        
+        if group_data:
+            logger.info(f"Пример данных отзыва: {group_data[0]}")
+            
+            # Рассчитываем корреляцию
+            correlations = calculate_method_correlation(group_data, all_methods)
+            logger.info(f"Результат корреляции: {correlations}")
+            
+            # Детальная диагностика для каждого метода
+            detailed_results = {}
+            for i, method in enumerate(all_methods):
+                if method == 'master_rating':
+                    continue
+                    
+                method_values = []
+                master_values = []
+                
+                for review in group_data:
+                    if method in review and 'master_rating' in review:
+                        method_values.append(review[method])
+                        master_values.append(review['master_rating'])
+                
+                detailed_results[method] = {
+                    'method_values': method_values,
+                    'master_values': master_values,
+                    'correlation': correlations[i] if i < len(correlations) else 0.0
+                }
+                
+                logger.info(f"Метод {method}: {len(method_values)} значений, корреляция: {detailed_results[method]['correlation']}")
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'group_name': group_name,
+            'reviews_count': len(reviews),
+            'group_data_count': len(group_data),
+            'methods': all_methods,
+            'correlations': correlations if 'correlations' in locals() else [],
+            'detailed_results': detailed_results if 'detailed_results' in locals() else {}
+        })
+        
+    except Exception as e:
+        logger.error(f"Ошибка тестирования корреляции группы {group_name}: {str(e)}")
+        return jsonify({'error': str(e)})
+
+@app.route('/test/fix-master-ratings/<group_name>')
+def test_fix_master_ratings(group_name):
+    """Тестовая функция для проверки и исправления master_rating группы"""
+    try:
+        conn = sqlite3.connect('urban_analysis_fixed.db')
+        cursor = conn.cursor()
+        
+        logger.info(f"=== ПРОВЕРКА И ИСПРАВЛЕНИЕ MASTER_RATING ДЛЯ ГРУППЫ: {group_name} ===")
+        
+        # 1. Проверяем объекты группы
+        objects_query = """
+            SELECT o.id, o.name
+            FROM objects o
+            JOIN object_groups og ON o.group_id = og.id
+            WHERE og.group_name = ?
+        """
+        cursor.execute(objects_query, [group_name])
+        objects = cursor.fetchall()
+        
+        if not objects:
+            return jsonify({'error': f'Группа {group_name} не найдена'})
+        
+        object_ids = [obj[0] for obj in objects]
+        placeholders = ','.join(['?' for _ in object_ids])
+        
+        # 2. Проверяем отзывы
+        reviews_query = f"""
+            SELECT r.id, r.rating, r.review_text
+            FROM reviews r
+            WHERE r.object_id IN ({placeholders})
+        """
+        cursor.execute(reviews_query, object_ids)
+        reviews = cursor.fetchall()
+        
+        logger.info(f"Группа {group_name}: найдено {len(reviews)} отзывов")
+        
+        # 3. Проверяем master_rating
+        master_query = f"""
+            SELECT mr.review_id, mr.sentiment
+            FROM master_ratings mr
+            JOIN reviews r ON mr.review_id = r.id
+            WHERE r.object_id IN ({placeholders})
+        """
+        cursor.execute(master_query, object_ids)
+        master_ratings = cursor.fetchall()
+        
+        logger.info(f"Группа {group_name}: найдено {len(master_ratings)} master_rating")
+        
+        # 4. Анализируем проблему
+        if len(reviews) > 0 and len(master_ratings) == 0:
+            logger.warning(f"⚠️ ПРОБЛЕМА: Группа {group_name} имеет {len(reviews)} отзывов, но 0 master_rating!")
+            
+            # Проверяем, есть ли вообще записи в master_ratings
+            cursor.execute("SELECT COUNT(*) FROM master_ratings")
+            total_master = cursor.fetchone()[0]
+            logger.info(f"Всего записей в master_ratings: {total_master}")
+            
+            if total_master == 0:
+                logger.error("❌ Таблица master_ratings пустая!")
+                return jsonify({'error': 'Таблица master_ratings пустая'})
+            
+            # Проверяем несколько примеров отзывов
+            sample_reviews_query = f"""
+                SELECT r.id, r.rating, r.review_text
+                FROM reviews r
+                WHERE r.object_id IN ({placeholders})
+                LIMIT 3
+            """
+            cursor.execute(sample_reviews_query, object_ids)
+            sample_reviews = cursor.fetchall()
+            
+            logger.info(f"Примеры отзывов {group_name}:")
+            for review_id, rating, text in sample_reviews:
+                logger.info(f"  ID: {review_id}, Rating: {rating}, Text: {text[:100]}...")
+                
+                # Проверяем, есть ли master_rating для этого отзыва
+                cursor.execute("SELECT sentiment FROM master_ratings WHERE review_id = ?", [review_id])
+                master_result = cursor.fetchone()
+                if master_result:
+                    logger.info(f"    ✅ Master rating: {master_result[0]}")
+                else:
+                    logger.info(f"    ❌ Master rating отсутствует")
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'group_name': group_name,
+            'objects_count': len(objects),
+            'reviews_count': len(reviews),
+            'master_ratings_count': len(master_ratings),
+            'problem': len(reviews) > 0 and len(master_ratings) == 0
+        })
+        
+    except Exception as e:
+        logger.error(f"Ошибка проверки master_rating группы {group_name}: {str(e)}")
+        return jsonify({'error': str(e)})
+
+
 
 if __name__ == '__main__':
     # Запускаем тест перед запуском приложения

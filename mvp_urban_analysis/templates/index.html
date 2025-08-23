@@ -814,6 +814,27 @@
                                     <h5 class="text-center mb-3">
                                         <i class="fas fa-chart-bar"></i> Корреляция методов с Master Rating по группам
                                     </h5>
+                                    
+                                    <!-- Кнопки для тестирования -->
+                                    <div class="text-center mb-3">
+                                        <button class="btn btn-sm btn-outline-info me-2" onclick="testGroupData('university')">
+                                            Тест Университет
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-info me-2" onclick="testGroupData('kindergarden')">
+                                            Тест Детский_сад
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-warning me-2" onclick="testCorrelation('university')">
+                                            Тест Корреляции Университет
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger me-2" onclick="testFixMasterRatings('university')">
+                                            Проверить Master Rating Университет
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-success me-2" onclick="testCurrentCorrelationData()">
+                                            Тест Текущих Данных
+                                        </button>
+
+                                    </div>
+                                    
                                     <div id="methodCorrelationLoading" class="text-center">
                                         <div class="spinner-border" role="status">
                                             <span class="visually-hidden">Загрузка корреляции методов...</span>
@@ -2112,6 +2133,28 @@
                 console.log('🚨 Обновляем таблицу БД после selectAllFilters');
                 loadDbTableData();
             }
+            
+            // Обновляем таблицу сентиментов если она активна
+            const sentimentTable = document.getElementById('sentimentTable');
+            if (sentimentTable && sentimentTable.style.display !== 'none') {
+                console.log('🚨 Обновляем таблицу сентиментов после selectAllFilters');
+                loadSentimentTableData();
+            }
+            
+            // Обновляем тепловую карту если она активна
+            const correlationHeatmap = document.getElementById('correlationHeatmap');
+            if (correlationHeatmap && correlationHeatmap.style.display !== 'none') {
+                console.log('🚨 Обновляем тепловую карту после selectAllFilters');
+                loadCorrelationHeatmapData();
+            }
+            
+            // Обновляем Master Rating если он активен
+            const chartView = document.getElementById('chartView');
+            const masterRatingTable = document.getElementById('masterRatingTable');
+            if (chartView && chartView.checked && masterRatingTable && masterRatingTable.style.display !== 'none') {
+                console.log('🚨 Обновляем Master Rating после selectAllFilters');
+                loadMasterRatingData();
+            }
         }
 
         function deselectAllFilters() {
@@ -2143,6 +2186,41 @@
             if (resultsTable && resultsTable.style.display !== 'none') {
                 console.warn('🚨 Обновляем таблицу БД после deselectAllFilters');
                 loadDbTableData();
+            }
+            
+            // Обновляем таблицу сентиментов если она активна
+            const sentimentTable = document.getElementById('sentimentTable');
+            console.warn('🚨 === ДИАГНОСТИКА ВКЛАДОК ===');
+            console.warn('🚨 sentimentTable найден:', !!sentimentTable);
+            if (sentimentTable) {
+                console.warn('🚨 sentimentTable display:', sentimentTable.style.display);
+                console.warn('🚨 sentimentTable visible:', sentimentTable.style.display !== 'none');
+            }
+            if (sentimentTable && sentimentTable.style.display !== 'none') {
+                console.warn('🚨 Обновляем таблицу сентиментов после deselectAllFilters');
+                loadSentimentTableData();
+            }
+            
+            // Обновляем тепловую карту если она активна
+            const correlationHeatmap = document.getElementById('correlationHeatmap');
+            console.warn('🚨 correlationHeatmap найден:', !!correlationHeatmap);
+            if (correlationHeatmap) {
+                console.warn('🚨 correlationHeatmap display:', correlationHeatmap.style.display);
+                console.warn('🚨 correlationHeatmap visible:', correlationHeatmap.style.display !== 'none');
+            }
+            if (correlationHeatmap && correlationHeatmap.style.display !== 'none') {
+                console.warn('🚨 Обновляем тепловую карту после deselectAllFilters');
+                loadCorrelationHeatmapData();
+            }
+            
+            // Обновляем Master Rating если он активен
+            const chartView = document.getElementById('chartView');
+            const masterRatingTable = document.getElementById('masterRatingTable');
+            console.warn('🚨 chartView найден:', !!chartView);
+            console.warn('🚨 masterRatingTable найден:', !!masterRatingTable);
+            if (chartView && chartView.checked && masterRatingTable && masterRatingTable.style.display !== 'none') {
+                console.warn('🚨 Обновляем Master Rating после deselectAllFilters');
+                loadMasterRatingData();
             }
         }
 
@@ -4150,6 +4228,19 @@
             console.log('  groups:', groups);
             console.log('  correlationMatrix:', correlationMatrix);
             
+            // Детальная диагностика матрицы корреляции
+            console.log('🔍 === ДЕТАЛЬНАЯ ДИАГНОСТИКА МАТРИЦЫ ===');
+            for (let groupIndex = 0; groupIndex < groups.length; groupIndex++) {
+                const group = groups[groupIndex];
+                const correlations = correlationMatrix[groupIndex];
+                console.log(`  Группа ${group} (индекс ${groupIndex}):`);
+                for (let methodIndex = 0; methodIndex < methods.length; methodIndex++) {
+                    const method = methods[methodIndex];
+                    const correlation = correlations[methodIndex];
+                    console.log(`    [${methodIndex}] ${method}: ${correlation}`);
+                }
+            }
+            
             const canvas = document.getElementById('methodCorrelationChart');
             if (!canvas) {
                 console.error('Canvas для графика не найден');
@@ -4169,13 +4260,17 @@
                 const groupDisplayName = getGroupDisplayName(group);
                 const color = groupColors[groupIndex % groupColors.length];
                 
+                console.log(`🔍 Создание dataset для группы ${group} (${groupDisplayName}) с индексом ${groupIndex}`);
+                
                 const data = methods.map((method, methodIndex) => {
                     const value = correlationMatrix[groupIndex][methodIndex] || 0;
-                    console.log(`  Группа ${group} (${groupDisplayName}), метод ${method}: ${value}`);
+                    console.log(`  [${methodIndex}] Метод ${method}: значение = ${value} (тип: ${typeof value})`);
                     return value;
                 });
                 
-                console.log(`📈 Группа ${group}: данные = ${data}`);
+                console.log(`📈 Группа ${group}: итоговые данные = ${data}`);
+                console.log(`  Проверка типов: ${data.map(v => typeof v).join(', ')}`);
+                console.log(`  Проверка значений: ${data.map(v => v === null ? 'null' : v === undefined ? 'undefined' : v).join(', ')}`);
                 
                 return {
                     label: groupDisplayName,
@@ -4197,6 +4292,10 @@
             
             // Создаем график
             console.log('🎯 Создание Chart.js графика...');
+            console.log('  Методы (с индексами):');
+            methods.forEach((method, index) => {
+                console.log(`    [${index}] ${method} -> ${getMethodDisplayNameForCorrelationChart(method)}`);
+            });
             console.log('  labels:', methods.map(method => getMethodDisplayNameForCorrelationChart(method)));
             
             const ctx = canvas.getContext('2d');
@@ -4237,6 +4336,17 @@
                                     const groupName = context.dataset.label;
                                     const methodName = context.label;
                                     const value = context.parsed.y;
+                                    const methodIndex = context.dataIndex;
+                                    const datasetIndex = context.datasetIndex;
+                                    
+                                    console.log(`🔍 Tooltip: группа=${groupName}, метод=${methodName}, значение=${value}, methodIndex=${methodIndex}, datasetIndex=${datasetIndex}`);
+                                    
+                                    // Проверяем исходные данные
+                                    if (correlationMatrix[datasetIndex] && correlationMatrix[datasetIndex][methodIndex] !== undefined) {
+                                        const originalValue = correlationMatrix[datasetIndex][methodIndex];
+                                        console.log(`  Исходное значение в матрице: ${originalValue}`);
+                                    }
+                                    
                                     return `${groupName}: ${value.toFixed(3)}`;
                                 }
                             }
@@ -4323,6 +4433,145 @@
                 });
             });
         }
+        
+        // Функция для тестирования данных группы
+        async function testGroupData(groupName) {
+            console.log(`🔍 Тестируем данные группы: ${groupName}`);
+            
+            try {
+                const response = await fetch(`/test/group-data/${groupName}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log(`✅ Данные группы ${groupName}:`, result);
+                    
+                    // Показываем результат в alert для простоты
+                    const message = `
+Группа: ${result.group_name}
+Объектов: ${result.objects_count}
+Отзывов: ${result.reviews_count}
+Master Ratings: ${result.master_ratings_count}
+Analysis Results: ${result.analysis_results_count}
+Методы: ${result.methods.join(', ')}
+                    `;
+                    alert(message);
+                } else {
+                    console.error(`❌ Ошибка тестирования группы ${groupName}:`, result.error);
+                    alert(`Ошибка: ${result.error}`);
+                }
+            } catch (error) {
+                console.error(`❌ Ошибка запроса для группы ${groupName}:`, error);
+                alert(`Ошибка запроса: ${error.message}`);
+            }
+        }
+        
+        // Функция для тестирования корреляции группы
+        async function testCorrelation(groupName) {
+            console.log(`🔍 Тестируем корреляцию группы: ${groupName}`);
+            
+            try {
+                const response = await fetch(`/test/correlation/${groupName}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log(`✅ Корреляция группы ${groupName}:`, result);
+                    
+                    // Показываем результат в alert для простоты
+                    let message = `
+Группа: ${result.group_name}
+Отзывов: ${result.reviews_count}
+Данных для анализа: ${result.group_data_count}
+Методы: ${result.methods.join(', ')}
+Корреляции: ${result.correlations.map((c, i) => `${result.methods[i]}: ${c.toFixed(3)}`).join(', ')}
+                    `;
+                    alert(message);
+                } else {
+                    console.error(`❌ Ошибка тестирования корреляции группы ${groupName}:`, result.error);
+                    alert(`Ошибка: ${result.error}`);
+                }
+            } catch (error) {
+                console.error(`❌ Ошибка запроса корреляции для группы ${groupName}:`, error);
+                alert(`Ошибка запроса: ${error.message}`);
+            }
+        }
+        
+        // Функция для проверки и исправления master_rating группы
+        async function testFixMasterRatings(groupName) {
+            console.log(`🔍 Проверяем master_rating группы: ${groupName}`);
+            
+            try {
+                const response = await fetch(`/test/fix-master-ratings/${groupName}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log(`✅ Проверка master_rating группы ${groupName}:`, result);
+                    
+                    let message = `
+Группа: ${result.group_name}
+Объектов: ${result.objects_count}
+Отзывов: ${result.reviews_count}
+Master Ratings: ${result.master_ratings_count}
+Проблема: ${result.problem ? 'ДА' : 'НЕТ'}
+                    `;
+                    
+                    if (result.problem) {
+                        message += '\n\n⚠️ У группы есть отзывы, но нет master_rating!'
+                    }
+                    
+                    alert(message);
+                } else {
+                    console.error(`❌ Ошибка проверки master_rating группы ${groupName}:`, result.error);
+                    alert(`Ошибка: ${result.error}`);
+                }
+            } catch (error) {
+                console.error(`❌ Ошибка запроса проверки master_rating для группы ${groupName}:`, error);
+                alert(`Ошибка запроса: ${error.message}`);
+            }
+        }
+        
+        // Функция для тестирования текущих данных корреляции
+        function testCurrentCorrelationData() {
+            console.log('🔍 === ТЕСТ ТЕКУЩИХ ДАННЫХ КОРРЕЛЯЦИИ ===');
+            
+            // Проверяем, есть ли уже загруженные данные
+            const methodCorrelationContainer = document.getElementById('methodCorrelationContainer');
+            if (!methodCorrelationContainer) {
+                alert('Контейнер корреляции не найден');
+                return;
+            }
+            
+            // Проверяем, есть ли график
+            const canvas = document.getElementById('methodCorrelationChart');
+            if (!canvas) {
+                alert('График корреляции не найден. Сначала загрузите данные.');
+                return;
+            }
+            
+            // Получаем Chart.js объект
+            const chart = Chart.getChart(canvas);
+            if (!chart) {
+                alert('Chart.js объект не найден');
+                return;
+            }
+            
+            console.log('📊 Chart.js объект найден:', chart);
+            console.log('📊 Данные графика:', chart.data);
+            console.log('📊 Datasets:', chart.data.datasets);
+            
+            // Анализируем каждый dataset
+            chart.data.datasets.forEach((dataset, datasetIndex) => {
+                console.log(`🔍 Dataset ${datasetIndex} (${dataset.label}):`);
+                console.log(`  Данные: ${dataset.data}`);
+                console.log(`  Типы данных: ${dataset.data.map(v => typeof v).join(', ')}`);
+                console.log(`  Проверка на null/undefined: ${dataset.data.map(v => v === null ? 'null' : v === undefined ? 'undefined' : v).join(', ')}`);
+            });
+            
+            // Проверяем labels
+            console.log('📊 Labels графика:', chart.data.labels);
+            
+            alert('Проверьте консоль браузера для детальной диагностики данных графика');
+        }
+
     </script>
 </body>
 </html> 

@@ -476,23 +476,57 @@ def upload_file():
             print("🤖 Автоматически определяем группы для всех записей...")
             logger.info("Автоматически определяем группы для всех записей...")
             
-            # Автоматически определяем группы по содержимому
-            for idx, row in df.iterrows():
-                object_name = str(row.get('name', ''))
-                review_text = str(row.get('review_text', ''))
+            # Анализируем весь JSON как единый текст для определения основной группы
+            print("🔍 Анализируем весь JSON как единый текст для определения группы...")
+            
+            # Собираем весь текст: названия объектов + все отзывы
+            all_object_names = df['name'].dropna().astype(str).tolist()
+            all_reviews = df['review_text'].dropna().astype(str).tolist()
+            
+            # Объединяем в единый текст для анализа
+            combined_text = ' '.join(all_object_names + all_reviews)
+            print(f"📝 Объединенный текст для анализа: {len(combined_text)} символов")
+            if len(combined_text) > 200:
+                print(f"📝 Начало текста: {combined_text[:200]}...")
+            else:
+                print(f"📝 Полный текст: {combined_text}")
+            
+            # Определяем группу на основе всего текста
+            try:
+                from app.core.district_detector import detect_group_from_text
                 
-                # Используем существующую систему определения групп
-                try:
-                    from initial_keywords_system import detect_group_by_initial_keywords
-                    detected_group, confidence = detect_group_by_initial_keywords(object_name, review_text)
-                    df.at[idx, 'determined_group'] = detected_group
-                    if idx < 3:  # Логируем только первые 3 записи для краткости
-                        print(f"🔍 Запись {idx}: '{object_name[:30]}...' -> группа '{detected_group}' (уверенность: {confidence})")
-                    logger.debug(f"Запись {idx}: '{object_name[:30]}...' -> группа '{detected_group}' (уверенность: {confidence})")
-                except Exception as e:
-                    print(f"⚠️ Не удалось определить группу для записи {idx}: {e}")
-                    logger.warning(f"Не удалось определить группу для записи {idx}: {e}")
-                    df.at[idx, 'determined_group'] = 'unknown'
+                # Отладочная информация
+                print(f"🔍 ДИАГНОСТИКА: Длина объединенного текста: {len(combined_text)}")
+                print(f"🔍 ДИАГНОСТИКА: Первые 300 символов: {combined_text[:300]}")
+                print(f"🔍 ДИАГНОСТИКА: Содержит 'аптека': {'аптека' in combined_text.lower()}")
+                print(f"🔍 ДИАГНОСТИКА: Содержит 'фармацевт': {'фармацевт' in combined_text.lower()}")
+                print(f"🔍 ДИАГНОСТИКА: Содержит 'лекарство': {'лекарство' in combined_text.lower()}")
+                
+                main_detected_group = detect_group_from_text(combined_text)
+                print(f"🎯 Определена основная группа для всего JSON: '{main_detected_group}'")
+                logger.info(f"Определена основная группа для всего JSON: '{main_detected_group}'")
+                
+                # Присваиваем эту группу всем записям
+                df['determined_group'] = main_detected_group['main_group']
+                print(f"✅ Присвоена группа '{main_detected_group['main_group']}' всем {len(df)} записям")
+                
+                # Сохраняем дополнительную информацию о группах для модального окна
+                group_detection_info = main_detected_group
+            except Exception as e:
+                print(f"⚠️ Не удалось определить группу для всего JSON: {e}")
+                logger.warning(f"Не удалось определить группу для всего JSON: {e}")
+                # В случае ошибки используем старую логику как fallback
+                print("🔄 Используем fallback - определяем группы для каждой записи отдельно...")
+                for idx, row in df.iterrows():
+                    object_name = str(row.get('name', ''))
+                    review_text = str(row.get('review_text', ''))
+                    try:
+                        from initial_keywords_system import detect_group_by_initial_keywords
+                        detected_group, confidence = detect_group_by_initial_keywords(object_name, review_text)
+                        df.at[idx, 'determined_group'] = detected_group
+                    except Exception as e2:
+                        print(f"⚠️ Fallback также не сработал для записи {idx}: {e2}")
+                        df.at[idx, 'determined_group'] = 'unknown'
             
             # Анализируем, какие поля пустые
             print("🔍 Анализируем пустые поля групп...")
@@ -560,8 +594,19 @@ def upload_file():
                 # Получаем статистику по определенным группам
                 detected_groups_stats = df['determined_group'].value_counts().to_dict()
                 
+                # Добавляем информацию о группах с одинаковым рейтингом
+                group_info = {}
+                if 'group_detection_info' in locals():
+                    group_info = {
+                        'tied_groups': group_detection_info.get('tied_groups', []),
+                        'all_groups_scores': group_detection_info.get('all_groups', {}),
+                        'detection_note': f"Найдено {len(group_detection_info.get('tied_groups', []))} групп с одинаковым рейтингом" if group_detection_info.get('tied_groups') else "Одна группа с максимальным рейтингом"
+                    }
+                
                 print(f"📊 Возвращаем ошибку group_required для {len(df)} записей")
                 print(f"🔍 Статистика групп: {detected_groups_stats}")
+                if group_info.get('tied_groups'):
+                    print(f"🎯 Группы с одинаковым рейтингом: {group_info['tied_groups']}")
                 
                 return jsonify(make_json_safe({
                     'error': 'group_required',
@@ -571,6 +616,7 @@ def upload_file():
                     'empty_detected_group_records': empty_detected_group_count,
                     'modal_reason': modal_reason,
                     'detected_groups_stats': detected_groups_stats,
+                    'group_detection_info': group_info,
                     'data': display_data
                 })), 400
             else:
@@ -671,7 +717,7 @@ def upload_file():
             logger.info(f"Подготовлено {len(display_data)} записей для отображения")
             
             logger.info("=== ЗАВЕРШЕНИЕ ОБРАБОТКИ ФАЙЛА ===")
-            print("🎉 Обработка файла завершена успешно!")
+            print("�� Обработка файла завершена успешно!")
             print(f"📊 Обработано записей: {len(analyzed_df)}")
             print(f"💾 Сохранено в БД: {'Да' if success else 'Нет'}")
             
@@ -1071,6 +1117,7 @@ def get_sentiment_distribution():
 @app.route('/map/data')
 def get_map_data():
     """Получение данных для отображения на карте"""
+    print("TEST ")
     try:
         # Получаем параметры
         group_type = request.args.get('group_type', 'supplier')  # По умолчанию группы от поставщика
@@ -1081,6 +1128,14 @@ def get_map_data():
 
         # Парсим фильтры
         active_filters = [f for f in filters.split(',') if f] if filters else []
+        
+        # Дополнительная диагностика фильтров
+        print(f"🔍 ДИАГНОСТИКА ФИЛЬТРОВ:")
+        print(f"🔍 Параметр filters: '{filters}' (тип: {type(filters)})")
+        print(f"🔍 active_filters: {active_filters} (тип: {type(active_filters)}, длина: {len(active_filters)})")
+        print(f"🔍 active_filters and len(active_filters) > 0: {bool(active_filters and len(active_filters) > 0)}")
+        print(f"🔍 bool(active_filters): {bool(active_filters)}")
+        print(f"🔍 len(active_filters): {len(active_filters)}")
 
         # Импортируем утилиты для работы с группами
         from app.core.group_utils import get_russian_group_name
@@ -2887,9 +2942,15 @@ def get_database_data():
             data_query += " ORDER BY o.name, r.id"
             cursor.execute(data_query, group_filters)
         else:
-            data_query += " ORDER BY o.name, r.id"
-            cursor.execute(data_query)
-        results = cursor.fetchall()
+            # Если фильтры не указаны, возвращаем пустой список
+            logger.info("Фильтры не указаны, возвращаем пустой список")
+            results = []
+        
+        # Выполняем запрос только если есть фильтры
+        if group_filters:
+            results = cursor.fetchall()
+        else:
+            results = []
         
         logger.info(f"Найдено записей в БД: {len(results)}")
         

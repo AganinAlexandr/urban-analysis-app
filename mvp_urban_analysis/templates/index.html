@@ -1817,18 +1817,22 @@
         }
 
         function updateMap() {
-            console.log('=== updateMap вызвана ===');
+            console.log('🚨 === updateMap вызвана ===');
+            console.log('🚨 Начинаем выполнение updateMap...');
+            
             // Получаем параметры с проверками
             const groupTypeElement = document.querySelector('input[name="groupType"]:checked');
             const colorSchemeElement = document.querySelector('input[name="colorScheme"]:checked');
             
+            console.log('🚨 Элементы найдены:', { groupTypeElement: !!groupTypeElement, colorSchemeElement: !!colorSchemeElement });
+            
             // Проверяем существование элементов
             if (!groupTypeElement) {
-                console.error('Элемент groupType не найден');
+                console.error('🚨 Элемент groupType не найден');
                 return;
             }
             if (!colorSchemeElement) {
-                console.error('Элемент colorScheme не найден');
+                console.error('🚨 Элемент colorScheme не найден');
                 return;
             }
             
@@ -1857,6 +1861,8 @@
             console.log('Цветовая схема:', colorScheme);
             console.log('Метод сентимента:', sentimentMethod);
             console.log('Активные фильтры:', activeFilters);
+            console.log('Тип activeFilters:', typeof activeFilters);
+            console.log('Длина activeFilters:', activeFilters.length);
             console.log('Источник данных:', currentDataSource);
             
             // Дополнительная диагностика
@@ -1875,10 +1881,13 @@
                 params.append('filters', activeFilters.join(','));
                 console.log('Добавлены фильтры в URL:', activeFilters.join(','));
             } else {
-                console.log('Нет активных фильтров');
+                console.log('Нет активных фильтров - НЕ добавляем параметр filters в URL');
             }
             
-                                fetch(`/map/data?${params.toString()}`)
+            console.log('Финальный URL параметры:', params.toString());
+            console.log('Полный URL запроса:', `/map/data?${params.toString()}`);
+            
+            fetch(`/map/data?${params.toString()}`)
                         .then(response => response.json())
                         .then(data => {
                             console.log('Получены данные карты:', data);
@@ -2043,16 +2052,20 @@
         function getActiveFilters() {
             const filters = [];
             const checkboxes = document.querySelectorAll('input[type="checkbox"][id^="filter_"]');
-            console.log('Найдено чекбоксов фильтров:', checkboxes.length);
+            console.warn('🚨 === getActiveFilters вызвана ===');
+            console.warn(`🚨 Найдено чекбоксов фильтров: ${checkboxes.length}`);
             
             checkboxes.forEach(checkbox => {
-                console.log(`Чекбокс ${checkbox.id}: checked=${checkbox.checked}, value=${checkbox.value}`);
+                console.warn(`🚨 Чекбокс ${checkbox.id}: checked=${checkbox.checked}, value=${checkbox.value}`);
                 if (checkbox.checked) {
                     filters.push(checkbox.value);
                 }
             });
             
-            console.log('Активные фильтры:', filters);
+            console.warn(`🚨 Активные фильтры: ${filters}`);
+            console.warn(`🚨 Тип active_filters: ${typeof filters}`);
+            console.warn(`🚨 Длина active_filters: ${filters.length}`);
+            console.warn('🚨 === getActiveFilters завершена ===');
             return filters;
         }
         
@@ -2092,21 +2105,45 @@
             updateSentimentTableOnFilterChange();
             // Обновляем таблицу Master Rating
             updateMasterRatingTable();
+            
+            // Обновляем таблицу БД если она активна
+            const resultsTable = document.getElementById('resultsTable');
+            if (resultsTable && resultsTable.style.display !== 'none') {
+                console.log('🚨 Обновляем таблицу БД после selectAllFilters');
+                loadDbTableData();
+            }
         }
 
         function deselectAllFilters() {
-            console.log('Вызываем deselectAllFilters');
+            console.warn('🚨 === ВЫЗОВ deselectAllFilters ===');
             const checkboxes = document.querySelectorAll('input[type="checkbox"][id^="filter_"]');
+            console.warn(`🚨 Найдено чекбоксов фильтров: ${checkboxes.length}`);
+            
+            // Снимаем все чекбоксы
             checkboxes.forEach(checkbox => {
+                console.warn(`🚨 ДО: ${checkbox.id}: checked=${checkbox.checked}, value=${checkbox.value}`);
                 checkbox.checked = false;
-                console.log(`Снят фильтр ${checkbox.id}: checked=${checkbox.checked}`);
+                console.warn(`🚨 ПОСЛЕ: ${checkbox.id}: checked=${checkbox.checked}, value=${checkbox.value}`);
             });
-            console.log('Вызываем updateMap после deselectAllFilters');
+            
+            // Проверяем состояние после снятия
+            const activeFiltersAfter = getActiveFilters();
+            console.warn(`🚨 Активные фильтры после deselectAllFilters: ${activeFiltersAfter} (длина: ${activeFiltersAfter.length})`);
+            
+            console.warn('🚨 Вызываем updateMap после deselectAllFilters');
             updateMap();
+            
             // Обновляем таблицу сентиментов
             updateSentimentTableOnFilterChange();
             // Обновляем таблицу Master Rating
             updateMasterRatingTable();
+            
+            // Обновляем таблицу БД если она активна
+            const resultsTable = document.getElementById('resultsTable');
+            if (resultsTable && resultsTable.style.display !== 'none') {
+                console.warn('🚨 Обновляем таблицу БД после deselectAllFilters');
+                loadDbTableData();
+            }
         }
 
         function updateSentimentMethodVisibility() {
@@ -2870,6 +2907,11 @@
                 // Получаем значение фильтра полноты данных
                 const completenessFilter = document.querySelector('input[name="completenessFilter"]:checked')?.value || 'all_results';
                 
+                console.log('=== ДИАГНОСТИКА ТАБЛИЦЫ БД ===');
+                console.log('filterParams:', filterParams);
+                console.log('filtersParam:', filtersParam);
+                console.log('completenessFilter:', completenessFilter);
+                
                 // Загружаем данные таблицы сентиментов с полными параметрами
                 const response = await fetch(`/chart/table?filters=${filtersParam}&group_type=${groupTypeParam}&color_scheme=${colorSchemeParam}&sentiment_method=${sentimentMethodParam}&completeness_filter=${completenessFilter}`);
                 const data = await response.json();
@@ -3289,7 +3331,8 @@
         // Функция для получения активных фильтров групп
         function getActiveGroupFilters() {
             const activeFilters = [];
-            const filterCheckboxes = document.querySelectorAll('input[name="group_filter"]:checked');
+            // Используем те же чекбоксы что и getActiveFilters для консистентности
+            const filterCheckboxes = document.querySelectorAll('input[type="checkbox"][id^="filter_"]:checked');
             filterCheckboxes.forEach(checkbox => {
                 activeFilters.push(checkbox.value);
             });

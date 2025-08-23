@@ -1969,15 +1969,15 @@ def get_chart_table():
                 base_query += f" AND og.group_name IN ({placeholders})"
                 logger.info(f"group_type='{group_type}' - применяем фильтр по группам от поставщика: {active_filters}")
             params.extend(active_filters)
-        
-        cursor.execute(base_query, params)
-        filtered_objects = cursor.fetchall()
+            # Выполняем запрос только если есть фильтры
+            cursor.execute(base_query, params)
+            filtered_objects = cursor.fetchall()
+        else:
+            # Если фильтры не указаны, возвращаем пустой список
+            logger.info("Фильтры не указаны, возвращаем пустой список для таблицы сентиментов")
+            filtered_objects = []
         
         logger.info(f"Найдено объектов после фильтрации: {len(filtered_objects)}")
-        logger.info(f"SQL запрос: {base_query}")
-        logger.info(f"Параметры: {params}")
-        if filtered_objects:
-            logger.info(f"Пример объекта: {filtered_objects[0]}")
         
         if not filtered_objects:
             return jsonify({
@@ -2177,8 +2177,11 @@ def get_correlation_data():
                 placeholders = ','.join(['?' for _ in active_filters])
                 base_query += f" AND og.group_name IN ({placeholders})"
                 cursor.execute(base_query, active_filters)
+                filtered_objects = cursor.fetchall()
             else:
-                cursor.execute(base_query)
+                # Если фильтры не указаны, возвращаем пустой список
+                logger.info("Фильтры не указаны, возвращаем пустой список для тепловой карты корреляции (supplier)")
+                filtered_objects = []
         elif group_type == 'determined':
             # Используем определенные группы
             base_query = """
@@ -2193,8 +2196,11 @@ def get_correlation_data():
                 placeholders = ','.join(['?' for _ in active_filters])
                 base_query += f" AND dg.group_name IN ({placeholders})"
                 cursor.execute(base_query, active_filters)
+                filtered_objects = cursor.fetchall()
             else:
-                cursor.execute(base_query)
+                # Если фильтры не указаны, возвращаем пустой список
+                logger.info("Фильтры не указаны, возвращаем пустой список для тепловой карты корреляции (determined)")
+                filtered_objects = []
         else:
             # group_type содержит конкретное название группы (например, 'university')
             base_query = """
@@ -2207,8 +2213,8 @@ def get_correlation_data():
                        AND og.group_name = ?
             """
             cursor.execute(base_query, [group_type])
+            filtered_objects = cursor.fetchall()
         
-        filtered_objects = cursor.fetchall()
         logger.info(f"Найдено объектов после фильтрации: {len(filtered_objects)}")
         
         if not filtered_objects:

@@ -1194,47 +1194,13 @@ def get_map_data():
                         archive_data.append({'group': group, 'points': points})
                         print(f"📍 Добавлена группа '{group}' с {len(points)} точками")
             else:
-                # Если ни один из активных фильтров не найден в данных, показываем все объекты
-                print("⚠️ Ни один из активных фильтров не найден в данных, показываем все объекты")
-                for group, group_data in with_group.groupby(group_field):
-                    points = []
-                    for _, row in group_data.iterrows():
-                        point_color = get_point_color(row, color_scheme, sentiment_method, group_type)
-                        points.append({
-                            'name': row.get('object_name', row.get('name', '')),
-                            'address': row.get('object_address', row.get('address', '')),
-                            'latitude': float(row.get('latitude', 0)),
-                            'longitude': float(row.get('longitude', 0)),
-                            'district': row.get('district', 'Неизвестный район'),
-                            'group': row.get('group_name', row.get('group', '')),  # Используем group_name для английских названий
-                            'determined_group': row.get('detected_group_type', row.get('determined_group', '')),
-                            'color': point_color,
-                            'sentiment': get_sentiment_value(row, sentiment_method)
-                        })
-                    if points:
-                        archive_data.append({'group': group, 'points': points})
-                        print(f"📍 Добавлена группа '{group}' с {len(points)} точками")
+                # Если ни один из активных фильтров не найден в данных, показываем пустой список
+                print("⚠️ Ни один из активных фильтров не найден в данных, показываем пустой список")
+                archive_data = []
         else:
-            # Если фильтры не заданы — показываем ВСЕ объекты с группами
-            print("🔓 Фильтры не заданы, показываем все группы")
-            for group, group_data in with_group.groupby(group_field):
-                points = []
-                for _, row in group_data.iterrows():
-                    point_color = get_point_color(row, color_scheme, sentiment_method, group_type)
-                    points.append({
-                        'name': row.get('object_name', row.get('name', '')),
-                        'address': row.get('object_address', row.get('address', '')),
-                        'latitude': float(row.get('latitude', 0)),
-                        'longitude': float(row.get('longitude', 0)),
-                        'district': row.get('district', 'Неизвестный район'),
-                        'group': row.get('group_name', row.get('group', '')),  # Используем group_name для английских названий
-                        'determined_group': row.get('detected_group_type', row.get('determined_group', '')),
-                        'color': point_color,
-                        'sentiment': get_sentiment_value(row, sentiment_method)
-                    })
-                if points:
-                    archive_data.append({'group': group, 'points': points})
-                    print(f"📍 Добавлена группа '{group}' с {len(points)} точками")
+            # Если фильтры не заданы — показываем пустой список (вместо всех объектов)
+            print("🔓 Фильтры не заданы, показываем пустой список")
+            archive_data = []
 
         # Диагностика: выводим количество объектов
         total_points = sum(len(group['points']) for group in archive_data)
@@ -1281,7 +1247,7 @@ def get_map_data():
             else:
                 print("⚠️ Ни один из активных фильтров не найден в данных!")
         else:
-            print("Фильтры не заданы, показываем все группы")
+            print("Фильтры не заданы, показываем пустой список")
         
         return jsonify({
             'archive': archive_data,

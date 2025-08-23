@@ -3025,8 +3025,14 @@ def get_master_rating_data():
         
         data_query += " ORDER BY o.name, r.id"
         
-        cursor.execute(data_query, params)
-        results = cursor.fetchall()
+        # Выполняем запрос только если есть фильтры
+        if active_filters and len(active_filters) > 0:
+            cursor.execute(data_query, params)
+            results = cursor.fetchall()
+        else:
+            # Если фильтры не указаны, возвращаем пустой список
+            logger.info("Фильтры не указаны, возвращаем пустой список для мастер-рейтинга")
+            results = []
         
         logger.info(f"Найдено отзывов для мастер-рейтинга: {len(results)}")
         

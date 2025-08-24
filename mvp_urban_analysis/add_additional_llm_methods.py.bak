@@ -1,0 +1,80 @@
+#!/usr/bin/env python3
+"""
+Добавление дополнительных LLM методов обработки
+"""
+import sqlite3
+
+def add_additional_llm_methods():
+    """Добавляет дополнительные LLM методы обработки"""
+    print("=== ДОБАВЛЕНИЕ ДОПОЛНИТЕЛЬНЫХ LLM МЕТОДОВ ===")
+    
+    try:
+        conn = sqlite3.connect('urban_analysis_fixed.db')
+        cursor = conn.cursor()
+        
+        # 1. Проверяем текущие методы
+        print("1. Текущие методы обработки:")
+        cursor.execute("""
+            SELECT pm.id, pm.method_name, pm.is_active, COUNT(ar.id) as usage_count
+            FROM processing_methods pm
+            LEFT JOIN analysis_results ar ON pm.id = ar.method_id
+            GROUP BY pm.id, pm.method_name, pm.is_active
+            ORDER BY pm.id
+        """)
+        methods = cursor.fetchall()
+        
+        for method_id, method_name, is_active, usage_count in methods:
+            status = "активен" if is_active else "неактивен"
+            print(f"  ID {method_id}: {method_name} - {status} (используется {usage_count} раз)")
+        
+        # 2. Добавляем дополнительные LLM методы
+        print("\n2. Добавление дополнительных LLM методов...")
+        
+        # Список дополнительных методов
+        additional_methods = [
+            (6, 'llm_gemini', 'Анализ через Google Gemini LLM', True),
+            (7, 'llm_gigachat', 'Анализ через GigaChat LLM', True),
+            (8, 'llm_deepseek', 'Анализ через DeepSeek LLM', True)
+        ]
+        
+        for method_id, method_name, description, is_active in additional_methods:
+            # Проверяем, есть ли уже такой метод
+            cursor.execute("SELECT COUNT(*) FROM processing_methods WHERE method_name = ?", (method_name,))
+            exists = cursor.fetchone()[0]
+            
+            if exists == 0:
+                cursor.execute("""
+                    INSERT INTO processing_methods (id, method_name, description, is_active, created_at)
+                    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                """, (method_id, method_name, description, is_active))
+                print(f"   Добавлен метод: ID {method_id} - {method_name}")
+            else:
+                print(f"   Метод {method_name} уже существует")
+        
+        # 3. Проверяем результат
+        print("\n3. Методы после добавления:")
+        cursor.execute("""
+            SELECT pm.id, pm.method_name, pm.is_active, COUNT(ar.id) as usage_count
+            FROM processing_methods pm
+            LEFT JOIN analysis_results ar ON pm.id = ar.method_id
+            GROUP BY pm.id, pm.method_name, pm.is_active
+            ORDER BY pm.id
+        """)
+        updated_methods = cursor.fetchall()
+        
+        for method_id, method_name, is_active, usage_count in updated_methods:
+            status = "активен" if is_active else "неактивен"
+            print(f"  ID {method_id}: {method_name} - {status} (используется {usage_count} раз)")
+        
+        conn.commit()
+        conn.close()
+        
+        print("\n✅ Дополнительные LLM методы добавлены!")
+        
+    except Exception as e:
+        print(f"❌ Ошибка: {e}")
+        import traceback
+        traceback.print_exc()
+
+if __name__ == "__main__":
+    add_additional_llm_methods() 

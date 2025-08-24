@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Тест конвертации групп</title>
+    <meta charset="utf-8">
+</head>
+<body>
+    <h1>Тест конвертации названий групп</h1>
+    
+    <div>
+        <h3>Функция getEnglishGroupName:</h3>
+        <div id="testResults"></div>
+    </div>
+
+    <script>
+        // Функция для получения английского названия группы по русскому
+        function getEnglishGroupName(russianName) {
+            const reverseMapping = {
+                'Школа': 'school',
+                'Больница': 'hospital',
+                'Университет': 'university',
+                'Аптека': 'pharmacy',
+                'Детский сад': 'kindergarden',
+                'Поликлиника': 'polyclinic',
+                'Торговый центр': 'shopmall',
+                'Жилой комплекс': 'resident_complex'
+            };
+            return reverseMapping[russianName] || russianName;
+        }
+
+        // Тестируем функцию
+        const testGroups = [
+            'Школа', 'Больница', 'Университет', 'Аптека', 
+            'Детский сад', 'Поликлиника', 'Торговый центр', 'Жилой комплекс'
+        ];
+
+        let results = '<ul>';
+        for (const russianName of testGroups) {
+            const englishName = getEnglishGroupName(russianName);
+            results += `<li><strong>${russianName}</strong> → <em>${englishName}</em></li>`;
+        }
+        results += '</ul>';
+
+        document.getElementById('testResults').innerHTML = results;
+    </script>
+</body>
+</html>
+
+
+

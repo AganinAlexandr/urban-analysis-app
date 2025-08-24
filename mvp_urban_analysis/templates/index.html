@@ -332,35 +332,14 @@
                             <div class="upload-area" id="uploadArea">
                                 <i class="fas fa-cloud-upload-alt fa-2x text-muted mb-2"></i>
                                 <h6>Перетащите файл сюда</h6>
-                                <p class="text-muted small">CSV, JSON, Excel</p>
+                                <p class="text-muted small">JSON</p>
                                 <input type="file" id="fileInput" accept=".csv,.json,.xlsx,.xls" style="display: none;">
                                 <button class="btn btn-primary btn-sm" onclick="document.getElementById('fileInput').click()">
                                     <i class="fas fa-folder-open"></i> Выбрать файл
                                 </button>
                             </div>
                             
-                            <!-- Настройки для Excel файлов -->
-                            <div id="excelSettings" style="display: none;" class="mt-2">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <h6><i class="fas fa-cog"></i> Настройки Excel</h6>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="mb-2">
-                                            <label for="sheetSelect" class="form-label small">Лист:</label>
-                                            <select class="form-select form-select-sm" id="sheetSelect">
-                                                <option value="">Автоматический выбор</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label for="filterSelect" class="form-label small">Фильтры:</label>
-                                            <select class="form-select form-select-sm" id="filterSelect">
-                                                <option value="">Без фильтров</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+
                             
                             <!-- Настройки методов анализа -->
                             <div id="analysisSettings" class="mt-2">
@@ -395,7 +374,7 @@
                     </div>
 
                     <!-- Переключатель источника данных -->
-                    <div class="card mb-3">
+                    <div class="card mb-3" style="display: none;">
                         <div class="card-header">
                             <h6><i class="fas fa-database"></i> Источник данных</h6>
                         </div>
@@ -464,7 +443,7 @@
                     </div>
 
                     <!-- Управление ключевыми словами -->
-                    <div class="card" id="keywordsManagementCard">
+                    <div class="card" id="keywordsManagementCard" style="display: none;">
                         <div class="card-header">
                             <h6><i class="fas fa-key"></i> Управление ключевыми словами</h6>
                         </div>
@@ -512,21 +491,7 @@
                             <h6><i class="fas fa-database"></i> Информация о базе данных</h6>
                         </div>
                         <div class="card-body">
-                            <div class="row">
-                                <div class="col-12">
-                                    <div class="d-grid gap-2">
-                                        <button class="btn btn-outline-info btn-sm" onclick="getArchiveInfo()">
-                                            <i class="fas fa-info-circle"></i> Информация о БД
-                                        </button>
-                                        <button class="btn btn-outline-secondary btn-sm" onclick="getCSVFieldsInfo()">
-                                            <i class="fas fa-list"></i> Поддерживаемые поля
-                                        </button>
-                                        <button class="btn btn-secondary btn-sm" onclick="getSampleData()">
-                                            <i class="fas fa-database"></i> Образец данных
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
+
                             
                             <div class="archive-info" id="archiveInfo" style="display: none;">
                                 <h6>Информация о базе данных:</h6>
@@ -538,6 +503,16 @@
                                         <div id="completenessInfoContent"></div>
                                     </div>
                                 </div>
+                            </div>
+                            
+                            <!-- Кнопка очистки базы данных -->
+                            <div class="mt-3">
+                                <button type="button" class="btn btn-danger btn-sm" onclick="clearDatabase()">
+                                    <i class="fas fa-trash"></i> Очистить БД
+                                </button>
+                                <small class="text-muted d-block mt-1">
+                                    Удаляет все записи, но сохраняет словари и структуру
+                                </small>
                             </div>
                         </div>
                     </div>
@@ -706,7 +681,7 @@
                             <div class="btn-group w-100" role="group">
                                 <input type="radio" class="btn-check" name="viewMode" id="tableView" value="table" checked>
                                 <label class="btn btn-outline-primary btn-sm" for="tableView">
-                                    <i class="fas fa-table"></i> Таблица
+                                    <i class="fas fa-project-diagram"></i> Схема
                                 </label>
                                 <input type="radio" class="btn-check" name="viewMode" id="chartView" value="chart">
                                 <label class="btn btn-outline-primary btn-sm" for="chartView">
@@ -772,6 +747,23 @@
                             </table>
                         </div>
                         
+                        <!-- Схема архитектуры -->
+                        <div id="architectureSchema" class="text-center" style="display: none;">
+                            <h5 class="mb-3">
+                                <i class="fas fa-project-diagram"></i> Архитектура системы
+                            </h5>
+                            <img src="/static/images/flowchart_with_arrows.png" 
+                                 alt="Архитектура системы" 
+                                 class="img-fluid" 
+                                 style="max-width: 100%; height: auto;">
+                            <div class="mt-3">
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle"></i>
+                                    Схема показывает архитектуру системы анализа городской среды
+                                </small>
+                            </div>
+                        </div>
+                        
                         <!-- Контейнер для диаграммы -->
                         <div id="resultsChart" class="chart-container" style="display: none;">
                             <div id="chartLoading" class="text-center">
@@ -815,25 +807,7 @@
                                         <i class="fas fa-chart-bar"></i> Корреляция методов с Master Rating по группам
                                     </h5>
                                     
-                                    <!-- Кнопки для тестирования -->
-                                    <div class="text-center mb-3">
-                                        <button class="btn btn-sm btn-outline-info me-2" onclick="testGroupData('university')">
-                                            Тест Университет
-                                        </button>
-                                        <button class="btn btn-sm btn-outline-info me-2" onclick="testGroupData('kindergarden')">
-                                            Тест Детский_сад
-                                        </button>
-                                        <button class="btn btn-sm btn-outline-warning me-2" onclick="testCorrelation('university')">
-                                            Тест Корреляции Университет
-                                        </button>
-                                        <button class="btn btn-sm btn-outline-danger me-2" onclick="testFixMasterRatings('university')">
-                                            Проверить Master Rating Университет
-                                        </button>
-                                        <button class="btn btn-sm btn-outline-success me-2" onclick="testCurrentCorrelationData()">
-                                            Тест Текущих Данных
-                                        </button>
 
-                                    </div>
                                     
                                     <div id="methodCorrelationLoading" class="text-center">
                                         <div class="spinner-border" role="status">
@@ -854,6 +828,7 @@
                             </div>
                             <div id="masterRatingContainer"></div>
                         </div>
+
                     </div>
                 </div>
             </div>
@@ -2346,12 +2321,12 @@
         
         function updateDataSourceUI() {
             const sampleCard = document.getElementById('sampleManagementCard');
-            const archiveCard = document.getElementById('archiveManagementCard');
             const dataSourceInfo = document.getElementById('dataSourceInfo');
             
-            // Кнопки управления выборкой всегда видны
-            sampleCard.style.display = 'block';
-            archiveCard.style.display = 'block';
+            // Скрываем только блок управления выборкой для MVP
+            if (sampleCard) sampleCard.style.display = 'none';
+            
+            // Блок "Информация о базе данных" оставляем видимым
             
             if (currentDataSource === 'sample') {
                 dataSourceInfo.textContent = 'Работа с выборкой из базы данных';
@@ -2838,6 +2813,7 @@
             const sentimentTable = document.getElementById('sentimentTable');
             const correlationHeatmap = document.getElementById('correlationHeatmap');
             const masterRatingTable = document.getElementById('masterRatingTable');
+            const architectureSchema = document.getElementById('architectureSchema');
             const completenessFilterSection = document.getElementById('completenessFilterSection');
             
             // Скрываем все контейнеры по умолчанию
@@ -2848,7 +2824,19 @@
             if (masterRatingTable) masterRatingTable.style.display = 'none';
             if (completenessFilterSection) completenessFilterSection.style.display = 'none';
             
-            console.log('Все контейнеры скрыты при инициализации');
+            // Показываем схему архитектуры по умолчанию (так как "Схема" выбрана по умолчанию)
+            if (architectureSchema) {
+                architectureSchema.style.display = 'block';
+                console.log('Схема архитектуры показана по умолчанию');
+            }
+            
+            // Скрываем блоки управления выборкой и ключевыми словами для MVP
+            const sampleCard = document.getElementById('sampleManagementCard');
+            const keywordsCard = document.getElementById('keywordsManagementCard');
+            if (sampleCard) sampleCard.style.display = 'none';
+            if (keywordsCard) keywordsCard.style.display = 'none';
+            
+            console.log('Состояние контейнеров инициализировано');
         }
         
         // Функция для переключения между таблицей и диаграммой
@@ -2863,18 +2851,23 @@
             const sentimentTable = document.getElementById('sentimentTable');
             const correlationHeatmap = document.getElementById('correlationHeatmap');
             const masterRatingTable = document.getElementById('masterRatingTable');
+            const architectureSchema = document.getElementById('architectureSchema');
             const completenessFilterSection = document.getElementById('completenessFilterSection');
             const methodFilterSection = document.getElementById('methodFilterSection');
             
             if (tableView) {
                 tableView.addEventListener('change', function() {
-                    if (resultsTable) resultsTable.style.display = 'block';
+                    if (resultsTable) resultsTable.style.display = 'none';
                     if (chartContainer) chartContainer.style.display = 'none';
                     if (sentimentTable) sentimentTable.style.display = 'none';
                     if (correlationHeatmap) correlationHeatmap.style.display = 'none';
                     if (masterRatingTable) masterRatingTable.style.display = 'none';
                     if (completenessFilterSection) completenessFilterSection.style.display = 'none';
-                    loadTableData();
+                    
+                    // Показываем схему архитектуры
+                    if (architectureSchema) {
+                        architectureSchema.style.display = 'block';
+                    }
                 });
             }
             
@@ -2885,6 +2878,7 @@
                     if (sentimentTable) sentimentTable.style.display = 'none';
                     if (correlationHeatmap) correlationHeatmap.style.display = 'none';
                     if (masterRatingTable) masterRatingTable.style.display = 'block';
+                    if (architectureSchema) architectureSchema.style.display = 'none';
                     if (completenessFilterSection) completenessFilterSection.style.display = 'none';
                     loadMasterRatingData();
                 });
@@ -2896,6 +2890,7 @@
                     if (chartContainer) chartContainer.style.display = 'none';
                     if (sentimentTable) sentimentTable.style.display = 'block';
                     if (correlationHeatmap) correlationHeatmap.style.display = 'none';
+                    if (architectureSchema) architectureSchema.style.display = 'none';
                     if (completenessFilterSection) completenessFilterSection.style.display = 'block';
                     if (methodFilterSection) methodFilterSection.style.display = 'block';
                     loadSentimentTableData();
@@ -2908,6 +2903,7 @@
                     if (chartContainer) chartContainer.style.display = 'none';
                     if (sentimentTable) sentimentTable.style.display = 'none';
                     if (correlationHeatmap) correlationHeatmap.style.display = 'block';
+                    if (architectureSchema) architectureSchema.style.display = 'none';
                     if (completenessFilterSection) completenessFilterSection.style.display = 'block';
                     loadCorrelationHeatmapData();
                 });
@@ -2919,6 +2915,7 @@
                     if (chartContainer) chartContainer.style.display = 'none';
                     if (sentimentTable) sentimentTable.style.display = 'none';
                     if (correlationHeatmap) correlationHeatmap.style.display = 'none';
+                    if (architectureSchema) architectureSchema.style.display = 'none';
                     if (completenessFilterSection) completenessFilterSection.style.display = 'none';
                     loadDbTableData();
                 });
@@ -4570,6 +4567,28 @@ Master Ratings: ${result.master_ratings_count}
             console.log('📊 Labels графика:', chart.data.labels);
             
             alert('Проверьте консоль браузера для детальной диагностики данных графика');
+        }
+
+        // Функция для очистки базы данных
+        function clearDatabase() {
+            if (confirm('Вы уверены, что хотите очистить базу данных? Это действие нельзя отменить.')) {
+                fetch('/database/clear', {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showStatus(data.message, 'success');
+                        getArchiveInfo();
+                        updateMap();
+                    } else {
+                        showStatus(data.error, 'danger');
+                    }
+                })
+                .catch(error => {
+                    showStatus('Ошибка очистки базы данных: ' + error.message, 'danger');
+                });
+            }
         }
 
     </script>

@@ -1558,6 +1558,90 @@ def optimize_database():
         logger.error(f"Ошибка оптимизации БД: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/database/clear', methods=['POST'])
+def clear_database():
+    """Очистка базы данных - удаление всех записей с сохранением структуры"""
+    try:
+        logger.info("=== ОЧИСТКА БАЗЫ ДАННЫХ ===")
+        
+        # Подключаемся к базе данных
+        db_path = 'urban_analysis_fixed.db'
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Получаем статистику до очистки
+        cursor.execute("SELECT COUNT(*) FROM objects")
+        objects_count_before = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM reviews")
+        reviews_count_before = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM sentiment_analysis")
+        sentiment_count_before = cursor.fetchone()[0]
+        
+        logger.info(f"📊 Статистика до очистки: объектов={objects_count_before}, отзывов={reviews_count_before}, сентиментов={sentiment_count_before}")
+        
+        # Очищаем таблицы в правильном порядке (с учетом внешних ключей)
+        cursor.execute("DELETE FROM sentiment_analysis")
+        logger.info("🗑️ Удалены записи из sentiment_analysis")
+        
+        cursor.execute("DELETE FROM reviews")
+        logger.info("🗑️ Удалены записи из reviews")
+        
+        cursor.execute("DELETE FROM objects")
+        logger.info("🗑️ Удалены записи из objects")
+        
+        # Сбрасываем автоинкрементные счетчики
+        cursor.execute("DELETE FROM sqlite_sequence WHERE name IN ('objects', 'reviews', 'sentiment_analysis')")
+        logger.info("🔄 Сброшены автоинкрементные счетчики")
+        
+        # Фиксируем изменения
+        conn.commit()
+        
+        # Получаем статистику после очистки
+        cursor.execute("SELECT COUNT(*) FROM objects")
+        objects_count_after = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM reviews")
+        reviews_count_after = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM sentiment_analysis")
+        sentiment_count_after = cursor.fetchone()[0]
+        
+        logger.info(f"📊 Статистика после очистки: объектов={objects_count_after}, отзывов={reviews_count_after}, сентиментов={sentiment_count_after}")
+        
+        # Закрываем соединение
+        conn.close()
+        
+        # Очищаем глобальные переменные приложения
+        if hasattr(app, 'archive_data'):
+            app.archive_data = []
+            logger.info("🗑️ Очищен app.archive_data")
+        
+        if hasattr(app, 'current_data'):
+            app.current_data = None
+            logger.info("🗑️ Очищен app.current_data")
+        
+        deleted_records = objects_count_before + reviews_count_before + sentiment_count_before
+        
+        return jsonify({
+            'success': True,
+            'message': f'База данных успешно очищена. Удалено {deleted_records} записей.',
+            'deleted': {
+                'objects': objects_count_before,
+                'reviews': reviews_count_before,
+                'sentiment_analysis': sentiment_count_before,
+                'total': deleted_records
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Ошибка очистки базы данных: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Ошибка очистки базы данных: {str(e)}'
+        }), 500
+
 @app.route('/api/keywords/regenerate', methods=['POST'])
 def regenerate_keywords():
     """Перегенерировать ключевые слова на основе текущих данных"""

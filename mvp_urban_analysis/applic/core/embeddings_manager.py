@@ -52,8 +52,13 @@ class EmbeddingsManager:
                     cursor.execute("ALTER TABLE reviews ADD COLUMN object_embedding TEXT")
                     logger.info("✅ Добавлено поле object_embedding в таблицу reviews")
                 
+                # Добавляем поле для категории сентимента, если его нет
+                if 'sentiment_category' not in columns:
+                    cursor.execute("ALTER TABLE reviews ADD COLUMN sentiment_category TEXT")
+                    logger.info("✅ Добавлено поле sentiment_category в таблицу reviews")
+                
                 conn.commit()
-                logger.info("✅ Таблица reviews готова для работы с эмбеддингами")
+                logger.info("✅ Таблица reviews готова для работы с эмбеддингами и сентиментами")
                 
         except Exception as e:
             logger.error(f"❌ Ошибка при инициализации таблицы: {str(e)}")
@@ -330,6 +335,166 @@ class EmbeddingsManager:
         except Exception as e:
             logger.error(f"❌ Ошибка при получении данных для визуализации: {str(e)}")
             return []
+    
+    def get_3d_visualization_data(self, clustering_mode: str = 'groups', limit: int = 1000) -> List[Dict]:
+        """
+        Получает данные для 3D визуализации с тремя режимами кластеризации.
+        
+        Args:
+            clustering_mode: Режим кластеризации ('groups', 'sentiment', 'groups_sentiment')
+            limit: Максимальное количество записей
+            
+        Returns:
+            Список словарей с данными для 3D визуализации
+        """
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                # Базовый запрос для получения данных с реальными сентиментами
+                base_query = """
+                    SELECT r.id, r.review_text, r.rating, r.review_embedding, r.object_embedding,
+                           o.name as object_name, o.group_id,
+                           og.group_name, og.group_type,
+                           COALESCE(
+                               (SELECT ar.sentiment 
+                                FROM analysis_results ar 
+                                JOIN processing_methods pm ON ar.method_id = pm.id 
+                                WHERE ar.review_id = r.id 
+                                  AND pm.method_name = 'yandex_gpt' 
+                                  AND ar.sentiment IS NOT NULL 
+                                LIMIT 1),
+                               (SELECT ar.sentiment 
+                                FROM analysis_results ar 
+                                JOIN processing_methods pm ON ar.method_id = pm.id 
+                                WHERE ar.review_id = r.id 
+                                  AND pm.method_name = 'yandexgpt_sentiment' 
+                                  AND ar.sentiment IS NOT NULL 
+                                LIMIT 1),
+                               r.sentiment_category, 
+                               'Отсутствует'
+                           ) as sentiment,
+                           -- Добавляем отладочную информацию
+                           (SELECT COUNT(*) FROM analysis_results ar2 WHERE ar2.review_id = r.id) as total_analysis_results,
+                           (SELECT COUNT(*) FROM analysis_results ar3 
+                            JOIN processing_methods pm3 ON ar3.method_id = pm3.id 
+                            WHERE ar3.review_id = r.id AND pm3.method_name = 'yandex_gpt') as yandexgpt_results,
+                           -- Добавляем информацию о доступных методах для диагностики
+                           (SELECT GROUP_CONCAT(DISTINCT pm4.method_name) 
+                            FROM analysis_results ar4 
+                            JOIN processing_methods pm4 ON ar4.method_id = pm4.id 
+                            WHERE ar4.review_id = r.id) as available_methods
+                    FROM reviews r
+                    JOIN objects o ON r.object_id = o.id
+                    LEFT JOIN object_groups og ON o.group_id = og.id
+                    WHERE r.review_embedding IS NOT NULL
+                       OR r.object_embedding IS NOT NULL
+                    LIMIT ?
+                """
+                
+                cursor = conn.execute(base_query, (limit,))
+                rows = cursor.fetchall()
+                
+                if not rows:
+                    logger.warning("⚠️ Нет данных для 3D визуализации")
+                    return []
+                
+                # Преобразуем данные в удобный формат
+                visualization_data = []
+                for row in rows:
+                    review_id, review_text, rating, review_embedding, object_embedding, \
+                    object_name, group_id, group_name, group_type, sentiment, \
+                    total_analysis_results, yandexgpt_results, available_methods = row
+                    
+                    # Логируем отладочную информацию для первых нескольких записей
+                    if len(visualization_data) < 5:
+                        logger.info(f"🔍 Отзыв {review_id}: sentiment='{sentiment}', "
+                                  f"total_analysis_results={total_analysis_results}, "
+                                  f"yandexgpt_results={yandexgpt_results}, "
+                                  f"available_methods='{available_methods}'")
+                    
+                    # Определяем кластер в зависимости от режима
+                    cluster = self._determine_cluster(clustering_mode, group_name, sentiment, group_id)
+                    
+                    data_item = {
+                        'review_id': review_id,
+                        'review_text': review_text,
+                        'rating': rating,
+                        'object_name': object_name,
+                        'group_name': group_name or 'unknown',
+                        'group_type': group_type or 'unknown',
+                        'sentiment': sentiment,
+                        'cluster': cluster,
+                        'clustering_mode': clustering_mode,
+                        'has_review_embedding': review_embedding is not None,
+                        'has_object_embedding': object_embedding is not None
+                    }
+                    
+                    # Добавляем эмбеддинги, если они есть
+                    if review_embedding:
+                        try:
+                            embedding_vector = json.loads(review_embedding)
+                            # Уменьшаем размерность до 3D
+                            data_item['review_embedding'] = self._reduce_embedding_dimensions(embedding_vector, 3)
+                        except json.JSONDecodeError:
+                            logger.warning(f"⚠️ Некорректный JSON в review_embedding для отзыва {review_id}")
+                            continue
+                    
+                    if object_embedding:
+                        try:
+                            embedding_vector = json.loads(object_embedding)
+                            # Уменьшаем размерность до 3D
+                            data_item['object_embedding'] = self._reduce_embedding_dimensions(embedding_vector, 3)
+                        except json.JSONDecodeError:
+                            logger.warning(f"⚠️ Некорректный JSON в object_embedding для отзыва {review_id}")
+                            continue
+                    
+                    visualization_data.append(data_item)
+                
+                logger.info(f"✅ Получено {len(visualization_data)} записей для 3D визуализации (режим: {clustering_mode})")
+                return visualization_data
+                
+        except Exception as e:
+            logger.error(f"❌ Ошибка при получении данных для 3D визуализации: {str(e)}")
+            return []
+    
+    def _determine_cluster(self, clustering_mode: str, group_name: str, sentiment: str, group_id: int) -> str:
+        """
+        Определяет кластер для записи в зависимости от режима кластеризации.
+        
+        Args:
+            clustering_mode: Режим кластеризации
+            group_name: Название группы
+            sentiment: Категория сентимента
+            group_id: ID группы
+            
+        Returns:
+            Название кластера
+        """
+        if clustering_mode == 'groups':
+            return group_name or f'group_{group_id}'
+        elif clustering_mode == 'sentiment':
+            return sentiment
+        elif clustering_mode == 'groups_sentiment':
+            return f"{group_name or f'group_{group_id}'}-{sentiment}"
+        else:
+            return 'unknown'
+    
+    def _reduce_embedding_dimensions(self, embedding: List[float], target_dim: int = 3) -> List[float]:
+        """
+        Уменьшает размерность эмбеддинга до целевой размерности.
+        
+        Args:
+            embedding: Вектор эмбеддинга
+            target_dim: Целевая размерность (по умолчанию 3 для 3D визуализации)
+            
+        Returns:
+            Эмбеддинг с уменьшенной размерностью
+        """
+        if not embedding or len(embedding) <= target_dim:
+            return embedding[:target_dim] if embedding else [0, 0, 0]
+        
+        # Простое уменьшение размерности: берем первые target_dim компонент
+        # В будущем можно заменить на PCA
+        return embedding[:target_dim]
     
     def get_embeddings_stats(self) -> Dict:
         """

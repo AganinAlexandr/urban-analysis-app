@@ -301,6 +301,35 @@ def embeddings_visualization_data():
         logger.error(f"Ошибка получения данных для визуализации: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/embeddings/3d-visualization-data')
+def embeddings_3d_visualization_data():
+    """Получение данных для 3D визуализации с тремя режимами кластеризации"""
+    try:
+        clustering_mode = request.args.get('mode', 'groups', type=str)
+        limit = request.args.get('limit', 1000, type=int)
+        
+        # Получаем данные для 3D визуализации
+        data = embeddings_manager.get_3d_visualization_data(
+            clustering_mode=clustering_mode,
+            limit=limit
+        )
+        
+        if not data:
+            return jsonify({
+                'success': False,
+                'message': 'Нет данных для 3D визуализации'
+            })
+        
+        return jsonify({
+            'success': True,
+            'data': data,
+            'clustering_mode': clustering_mode,
+            'count': len(data)
+        })
+    except Exception as e:
+        logger.error(f"Ошибка получения данных для 3D визуализации: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/embeddings/update-iam-token', methods=['POST'])
 def update_iam_token():
     """Обновление IAM токена"""
@@ -332,6 +361,11 @@ def index():
 def embeddings_page():
     """Страница управления эмбеддингами"""
     return render_template('embeddings.html')
+
+@app.route('/embeddings/3d')
+def embeddings_3d_page():
+    """Страница 3D визуализации эмбеддингов"""
+    return render_template('3d_embeddings.html')
 
 @app.route('/upload/detect-group', methods=['POST'])
 def detect_group_from_upload():

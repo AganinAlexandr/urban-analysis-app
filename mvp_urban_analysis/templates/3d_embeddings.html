@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Визуализация Эмбеддингов - Анализ Городской Среды</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .main-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            margin: 20px auto;
+            padding: 30px;
+            max-width: 1400px; /* Ограничиваем ширину как в управлении эмбеддингами */
+        }
+        
+        .header-section {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+        }
+        
+        .controls-section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .clustering-mode-btn {
+            margin: 3px;
+            border-radius: 20px;
+            padding: 8px 16px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+        
+        .clustering-mode-btn.active {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .filter-section {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+            border: 1px solid #dee2e6;
+        }
+        
+        .chart-container-large {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 0;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            height: 1080px; /* 600 * 1.8 = 1080 */
+            width: 100%;
+        }
+        
+        .loading-spinner {
+            text-align: center;
+            padding: 50px;
+            color: #667eea;
+        }
+        
+        .stats-section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 15px 0;
+            border: 1px solid #e9ecef;
+        }
+        
+        .stats-card-small {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            padding: 12px;
+            text-align: center;
+            margin: 5px 0;
+        }
+        
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 3px;
+        }
+        
+        .stat-text {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 3px;
+        }
+        
+        .stat-label {
+            font-size: 0.8rem;
+            opacity: 0.9;
+        }
+        
+        .back-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 20px;
+            padding: 10px 20px;
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+        
+        .back-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="main-container">
+            <!-- Заголовок -->
+            <div class="header-section">
+                <h1><i class="fas fa-cube"></i> 3D Визуализация Эмбеддингов</h1>
+                <p class="mb-0">Интерактивная 3D диаграмма с тремя режимами кластеризации</p>
+            </div>
+            
+            <!-- Основной контент в две колонки -->
+            <div class="row">
+                <!-- Левая колонка - управление -->
+                <div class="col-md-4">
+                    <!-- Кнопка возврата -->
+                    <div class="text-start mb-3">
+                        <a href="/embeddings" class="btn back-btn">
+                            <i class="fas fa-arrow-left"></i> Назад к управлению эмбеддингами
+                        </a>
+                    </div>
+                    
+                    <!-- Управление режимами кластеризации -->
+                    <div class="controls-section">
+                        <h5><i class="fas fa-layer-group"></i> Режим кластеризации:</h5>
+                        <div class="d-flex flex-wrap justify-content-start">
+                            <button class="btn btn-primary clustering-mode-btn active" data-mode="groups">
+                                <i class="fas fa-map-marker-alt"></i> Группы
+                            </button>
+                            <button class="btn btn-success clustering-mode-btn" data-mode="sentiment">
+                                <i class="fas fa-heart"></i> Сентимент
+                            </button>
+                            <button class="btn btn-warning clustering-mode-btn" data-mode="groups_sentiment">
+                                <i class="fas fa-venn-diagram"></i> Группы+Сентимент
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Фильтры -->
+                    <div class="filter-section">
+                        <h6><i class="fas fa-filter"></i> Фильтры:</h6>
+                        <div class="row">
+                            <div class="col-12 mb-2">
+                                <label class="form-label">Группа:</label>
+                                <select class="form-select form-select-sm" id="groupFilter">
+                                    <option value="">Все группы</option>
+                                </select>
+                            </div>
+                            <div class="col-12 mb-2">
+                                <label class="form-label">Объект:</label>
+                                <select class="form-select form-select-sm" id="objectFilter">
+                                    <option value="">Все объекты</option>
+                                </select>
+                            </div>
+                            <div class="col-12 mb-2">
+                                <label class="form-label">Сентимент:</label>
+                                <select class="form-select form-select-sm" id="sentimentFilter">
+                                    <option value="">Все сентименты</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Статистика -->
+                    <div class="stats-section">
+                        <h6><i class="fas fa-chart-bar"></i> Статистика:</h6>
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="stats-card-small">
+                                    <div class="stat-number" id="totalRecords">-</div>
+                                    <div class="stat-label">Записей</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="stats-card-small">
+                                    <div class="stat-number" id="totalClusters">-</div>
+                                    <div class="stat-label">Кластеров</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-6">
+                                <div class="stats-card-small">
+                                    <div class="stat-text" id="currentMode">Группы</div>
+                                    <div class="stat-label">Режим</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="stats-card-small">
+                                    <div class="stat-text" id="dataStatus">Загрузка...</div>
+                                    <div class="stat-label">Статус</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Правая колонка - 3D диаграмма -->
+                <div class="col-md-8">
+                    <div class="chart-container-large">
+                        <div id="loadingSpinner" class="loading-spinner">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Загрузка...</span>
+                            </div>
+                            <p class="mt-3">Загружаем данные для 3D визуализации...</p>
+                        </div>
+                        <div id="3dChart" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Глобальные переменные
+        let currentData = [];
+        let currentMode = 'groups';
+        let plotlyChart = null;
+        
+        // Инициализация при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeFilters();
+            loadData();
+            setupEventListeners();
+        });
+        
+        // Настройка обработчиков событий
+        function setupEventListeners() {
+            // Переключение режимов кластеризации
+            document.querySelectorAll('.clustering-mode-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    // Убираем активный класс у всех кнопок
+                    document.querySelectorAll('.clustering-mode-btn').forEach(b => b.classList.remove('active'));
+                    // Добавляем активный класс к нажатой кнопке
+                    this.classList.add('active');
+                    
+                    currentMode = this.dataset.mode;
+                    document.getElementById('currentMode').textContent = getModeDisplayName(currentMode);
+                    
+                    loadData();
+                });
+            });
+            
+            // Фильтры
+            document.getElementById('groupFilter').addEventListener('change', applyFilters);
+            document.getElementById('objectFilter').addEventListener('change', applyFilters);
+            document.getElementById('sentimentFilter').addEventListener('change', applyFilters);
+        }
+        
+        // Получение отображаемого названия режима
+        function getModeDisplayName(mode) {
+            const names = {
+                'groups': 'Группы',
+                'sentiment': 'Сентимент',
+                'groups_sentiment': 'Группы+Сентимент'
+            };
+            return names[mode] || mode;
+        }
+        
+        // Инициализация фильтров
+        function initializeFilters() {
+            // Заполняем фильтр групп с правильными названиями из базы данных
+            const groupFilter = document.getElementById('groupFilter');
+            const groups = ['school', 'hospital', 'university', 'pharmacy', 'kindergarden', 'polyclinic', 'shopmall', 'resident_complex'];
+            
+            // Маппинг для отображения русских названий
+            const groupDisplayNames = {
+                'school': 'Школа',
+                'hospital': 'Больница',
+                'university': 'Университет',
+                'pharmacy': 'Аптека',
+                'kindergarden': 'Детский сад',
+                'polyclinic': 'Поликлиника',
+                'shopmall': 'Торговый центр',
+                'resident_complex': 'Жилой комплекс'
+            };
+            
+            groups.forEach(group => {
+                const option = document.createElement('option');
+                option.value = group; // Значение = английское название из БД
+                option.textContent = groupDisplayNames[group] || group; // Отображение = русское название
+                groupFilter.appendChild(option);
+            });
+            
+            // Фильтр сентиментов будет заполняться динамически после загрузки данных
+            const sentimentFilter = document.getElementById('sentimentFilter');
+            sentimentFilter.innerHTML = '<option value="">Все сентименты</option>';
+        }
+        
+        // Загрузка данных
+        async function loadData() {
+            try {
+                showLoading(true);
+                document.getElementById('dataStatus').textContent = 'Загрузка...';
+                
+                const response = await fetch(`/embeddings/3d-visualization-data?mode=${currentMode}&limit=1000`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentData = result.data;
+                    console.log(`📊 Загружено данных: ${currentData.length}`);
+                    console.log('📋 Структура первой записи:', currentData[0]);
+                    console.log('🏷️ Уникальные группы:', [...new Set(currentData.map(item => item.group_name))]);
+                    console.log('💭 Уникальные сентименты:', [...new Set(currentData.map(item => item.sentiment))]);
+                    console.log('🏢 Уникальные объекты:', [...new Set(currentData.map(item => item.object_name))].slice(0, 5));
+                    
+                    updateStats();
+                    updateObjectFilter();
+                    updateSentimentFilter();
+                    create3DVisualization();
+                } else {
+                    throw new Error(result.message || 'Ошибка загрузки данных');
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки данных:', error);
+                document.getElementById('dataStatus').textContent = 'Ошибка';
+                showError('Не удалось загрузить данные: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // Обновление статистики
+        function updateStats() {
+            document.getElementById('totalRecords').textContent = currentData.length;
+            
+            const uniqueClusters = new Set(currentData.map(item => item.cluster));
+            document.getElementById('totalClusters').textContent = uniqueClusters.size;
+            
+            // Обновляем режим и статус
+            document.getElementById('currentMode').textContent = getModeDisplayName(currentMode);
+            document.getElementById('dataStatus').textContent = 'Готово';
+        }
+        
+        // Обновление фильтра объектов
+        function updateObjectFilter() {
+            const objectFilter = document.getElementById('objectFilter');
+            objectFilter.innerHTML = '<option value="">Все объекты</option>';
+            
+            const uniqueObjects = [...new Set(currentData.map(item => item.object_name))].sort();
+            uniqueObjects.forEach(objectName => {
+                if (objectName && objectName.trim()) {
+                    const option = document.createElement('option');
+                    option.value = objectName;
+                    option.textContent = objectName;
+                    objectFilter.appendChild(option);
+                }
+            });
+        }
+        
+        // Обновление фильтра сентиментов
+        function updateSentimentFilter() {
+            const sentimentFilter = document.getElementById('sentimentFilter');
+            sentimentFilter.innerHTML = '<option value="">Все сентименты</option>';
+            
+            const uniqueSentiments = [...new Set(currentData.map(item => item.sentiment))].sort();
+            uniqueSentiments.forEach(sentiment => {
+                if (sentiment && sentiment.trim()) {
+                    const option = document.createElement('option');
+                    option.value = sentiment;
+                    option.textContent = sentiment;
+                    sentimentFilter.appendChild(option);
+                }
+            });
+        }
+        
+        // Применение фильтров
+        function applyFilters() {
+            const groupFilter = document.getElementById('groupFilter').value;
+            const objectFilter = document.getElementById('objectFilter').value;
+            const sentimentFilter = document.getElementById('sentimentFilter').value;
+            
+            console.log('Применяем фильтры:', { groupFilter, objectFilter, sentimentFilter });
+            console.log('Всего данных до фильтрации:', currentData.length);
+            
+            let filteredData = currentData.filter(item => {
+                // Проверяем группу (используем английские названия из БД)
+                if (groupFilter && item.group_name !== groupFilter) {
+                    console.log(`Фильтр группы: ${item.group_name} !== ${groupFilter} -> исключаем`);
+                    return false;
+                }
+                
+                // Проверяем объект
+                if (objectFilter && item.object_name !== objectFilter) {
+                    console.log(`Фильтр объекта: ${item.object_name} !== ${objectFilter} -> исключаем`);
+                    return false;
+                }
+                
+                // Проверяем сентимент
+                if (sentimentFilter && item.sentiment !== sentimentFilter) {
+                    console.log(`Фильтр сентимента: ${item.sentiment} !== ${sentimentFilter} -> исключаем`);
+                    return false;
+                }
+                
+                return true;
+            });
+            
+            console.log('Данных после фильтрации:', filteredData.length);
+            console.log('Отфильтрованные данные:', filteredData.slice(0, 3)); // Показываем первые 3 записи
+            
+            if (filteredData.length === 0) {
+                console.log('⚠️ Нет данных после фильтрации - показываем все данные');
+                create3DVisualization(currentData);
+            } else {
+                create3DVisualization(filteredData);
+            }
+        }
+        
+        // Создание 3D визуализации
+        function create3DVisualization(data = currentData) {
+            if (!data || data.length === 0) {
+                showError('Нет данных для визуализации');
+                return;
+            }
+            
+            // Получаем уникальные кластеры для цветовой схемы
+            const uniqueClusters = [...new Set(data.map(item => item.cluster))];
+            
+            // Создаем данные для Plotly
+            const plotData = uniqueClusters.map((cluster) => {
+                const clusterData = data.filter(item => item.cluster === cluster);
+                
+                // Определяем цвет в зависимости от режима кластеризации
+                let markerColor;
+                if (currentMode === 'sentiment') {
+                    // Для сентиментов используем фиксированные цвета
+                    markerColor = getSentimentColor(cluster);
+                    console.log(`Кластер сентимента: "${cluster}" -> цвет: ${markerColor}`);
+                } else if (currentMode === 'groups') {
+                    // Для групп используем цвета как на карте
+                    markerColor = getGroupColor(cluster);
+                    console.log(`Кластер группы: "${cluster}" -> цвет: ${markerColor}`);
+                } else {
+                    // Для комбинированного режима используем автоматическую палитру
+                    markerColor = getClusterColor(cluster, uniqueClusters);
+                    console.log(`Комбинированный кластер: "${cluster}" -> цвет: ${markerColor}`);
+                }
+                
+                return {
+                    x: clusterData.map(item => item.review_embedding ? item.review_embedding[0] : 0),
+                    y: clusterData.map(item => item.review_embedding ? item.review_embedding[1] : 0),
+                    z: clusterData.map(item => item.review_embedding ? item.review_embedding[2] : 0),
+                    mode: 'markers',
+                    type: 'scatter3d',
+                    name: cluster,
+                    marker: {
+                        size: 5,
+                        color: markerColor,
+                        opacity: 0.8
+                    },
+                    text: clusterData.map(item => 
+                        `Отзыв: ${item.review_text.substring(0, 100)}...<br>` +
+                        `Объект: ${item.object_name}<br>` +
+                        `Группа: ${item.group_name}<br>` +
+                        `Сентимент: ${item.sentiment}<br>` +
+                        `Рейтинг: ${item.rating}`
+                    ),
+                    hovertemplate: '<b>%{text}</b><extra></extra>'
+                };
+            });
+            
+            // Настройки макета
+            const layout = {
+                title: `3D Визуализация Эмбеддингов - Режим: ${getModeDisplayName(currentMode)}`,
+                scene: {
+                    xaxis: { title: 'Компонента 1' },
+                    yaxis: { title: 'Компонента 2' },
+                    zaxis: { title: 'Компонента 3' }
+                },
+                margin: { l: 0, r: 0, b: 0, t: 30 },
+                height: 1080
+            };
+            
+            // Создаем или обновляем график
+            if (plotlyChart) {
+                Plotly.react('3dChart', plotData, layout);
+            } else {
+                plotlyChart = Plotly.newPlot('3dChart', plotData, layout);
+            }
+            
+            document.getElementById('3dChart').style.display = 'block';
+        }
+        
+        // Цвета для сентиментов (как в таблице сентиментов)
+        function getSentimentColor(sentiment) {
+            // Очищаем название кластера от лишних символов
+            const cleanSentiment = sentiment.toString().toLowerCase().trim();
+            
+            // Определяем цвет на основе данных от YandexGPT
+            if (cleanSentiment.includes('положительный') || cleanSentiment.includes('positive')) {
+                return '#28a745';    // Зеленый
+            } else if (cleanSentiment.includes('нейтральный') || cleanSentiment.includes('neutral')) {
+                return '#ffc107';    // Желтый
+            } else if (cleanSentiment.includes('отрицательный') || cleanSentiment.includes('negative')) {
+                return '#dc3545';    // Красный
+            } else if (cleanSentiment.includes('отсутствует') || cleanSentiment.includes('undefined') || 
+                       cleanSentiment.includes('unknown') || cleanSentiment.includes('none')) {
+                return '#6c757d';    // Серый
+            }
+            
+            // Если не удалось определить, используем автоматический цвет
+            console.log('Неизвестный сентимент:', sentiment, '-> используем автоматический цвет');
+            return '#17a2b8'; // Голубой для неизвестных сентиментов
+        }
+        
+        // Цвета для групп (как на карте)
+        function getGroupColor(groupName) {
+            // Очищаем название кластера от лишних символов
+            const cleanGroup = groupName.toString().toLowerCase().trim();
+            
+            // Определяем цвет на основе данных от YandexGPT
+            if (cleanGroup.includes('школа') || cleanGroup.includes('school')) {
+                return '#007bff';           // Синий
+            } else if (cleanGroup.includes('больница') || cleanGroup.includes('hospital')) {
+                return '#dc3545';           // Красный
+            } else if (cleanGroup.includes('университет') || cleanGroup.includes('university')) {
+                return '#6f42c1';           // Фиолетовый
+            } else if (cleanGroup.includes('аптека') || cleanGroup.includes('pharmacy')) {
+                return '#fd7e14';           // Оранжевый
+            } else if (cleanGroup.includes('детский сад') || cleanGroup.includes('kindergarten') || cleanGroup.includes('kindergarden')) {
+                return '#20c997';           // Бирюзовый
+            } else if (cleanGroup.includes('поликлиника') || cleanGroup.includes('clinic')) {
+                return '#e83e8c';           // Розовый
+            } else if (cleanGroup.includes('торговый центр') || cleanGroup.includes('mall')) {
+                return '#ffc107';           // Желтый
+            } else if (cleanGroup.includes('жилой комплекс') || cleanGroup.includes('residential')) {
+                return '#6c757d';           // Серый
+            }
+            
+            // Если не удалось определить, используем автоматический цвет
+            console.log('Неизвестная группа:', groupName, '-> используем автоматический цвет');
+            return '#17a2b8'; // Голубой для неизвестных групп
+        }
+        
+        // Автоматическая цветовая схема для комбинированного режима
+        function getClusterColor(cluster, allClusters) {
+            const clusterIndex = allClusters.indexOf(cluster);
+            const colors = [
+                '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
+                '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
+                '#a6cee3', '#fb9a99', '#fdbf6f', '#cab2d6', '#ffff99',
+                '#b15928', '#fdb462', '#b3de69', '#fccde5', '#d9d9d9'
+            ];
+            
+            if (clusterIndex < colors.length) {
+                return colors[clusterIndex];
+            }
+            
+            // Генерируем дополнительные цвета если нужно больше
+            const hue = (clusterIndex * 137.508) % 360; // Золотой угол для равномерного распределения
+            return `hsl(${hue}, 70%, 60%)`;
+        }
+        
+        // Показать/скрыть загрузку
+        function showLoading(show) {
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const chart = document.getElementById('3dChart');
+            
+            if (show) {
+                loadingSpinner.style.display = 'block';
+                chart.style.display = 'none';
+            } else {
+                loadingSpinner.style.display = 'none';
+            }
+        }
+        
+        // Показать ошибку
+        function showError(message) {
+            const chartContainer = document.getElementById('3dChart');
+            chartContainer.innerHTML = `
+                <div class="alert alert-danger" role="alert">
+                    <i class="fas fa-exclamation-triangle"></i> ${message}
+                </div>
+            `;
+            chartContainer.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

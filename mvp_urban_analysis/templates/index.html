@@ -316,6 +316,13 @@
                     <i class="fas fa-city"></i>
                     Анализ данных городской среды
                 </h1>
+                
+                <!-- Навигация по модулям -->
+                <div class="text-center mb-3">
+                    <a href="/embeddings" class="btn btn-outline-primary">
+                        <i class="fas fa-brain"></i> Управление эмбеддингами
+                    </a>
+                </div>
             </div>
         </div>
 
@@ -698,6 +705,10 @@
                                 <input type="radio" class="btn-check" name="viewMode" id="dbTableView" value="dbTable">
                                 <label class="btn btn-outline-primary btn-sm" for="dbTableView">
                                     <i class="fas fa-database"></i> Таблица БД
+                                </label>
+                                <input type="radio" class="btn-check" name="viewMode" id="embeddingsView" value="embeddings">
+                                <label class="btn btn-outline-primary btn-sm" for="embeddingsView">
+                                    <i class="fas fa-brain"></i> Эмбеддинги
                                 </label>
                             </div>
                         </div>
@@ -2846,6 +2857,7 @@
             const sentimentTableView = document.getElementById('sentimentTableView');
             const correlationHeatmapView = document.getElementById('correlationHeatmapView');
             const dbTableView = document.getElementById('dbTableView');
+            const embeddingsView = document.getElementById('embeddingsView');
             const resultsTable = document.getElementById('resultsTable');
             const chartContainer = document.getElementById('chartContainer');
             const sentimentTable = document.getElementById('sentimentTable');
@@ -2918,6 +2930,23 @@
                     if (architectureSchema) architectureSchema.style.display = 'none';
                     if (completenessFilterSection) completenessFilterSection.style.display = 'none';
                     loadDbTableData();
+                });
+            }
+            
+            if (embeddingsView) {
+                embeddingsView.addEventListener('change', function() {
+                    // Скрываем все другие представления
+                    if (resultsTable) resultsTable.style.display = 'none';
+                    if (chartContainer) chartContainer.style.display = 'none';
+                    if (sentimentTable) sentimentTable.style.display = 'none';
+                    if (correlationHeatmap) correlationHeatmap.style.display = 'none';
+                    if (masterRatingTable) masterRatingTable.style.display = 'none';
+                    if (architectureSchema) architectureSchema.style.display = 'none';
+                    if (completenessFilterSection) completenessFilterSection.style.display = 'none';
+                    if (methodFilterSection) methodFilterSection.style.display = 'none';
+                    
+                    // Перенаправляем на страницу эмбеддингов
+                    window.location.href = '/embeddings';
                 });
             }
             

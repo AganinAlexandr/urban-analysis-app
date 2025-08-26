@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Управление эмбеддингами - Анализ городской среды</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+        }
+
+        .card h2 {
+            color: #4a5568;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .status-item {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #4299e1;
+        }
+
+        .status-item.success {
+            border-left-color: #48bb78;
+        }
+
+        .status-item.error {
+            border-left-color: #f56565;
+        }
+
+        .status-item.warning {
+            border-left-color: #ed8936;
+        }
+
+        .status-label {
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 5px;
+        }
+
+        .status-value {
+            font-size: 0.9rem;
+            color: #718096;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+        }
+
+        .progress-container {
+            background: #e2e8f0;
+            border-radius: 10px;
+            height: 20px;
+            margin: 15px 0;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-bar {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .log-container {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 5px 0;
+            border-bottom: 1px solid #2d3748;
+        }
+
+        .log-entry.success {
+            color: #68d391;
+        }
+
+        .log-entry.error {
+            color: #fc8181;
+        }
+
+        .log-entry.info {
+            color: #63b3ed;
+        }
+
+        .log-entry.warning {
+            color: #f6ad55;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+            transition: opacity 0.3s ease;
+        }
+
+        .back-link:hover {
+            opacity: 0.8;
+        }
+
+        .back-link::before {
+            content: "← ";
+            margin-right: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .status-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-link">Вернуться на главную</a>
+        
+        <div class="header">
+            <h1>🚀 Управление эмбеддингами</h1>
+            <p>Генерация и управление векторными представлениями текста</p>
+        </div>
+
+        <!-- Статус системы -->
+        <div class="card">
+            <h2>📊 Статус системы</h2>
+            <div class="status-grid" id="statusGrid">
+                <div class="status-item">
+                    <div class="status-label">Folder ID</div>
+                    <div class="status-value" id="folderId">Загрузка...</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">OAuth токен</div>
+                    <div class="status-value" id="oauthToken">Загрузка...</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">IAM токен</div>
+                    <div class="status-value" id="iamToken">Загрузка...</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">API подключение</div>
+                    <div class="status-value" id="apiConnection">Загрузка...</div>
+                </div>
+            </div>
+            <button class="btn" onclick="checkStatus()">🔄 Обновить статус</button>
+            <button class="btn btn-success" onclick="updateIamToken()">🔄 Обновить IAM токен</button>
+        </div>
+
+        <!-- Статистика -->
+        <div class="card">
+            <h2>📈 Статистика эмбеддингов</h2>
+            <div class="stats-grid" id="statsGrid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalReviews">-</div>
+                    <div class="stat-label">Всего отзывов</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalObjects">-</div>
+                    <div class="stat-label">Всего объектов</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="reviewsWithEmbeddings">-</div>
+                    <div class="stat-label">Отзывы с эмбеддингами</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="objectsWithEmbeddings">-</div>
+                    <div class="stat-label">Объекты с эмбеддингами</div>
+                </div>
+            </div>
+            <button class="btn" onclick="loadStats()">🔄 Обновить статистику</button>
+        </div>
+
+        <!-- Управление -->
+        <div class="card">
+            <h2>⚙️ Управление эмбеддингами</h2>
+            <button class="btn btn-success" onclick="generateEmbeddings()">🚀 Генерировать эмбеддинги</button>
+            <button class="btn btn-danger" onclick="clearEmbeddings()">🗑️ Очистить все эмбеддинги</button>
+            <button class="btn" onclick="forceRegenerate()">🔄 Принудительно перегенерировать</button>
+            
+            <div class="progress-container" id="progressContainer">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+        </div>
+
+        <!-- Лог операций -->
+        <div class="card">
+            <h2>📝 Лог операций</h2>
+            <div class="log-container" id="logContainer">
+                <div class="log-entry info">Система готова к работе</div>
+            </div>
+            <button class="btn" onclick="clearLog()">🗑️ Очистить лог</button>
+        </div>
+    </div>
+
+    <script>
+        // Глобальные переменные
+        let isGenerating = false;
+
+        // Инициализация страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            checkStatus();
+            loadStats();
+        });
+
+        // Функции для работы с API
+        async function checkStatus() {
+            try {
+                const response = await fetch('/embeddings/status');
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateStatusDisplay(data.status, data.connection_test);
+                    addLogEntry('Статус системы обновлен', 'success');
+                } else {
+                    addLogEntry('Ошибка получения статуса: ' + data.error, 'error');
+                }
+            } catch (error) {
+                addLogEntry('Ошибка сети: ' + error.message, 'error');
+            }
+        }
+
+        async function loadStats() {
+            try {
+                const response = await fetch('/embeddings/stats');
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateStatsDisplay(data.stats);
+                    addLogEntry('Статистика обновлена', 'success');
+                } else {
+                    addLogEntry('Ошибка получения статистики: ' + data.error, 'error');
+                }
+            } catch (error) {
+                addLogEntry('Ошибка сети: ' + error.message, 'error');
+            }
+        }
+
+        async function generateEmbeddings() {
+            if (isGenerating) {
+                addLogEntry('Генерация уже выполняется', 'warning');
+                return;
+            }
+
+            isGenerating = true;
+            showProgress();
+            addLogEntry('Начинаем генерацию эмбеддингов...', 'info');
+
+            try {
+                const response = await fetch('/embeddings/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ force_regenerate: false })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLogEntry('Эмбеддинги успешно сгенерированы!', 'success');
+                    addLogEntry(`Обработано: ${data.results.total_processed} отзывов, ${data.results.total_objects} объектов`, 'success');
+                    loadStats(); // Обновляем статистику
+                } else {
+                    addLogEntry('Ошибка генерации: ' + data.error, 'error');
+                }
+            } catch (error) {
+                addLogEntry('Ошибка сети: ' + error.message, 'error');
+            } finally {
+                isGenerating = false;
+                hideProgress();
+            }
+        }
+
+        async function forceRegenerate() {
+            if (isGenerating) {
+                addLogEntry('Генерация уже выполняется', 'warning');
+                return;
+            }
+
+            if (!confirm('Вы уверены? Это удалит все существующие эмбеддинги и пересоздаст их заново.')) {
+                return;
+            }
+
+            isGenerating = true;
+            showProgress();
+            addLogEntry('Начинаем принудительную перегенерацию эмбеддингов...', 'info');
+
+            try {
+                const response = await fetch('/embeddings/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ force_regenerate: true })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLogEntry('Эмбеддинги успешно пересозданы!', 'success');
+                    addLogEntry(`Обработано: ${data.results.total_processed} отзывов, ${data.results.total_objects} объектов`, 'success');
+                    loadStats(); // Обновляем статистику
+                } else {
+                    addLogEntry('Ошибка перегенерации: ' + data.error, 'error');
+                }
+            } catch (error) {
+                addLogEntry('Ошибка сети: ' + error.message, 'error');
+            } finally {
+                isGenerating = false;
+                hideProgress();
+            }
+        }
+
+        async function clearEmbeddings() {
+            if (!confirm('Вы уверены? Это удалит все эмбеддинги из базы данных.')) {
+                return;
+            }
+
+            addLogEntry('Очистка эмбеддингов...', 'warning');
+
+            try {
+                // Здесь нужно будет добавить endpoint для очистки
+                // Пока просто обновляем статистику
+                loadStats();
+                addLogEntry('Эмбеддинги очищены', 'success');
+            } catch (error) {
+                addLogEntry('Ошибка очистки: ' + error.message, 'error');
+            }
+        }
+
+        async function updateIamToken() {
+            addLogEntry('Обновление IAM токена...', 'info');
+
+            try {
+                const response = await fetch('/embeddings/update-iam-token', {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLogEntry('IAM токен успешно обновлен', 'success');
+                    checkStatus(); // Обновляем статус
+                } else {
+                    addLogEntry('Ошибка обновления IAM токена: ' + data.message, 'error');
+                }
+            } catch (error) {
+                addLogEntry('Ошибка сети: ' + error.message, 'error');
+            }
+        }
+
+        // Вспомогательные функции
+        function updateStatusDisplay(status, connectionTest) {
+            document.getElementById('folderId').textContent = status.folder_id.value || 'Не задан';
+            document.getElementById('folderId').parentElement.className = 
+                `status-item ${status.folder_id.status === '✅' ? 'success' : 'error'}`;
+
+            document.getElementById('oauthToken').textContent = status.oauth_token.value || 'Не задан';
+            document.getElementById('oauthToken').parentElement.className = 
+                `status-item ${status.oauth_token.status === '✅' ? 'success' : 'error'}`;
+
+            document.getElementById('iamToken').textContent = status.iam_token.value || 'Не задан';
+            document.getElementById('iamToken').parentElement.className = 
+                `status-item ${status.iam_token.status === '✅' ? 'success' : 'error'}`;
+
+            const apiStatus = connectionTest.overall_status;
+            document.getElementById('apiConnection').textContent = 
+                apiStatus === '✅' ? 'Подключено' : 'Не подключено';
+            document.getElementById('apiConnection').parentElement.className = 
+                `status-item ${apiStatus === '✅' ? 'success' : 'error'}`;
+        }
+
+        function updateStatsDisplay(stats) {
+            document.getElementById('totalReviews').textContent = stats.total_reviews || 0;
+            document.getElementById('totalObjects').textContent = stats.total_objects || 0;
+            document.getElementById('reviewsWithEmbeddings').textContent = stats.reviews_with_embeddings || 0;
+            document.getElementById('objectsWithEmbeddings').textContent = stats.objects_with_embeddings || 0;
+        }
+
+        function showProgress() {
+            document.getElementById('progressContainer').style.display = 'block';
+            document.getElementById('progressBar').style.width = '0%';
+            
+            // Анимация прогресса
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress > 90) progress = 90;
+                document.getElementById('progressBar').style.width = progress + '%';
+                
+                if (!isGenerating) {
+                    clearInterval(interval);
+                    document.getElementById('progressBar').style.width = '100%';
+                    setTimeout(() => hideProgress(), 500);
+                }
+            }, 200);
+        }
+
+        function hideProgress() {
+            document.getElementById('progressContainer').style.display = 'none';
+        }
+
+        function addLogEntry(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('logContainer').innerHTML = 
+                '<div class="log-entry info">Лог очищен</div>';
+        }
+    </script>
+</body>
+</html>

@@ -21,13 +21,17 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Импорт наших модулей
-from app.core.data_processor import DataProcessor
-from app.core.text_analyzer import TextAnalyzer
-from app.core.llm_analysis import LLMAnalyzer
-from app.core.geocoder import MoscowGeocoder
-from app.core.database_fixed import db_manager_fixed
-from app.core.data_migrator import data_migrator
-from app.core.sample_manager import SampleManager
+from applic.core.data_processor import DataProcessor
+from applic.core.text_analyzer import TextAnalyzer
+from applic.core.llm_analysis import LLMAnalyzer
+from applic.core.geocoder import MoscowGeocoder
+from applic.core.database_fixed import db_manager_fixed
+from applic.core.data_migrator import data_migrator
+from applic.core.sample_manager import SampleManager
+
+# Импорт модулей эмбеддингов
+from applic.core.embeddings_service import EmbeddingsService
+from applic.core.embeddings_manager import EmbeddingsManager
 
 def convert_dataframe_for_json(df):
     """
@@ -217,10 +221,117 @@ geocoder = MoscowGeocoder(api_key=geocoder_api_key)
 # Инициализируем менеджер выборок
 sample_manager = SampleManager()
 
+# Инициализируем модули эмбеддингов
+embeddings_service = EmbeddingsService()
+embeddings_manager = EmbeddingsManager()
+
+# ==================== МАРШРУТЫ ДЛЯ ЭМБЕДДИНГОВ ====================
+
+@app.route('/embeddings/status')
+def embeddings_status():
+    """Получение статуса токенов и подключения к API"""
+    try:
+        status = embeddings_service.get_token_status()
+        connection_test = embeddings_service.test_connection()
+        
+        return jsonify({
+            'success': True,
+            'status': status,
+            'connection_test': connection_test
+        })
+    except Exception as e:
+        logger.error(f"Ошибка получения статуса эмбеддингов: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/embeddings/generate', methods=['POST'])
+def generate_embeddings():
+    """Генерация эмбеддингов для всех отзывов и объектов"""
+    try:
+        data = request.get_json()
+        force_regenerate = data.get('force_regenerate', False) if data else False
+        
+        if force_regenerate:
+            # Принудительно перегенерируем все эмбеддинги
+            results = embeddings_manager.force_regenerate_all_embeddings()
+        else:
+            # Генерируем эмбеддинги только для тех, у кого их нет
+            results = embeddings_manager.generate_all_embeddings()
+        
+        return jsonify({
+            'success': True,
+            'results': results,
+            'message': f'Эмбеддинги сгенерированы: {results.get("review_embeddings_generated", 0)} отзывов, {results.get("object_embeddings_generated", 0)} объектов'
+        })
+    except Exception as e:
+        logger.error(f"Ошибка генерации эмбеддингов: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/embeddings/stats')
+def embeddings_stats():
+    """Получение статистики по эмбеддингам"""
+    try:
+        stats = embeddings_manager.get_embeddings_stats()
+        return jsonify({
+            'success': True,
+            'stats': stats
+        })
+    except Exception as e:
+        logger.error(f"Ошибка получения статистики эмбеддингов: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/embeddings/visualization-data')
+def embeddings_visualization_data():
+    """Получение данных для 3D визуализации эмбеддингов"""
+    try:
+        limit = request.args.get('limit', 1000, type=int)
+        data = embeddings_manager.get_embeddings_for_visualization(limit=limit)
+        
+        if not data:
+            return jsonify({
+                'success': False,
+                'message': 'Нет данных эмбеддингов для визуализации'
+            })
+        
+        return jsonify({
+            'success': True,
+            'data': data,
+            'count': len(data)
+        })
+    except Exception as e:
+        logger.error(f"Ошибка получения данных для визуализации: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/embeddings/update-iam-token', methods=['POST'])
+def update_iam_token():
+    """Обновление IAM токена"""
+    try:
+        success = embeddings_service.update_iam_token()
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'IAM токен успешно обновлен'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Не удалось обновить IAM токен'
+            }), 500
+    except Exception as e:
+        logger.error(f"Ошибка обновления IAM токена: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ==================== КОНЕЦ МАРШРУТОВ ДЛЯ ЭМБЕДДИНГОВ ====================
+
 @app.route('/')
 def index():
     """Главная страница"""
     return render_template('index.html')
+
+@app.route('/embeddings')
+def embeddings_page():
+    """Страница управления эмбеддингами"""
+    return render_template('embeddings.html')
 
 @app.route('/upload/detect-group', methods=['POST'])
 def detect_group_from_upload():
@@ -269,7 +380,7 @@ def detect_group_from_upload():
             combined_text = f"{object_name} {address} {' '.join(reviews)}"
             
             # Определяем группу
-            from app.core.district_detector import detect_group_from_text
+            from applic.core.district_detector import detect_group_from_text
             detected_group = detect_group_from_text(combined_text)
             
             logger.info(f"Определена группа: {detected_group} для объекта: {object_name}")
@@ -463,8 +574,8 @@ def upload_file():
         if not group and not detected_group:
             print("🔍 Группы не указаны, анализируем данные...")
             # Импортируем утилиты для работы с группами
-            from app.core.group_utils import normalize_group_name, get_russian_group_name
-            from app.core.data_normalizer import DataNormalizer
+            from applic.core.group_utils import normalize_group_name, get_russian_group_name
+            from applic.core.data_normalizer import DataNormalizer
             
             logger.info("Анализируем поля групп в данных...")
             print("🔍 Анализируем поля групп в данных...")
@@ -509,7 +620,7 @@ def upload_file():
             
             # Определяем группу на основе всего текста
             try:
-                from app.core.district_detector import detect_group_from_text
+                from applic.core.district_detector import detect_group_from_text
                 
                 # Отладочная информация
                 print(f"🔍 ДИАГНОСТИКА: Длина объединенного текста: {len(combined_text)}")
@@ -695,7 +806,7 @@ def upload_file():
             logger.info("Сохраняем в БД...")
             try:
                 # Импортируем db_manager_fixed
-                from app.core.database_fixed import db_manager_fixed
+                from applic.core.database_fixed import db_manager_fixed
                 
                 # Сохраняем данные в БД
                 print(f"📊 Сохраняем {len(analyzed_df)} записей в БД...")
@@ -1154,7 +1265,7 @@ def get_map_data():
         print(f"🔍 len(active_filters): {len(active_filters)}")
 
         # Импортируем утилиты для работы с группами
-        from app.core.group_utils import get_russian_group_name
+        from applic.core.group_utils import get_russian_group_name
 
         # Определяем источник данных
         if data_source == 'sample':
@@ -1334,8 +1445,8 @@ def get_map_data():
 
 def get_point_color(row, color_scheme, sentiment_method, group_type='supplier'):
     """Определяет цвет точки на карте"""
-    from app.core.config import SENTIMENT_CONFIG, GROUP_CONFIG
-    from app.core.group_utils import get_english_group_name
+    from applic.core.config import SENTIMENT_CONFIG, GROUP_CONFIG
+    from applic.core.group_utils import get_english_group_name
     
     # В режиме "Определенные" всегда используем цвет по группе
     if group_type == 'determined':
@@ -1371,7 +1482,7 @@ def get_sentiment_value(row, sentiment_method):
         rating = row.get('rating')
         logger.info(f"user_rating: rating={rating}, sentiment_method={sentiment_method}")
         if rating and pd.notna(rating):
-            from app.core.config import SENTIMENT_CONFIG
+            from applic.core.config import SENTIMENT_CONFIG
             result = SENTIMENT_CONFIG['rating_to_sentiment'].get(int(rating), 'удовлетворительно')
             logger.info(f"user_rating result: {result}")
             return result
@@ -1454,7 +1565,7 @@ def clear_sample():
 def clean_database():
     """Очистка базы данных от дублирующихся данных"""
     try:
-        from app.core.db_cleaner import DatabaseCleaner
+        from applic.core.db_cleaner import DatabaseCleaner
         
         cleaner = DatabaseCleaner()
         result = cleaner.clean_all_duplicates()
@@ -1472,7 +1583,7 @@ def clean_database():
 def validate_data():
     """Валидация загруженных данных"""
     try:
-        from app.core.data_validator import DataValidator
+        from applic.core.data_validator import DataValidator
         
         if 'file' not in request.files:
             return jsonify({'success': False, 'error': 'Файл не загружен'}), 400
@@ -1518,7 +1629,7 @@ def validate_data():
 def optimize_database():
     """Оптимизация базы данных"""
     try:
-        from app.core.db_cleaner import DatabaseCleaner
+        from applic.core.db_cleaner import DatabaseCleaner
         
         cleaner = DatabaseCleaner()
         
@@ -2395,7 +2506,7 @@ def get_correlation_data():
                     # Для user_rating используем рейтинг
                     rating = review_data['rating']
                     if rating and pd.notna(rating):
-                        from app.core.config import SENTIMENT_CONFIG
+                        from applic.core.config import SENTIMENT_CONFIG
                         sentiment = SENTIMENT_CONFIG['rating_to_sentiment'].get(int(rating), 'удовлетворительно')
                         # Преобразуем в числовое значение
                         if sentiment == 'положительный':
@@ -2987,7 +3098,7 @@ def get_method_correlation_data():
                 # Добавляем user_rating
                 if rating and pd.notna(rating):
                     try:
-                        from app.core.config import SENTIMENT_CONFIG
+                        from applic.core.config import SENTIMENT_CONFIG
                         sentiment_rating = SENTIMENT_CONFIG['rating_to_sentiment'].get(int(rating), 'удовлетворительно')
                     except ImportError:
                         # Fallback если конфиг недоступен
@@ -3346,7 +3457,7 @@ def detect_group():
         logger.info(f"Определение группы для объекта: {object_name}")
         
         # Используем существующую логику определения группы
-        from app.core.district_detector import detect_group_from_text
+        from applic.core.district_detector import detect_group_from_text
         
         # Объединяем всю информацию для лучшего определения
         combined_text = f"{object_name} {address} {reviews}"

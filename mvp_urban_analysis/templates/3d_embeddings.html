@@ -362,8 +362,19 @@
         function updateStats() {
             document.getElementById('totalRecords').textContent = currentData.length;
             
-            const uniqueClusters = new Set(currentData.map(item => item.cluster));
-            document.getElementById('totalClusters').textContent = uniqueClusters.size;
+            let totalClusters;
+            if (currentMode === 'groups') {
+                // В режиме "Группы" считаем уникальные группы + уникальные объекты
+                const uniqueGroups = new Set(currentData.map(item => item.group_name));
+                const uniqueObjects = new Set(currentData.map(item => item.object_name));
+                totalClusters = uniqueGroups.size + uniqueObjects.size;
+            } else {
+                // В других режимах считаем уникальные кластеры
+                const uniqueClusters = new Set(currentData.map(item => item.cluster));
+                totalClusters = uniqueClusters.size;
+            }
+            
+            document.getElementById('totalClusters').textContent = totalClusters;
             
             // Обновляем режим и статус
             document.getElementById('currentMode').textContent = getModeDisplayName(currentMode);
@@ -455,47 +466,113 @@
             const uniqueClusters = [...new Set(data.map(item => item.cluster))];
             
             // Создаем данные для Plotly
-            const plotData = uniqueClusters.map((cluster) => {
-                const clusterData = data.filter(item => item.cluster === cluster);
+            let plotData = [];
+            
+            if (currentMode === 'groups') {
+                // В режиме "Группы" показываем ВСЕ вектора
                 
-                // Определяем цвет в зависимости от режима кластеризации
-                let markerColor;
-                if (currentMode === 'sentiment') {
-                    // Для сентиментов используем фиксированные цвета
-                    markerColor = getSentimentColor(cluster);
-                    console.log(`Кластер сентимента: "${cluster}" -> цвет: ${markerColor}`);
-                } else if (currentMode === 'groups') {
-                    // Для групп используем цвета как на карте
-                    markerColor = getGroupColor(cluster);
-                    console.log(`Кластер группы: "${cluster}" -> цвет: ${markerColor}`);
-                } else {
-                    // Для комбинированного режима используем автоматическую палитру
-                    markerColor = getClusterColor(cluster, uniqueClusters);
-                    console.log(`Комбинированный кластер: "${cluster}" -> цвет: ${markerColor}`);
-                }
+                                 // 1. Сначала добавляем review_embedding (мелкие маркеры)
+                 uniqueClusters.forEach((cluster) => {
+                     const clusterData = data.filter(item => item.cluster === cluster);
+                     const markerColor = getGroupColor(cluster);
+                     
+                     // Фильтруем только записи с review_embedding
+                     const reviewData = clusterData.filter(item => item.review_embedding);
+                     if (reviewData.length > 0) {
+                         plotData.push({
+                             x: reviewData.map(item => item.review_embedding[0]),
+                             y: reviewData.map(item => item.review_embedding[1]),
+                             z: reviewData.map(item => item.review_embedding[2]),
+                             mode: 'markers',
+                             type: 'scatter3d',
+                             name: cluster, // Только название группы
+                             marker: {
+                                 size: 5,
+                                 color: markerColor,
+                                 opacity: 0.8
+                             },
+                             text: reviewData.map(item => 
+                                 `Отзыв: ${item.review_text.substring(0, 100)}...<br>` +
+                                 `Объект: ${item.object_name}<br>` +
+                                 `Группа: ${item.group_name}<br>` +
+                                 `Сентимент: ${item.sentiment}<br>` +
+                                 `Рейтинг: ${item.rating}`
+                             ),
+                             hovertemplate: '<b>%{text}</b><extra></extra>'
+                         });
+                     }
+                 });
+                 
+                 // 2. Затем добавляем object_embedding (крупные маркеры) - БЕЗ отображения в легенде
+                 const uniqueObjects = [...new Set(data.map(item => item.object_name))];
+                 uniqueObjects.forEach((objectName) => {
+                     const objectData = data.filter(item => item.object_name === objectName && item.object_embedding);
+                     if (objectData.length > 0) {
+                         const firstItem = objectData[0]; // Берем первую запись объекта
+                         const markerColor = getGroupColor(firstItem.group_name);
+                         
+                         plotData.push({
+                             x: [firstItem.object_embedding[0]],
+                             y: [firstItem.object_embedding[1]],
+                             z: [firstItem.object_embedding[2]],
+                             mode: 'markers',
+                             type: 'scatter3d',
+                             name: '', // Пустое имя - не будет отображаться в легенде
+                             showlegend: false, // Скрываем из легенды
+                             marker: {
+                                 size: 12,
+                                 color: markerColor,
+                                 opacity: 0.9,
+                                 symbol: 'diamond' // Ромб для отличия от отзывов
+                             },
+                             text: [`Объект: ${objectName}<br>Группа: ${firstItem.group_name}`],
+                             hovertemplate: '<b>%{text}</b><extra></extra>'
+                         });
+                     }
+                 });
                 
-                return {
-                    x: clusterData.map(item => item.review_embedding ? item.review_embedding[0] : 0),
-                    y: clusterData.map(item => item.review_embedding ? item.review_embedding[1] : 0),
-                    z: clusterData.map(item => item.review_embedding ? item.review_embedding[2] : 0),
-                    mode: 'markers',
-                    type: 'scatter3d',
-                    name: cluster,
-                    marker: {
-                        size: 5,
-                        color: markerColor,
-                        opacity: 0.8
-                    },
-                    text: clusterData.map(item => 
-                        `Отзыв: ${item.review_text.substring(0, 100)}...<br>` +
-                        `Объект: ${item.object_name}<br>` +
-                        `Группа: ${item.group_name}<br>` +
-                        `Сентимент: ${item.sentiment}<br>` +
-                        `Рейтинг: ${item.rating}`
-                    ),
-                    hovertemplate: '<b>%{text}</b><extra></extra>'
-                };
-            });
+            } else {
+                // В режимах "Сентимент" и "Группы+Сентимент" показываем только review_embedding
+                uniqueClusters.forEach((cluster) => {
+                    const clusterData = data.filter(item => item.cluster === cluster);
+                    
+                    // Определяем цвет в зависимости от режима кластеризации
+                    let markerColor;
+                    if (currentMode === 'sentiment') {
+                        markerColor = getSentimentColor(cluster);
+                        console.log(`Кластер сентимента: "${cluster}" -> цвет: ${markerColor}`);
+                    } else {
+                        markerColor = getClusterColor(cluster, uniqueClusters);
+                        console.log(`Комбинированный кластер: "${cluster}" -> цвет: ${markerColor}`);
+                    }
+                    
+                    // Фильтруем только записи с review_embedding
+                    const reviewData = clusterData.filter(item => item.review_embedding);
+                    if (reviewData.length > 0) {
+                        plotData.push({
+                            x: reviewData.map(item => item.review_embedding[0]),
+                            y: reviewData.map(item => item.review_embedding[1]),
+                            z: reviewData.map(item => item.review_embedding[2]),
+                            mode: 'markers',
+                            type: 'scatter3d',
+                            name: cluster,
+                            marker: {
+                                size: 5,
+                                color: markerColor,
+                                opacity: 0.8
+                            },
+                            text: reviewData.map(item => 
+                                `Отзыв: ${item.review_text.substring(0, 100)}...<br>` +
+                                `Объект: ${item.object_name}<br>` +
+                                `Группа: ${item.group_name}<br>` +
+                                `Сентимент: ${item.sentiment}<br>` +
+                                `Рейтинг: ${item.rating}`
+                            ),
+                            hovertemplate: '<b>%{text}</b><extra></extra>'
+                        });
+                    }
+                });
+            }
             
             // Настройки макета
             const layout = {
